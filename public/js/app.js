@@ -93,16 +93,47 @@ function appendMessage(role, text) {
   return row;
 }
 
+/** Show a "thinking" bubble and lock the composer while the answer is generated. */
+function setLoading(isLoading) {
+  els.sendButton.disabled = isLoading;
+  els.questionInput.readOnly = isLoading;
+  els.messages.setAttribute('aria-busy', String(isLoading));
+  els.sendButton.innerHTML = isLoading
+    ? '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>'
+    : '<i class="bi bi-send-fill"></i>';
+
+  document.getElementById('typingIndicator')?.remove();
+  if (isLoading) {
+    const row = document.createElement('div');
+    row.className = 'message message-assistant';
+    row.id = 'typingIndicator';
+    row.innerHTML = `
+      <span class="message-avatar" aria-hidden="true"><i class="bi bi-journal-text"></i></span>
+      <div class="message-bubble typing" role="status">
+        <span class="typing-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span class="typing-label">Reading your documents…</span>
+      </div>`;
+    els.messages.append(row);
+    scrollToBottom();
+  }
+}
+
 async function sendQuestion(question) {
   const recentHistory = history.slice(-MAX_HISTORY_SENT);
   appendMessage('user', question);
   history.push({ role: 'user', content: question });
   saveHistory();
 
-  const { answer } = await askQuestion(question, recentHistory);
-  appendMessage('assistant', answer);
-  history.push({ role: 'assistant', content: answer });
-  saveHistory();
+  setLoading(true);
+  try {
+    const { answer } = await askQuestion(question, recentHistory);
+    setLoading(false);
+    appendMessage('assistant', answer);
+    history.push({ role: 'assistant', content: answer });
+    saveHistory();
+  } finally {
+    setLoading(false);
+  }
 }
 
 function renderHistory() {
@@ -117,7 +148,7 @@ function autoGrow() {
 els.chatForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const question = els.questionInput.value.trim();
-  if (!question) return;
+  if (!question || els.sendButton.disabled) return;
   els.questionInput.value = '';
   autoGrow();
   await sendQuestion(question);
