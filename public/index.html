@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DocChat · Ask your documents</title>
+  <meta name="description" content="Upload PDF, DOCX, TXT or CSV files and ask questions answered only from their content.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Sidebar: documents (offcanvas on small screens) -->
+    <aside class="offcanvas-lg offcanvas-start sidebar" tabindex="-1" id="sidebar" aria-labelledby="sidebarTitle">
+      <div class="offcanvas-header d-lg-none">
+        <h2 class="offcanvas-title h5" id="sidebarTitle">Your documents</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Close"></button>
+      </div>
+      <div class="offcanvas-body d-flex flex-column gap-3 p-3">
+        <div class="brand d-none d-lg-flex align-items-center gap-2">
+          <span class="brand-mark" aria-hidden="true"><i class="bi bi-journal-text"></i></span>
+          <span class="brand-name">DocChat</span>
+        </div>
+
+        <section aria-labelledby="uploadTitle">
+          <h2 id="uploadTitle" class="section-title">Add documents</h2>
+          <input type="file" id="fileInput" class="visually-hidden" multiple
+                 accept=".pdf,.docx,.txt,.csv,application/pdf,text/plain,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+          <label for="fileInput" class="dropzone" id="dropzone">
+            <i class="bi bi-cloud-arrow-up fs-3" aria-hidden="true"></i>
+            <span class="fw-semibold">Choose files or drop them here</span>
+            <small class="text-body-secondary">PDF, DOCX, TXT or CSV</small>
+          </label>
+        </section>
+      </div>
+    </aside>
+
+    <!-- Main chat area -->
+    <main class="chat">
+      <header class="chat-header">
+        <button class="btn btn-icon d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Open documents">
+          <i class="bi bi-layout-sidebar"></i>
+        </button>
+        <div class="me-auto">
+          <h1 class="chat-title">Ask your documents</h1>
+          <p class="chat-subtitle mb-0">Answers come only from the files you upload.</p>
+        </div>
+      </header>
+
+      <div class="messages" id="messages" role="log" aria-live="polite" aria-relevant="additions">
+        <div class="empty-state" id="emptyState">
+          <i class="bi bi-chat-square-text" aria-hidden="true"></i>
+          <h2>Upload a document to get started</h2>
+          <p>Add a PDF, Word file, text file or spreadsheet, then ask anything about it.</p>
+        </div>
+      </div>
+
+      <form class="composer" id="chatForm" novalidate>
+        <label for="questionInput" class="visually-hidden">Your question</label>
+        <textarea id="questionInput" class="form-control composer-input" rows="1"
+                  placeholder="Ask a question about your documents" maxlength="2000"></textarea>
+        <button type="submit" class="btn btn-primary btn-send" id="sendButton" aria-label="Send question">
+          <i class="bi bi-send-fill"></i>
+        </button>
+      </form>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
