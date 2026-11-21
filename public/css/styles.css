@@ -217,3 +217,52 @@ body {
 }
 .upload-status.is-success { background: color-mix(in srgb, #1f8a4c 12%, transparent); }
 .upload-status.is-error { background: var(--dc-danger-bg); color: var(--dc-danger-ink); }
+
+/* Messages */
+.message {
+  display: flex;
+  gap: 0.6rem;
+  max-width: 48rem;
+  width: 100%;
+}
+.message-user {
+  flex-direction: row-reverse;
+  margin-left: auto;
+}
+.message-avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+  background: var(--dc-surface);
+  border: 1px solid var(--dc-line);
+  color: var(--dc-muted);
+}
+.message-assistant .message-avatar {
+  background: var(--dc-highlight);
+  border-color: transparent;
+  color: var(--dc-highlight-ink);
+}
+.message-bubble {
+  padding: 0.7rem 0.95rem;
+  border-radius: var(--dc-radius-lg);
+  min-width: 0;
+  max-width: min(40rem, 85%);
+}
+.message-user .message-bubble {
+  background: var(--dc-user-bubble);
+  color: var(--dc-primary-ink);
+  border-top-right-radius: 6px;
+}
+.message-assistant .message-bubble {
+  background: var(--dc-ai-bubble);
+  border: 1px solid var(--dc-line);
+  border-top-left-radius: 6px;
+}
+.message-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

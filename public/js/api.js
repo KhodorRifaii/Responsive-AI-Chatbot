@@ -32,3 +32,11 @@ export function uploadDocuments(files) {
 export function getDocuments() {
   return request('/api/documents');
 }
+
+export function askQuestion(question) {
+  return request('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question }),
+  });
+}

@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import config from './config.js';
 import documentsRouter from './routes/documents.js';
+import chatRouter from './routes/chat.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -20,6 +21,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/documents', documentsRouter);
+app.use('/api/chat', chatRouter);
 
 // Central error handler: always answer with a JSON { error } message.
 app.use((error, req, res, next) => {
