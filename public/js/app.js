@@ -37,6 +37,28 @@ els.fileInput.addEventListener('change', () => handleFiles(els.fileInput.files))
 
 // ---- Chat ----
 
+// Conversation for this browser session: [{ role: 'user' | 'assistant', content }]
+const HISTORY_KEY = 'docchat-history';
+const MAX_HISTORY_SENT = 6;
+let history = loadHistory();
+
+function loadHistory() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(HISTORY_KEY));
+    return Array.isArray(saved) ? saved : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory() {
+  try {
+    sessionStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  } catch {
+    // Storage may be unavailable (private mode); history still works in memory.
+  }
+}
+
 function scrollToBottom() {
   els.messages.scrollTop = els.messages.scrollHeight;
 }
@@ -72,9 +94,19 @@ function appendMessage(role, text) {
 }
 
 async function sendQuestion(question) {
+  const recentHistory = history.slice(-MAX_HISTORY_SENT);
   appendMessage('user', question);
-  const { answer } = await askQuestion(question);
+  history.push({ role: 'user', content: question });
+  saveHistory();
+
+  const { answer } = await askQuestion(question, recentHistory);
   appendMessage('assistant', answer);
+  history.push({ role: 'assistant', content: answer });
+  saveHistory();
+}
+
+function renderHistory() {
+  for (const message of history) appendMessage(message.role, message.content);
 }
 
 function autoGrow() {
@@ -99,3 +131,5 @@ els.questionInput.addEventListener('keydown', (event) => {
   }
 });
 els.questionInput.addEventListener('input', autoGrow);
+
+renderHistory();

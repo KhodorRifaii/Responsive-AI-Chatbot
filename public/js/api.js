@@ -33,10 +33,10 @@ export function getDocuments() {
   return request('/api/documents');
 }
 
-export function askQuestion(question) {
+export function askQuestion(question, history = []) {
   return request('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, history }),
   });
 }
