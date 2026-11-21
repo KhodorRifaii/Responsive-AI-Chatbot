@@ -206,3 +206,14 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* Upload status */
+.upload-status {
+  margin: 0.75rem 0 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--dc-radius-sm);
+  font-size: 0.92rem;
+  background: color-mix(in srgb, var(--dc-primary) 8%, transparent);
+}
+.upload-status.is-success { background: color-mix(in srgb, #1f8a4c 12%, transparent); }
+.upload-status.is-error { background: var(--dc-danger-bg); color: var(--dc-danger-ink); }
