@@ -29,11 +29,11 @@
         <section aria-labelledby="uploadTitle">
           <h2 id="uploadTitle" class="section-title">Add documents</h2>
           <input type="file" id="fileInput" class="visually-hidden" multiple
-                 accept=".txt,text/plain">
+                 accept=".pdf,.docx,.txt,.csv,application/pdf,text/plain,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
           <label for="fileInput" class="dropzone" id="dropzone">
             <i class="bi bi-cloud-arrow-up fs-3" aria-hidden="true"></i>
             <span class="fw-semibold">Choose files or drop them here</span>
-            <small class="text-body-secondary">Plain text (.txt)</small>
+            <small class="text-body-secondary">PDF, DOCX, TXT or CSV</small>
           </label>
           <p class="upload-status" id="uploadStatus" role="status" hidden></p>
         </section>

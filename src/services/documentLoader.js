@@ -1,9 +1,12 @@
 import path from 'node:path';
+import mammoth from 'mammoth';
+import Papa from 'papaparse';
+import { PDFParse } from 'pdf-parse';
 import { Document } from '@langchain/core/documents';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import config from '../config.js';
 
-export const SUPPORTED_EXTENSIONS = ['.txt'];
+export const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.txt', '.csv'];
 
 export function getExtension(fileName) {
   return path.extname(fileName).toLowerCase();
@@ -13,12 +16,46 @@ export function isSupportedFile(fileName) {
   return SUPPORTED_EXTENSIONS.includes(getExtension(fileName));
 }
 
+async function parsePdf(buffer) {
+  const parser = new PDFParse({ data: new Uint8Array(buffer) });
+  try {
+    const result = await parser.getText();
+    return result.pages.map((page) => ({ text: page.text, page: page.num }));
+  } finally {
+    await parser.destroy();
+  }
+}
+
+async function parseDocx(buffer) {
+  const { value } = await mammoth.extractRawText({ buffer });
+  return [{ text: value }];
+}
+
 function parseTxt(buffer) {
   return [{ text: buffer.toString('utf8') }];
 }
 
+function parseCsv(buffer) {
+  const { data, meta } = Papa.parse(buffer.toString('utf8'), {
+    header: true,
+    skipEmptyLines: 'greedy',
+  });
+  const fields = meta.fields ?? [];
+  // One line per row ("column: value; ...") so each chunk keeps its column names.
+  const lines = data.map((row, index) => {
+    const cells = fields
+      .filter((field) => String(row[field] ?? '').trim() !== '')
+      .map((field) => `${field}: ${String(row[field]).trim()}`);
+    return cells.length ? `Row ${index + 1}: ${cells.join('; ')}` : '';
+  });
+  return [{ text: lines.filter(Boolean).join('\n') }];
+}
+
 const parsers = {
+  '.pdf': parsePdf,
+  '.docx': parseDocx,
   '.txt': parseTxt,
+  '.csv': parseCsv,
 };
 
 /**
