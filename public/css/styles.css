@@ -327,3 +327,37 @@ body {
   .composer-error { padding-left: 2rem; padding-right: 2rem; }
   .setup-alert { margin-left: 2rem; margin-right: 2rem; }
 }
+
+/* Sources under each answer: excerpts look like highlighted passages */
+.sources {
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--dc-line);
+  font-size: 0.92rem;
+}
+.sources summary {
+  cursor: pointer;
+  color: var(--dc-primary);
+  font-weight: 600;
+  width: fit-content;
+}
+.sources-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  display: grid;
+  gap: 0.6rem;
+}
+.source-name { font-weight: 600; overflow-wrap: anywhere; }
+.source-chunk { color: var(--dc-muted); margin-left: 0.4rem; font-size: 0.85rem; }
+.source-excerpt {
+  display: block;
+  margin-top: 0.25rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--dc-highlight) 55%, transparent);
+  color: inherit;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  line-height: 1.5;
+}

@@ -99,8 +99,38 @@ function scrollToBottom() {
   els.messages.scrollTop = els.messages.scrollHeight;
 }
 
+/** Collapsible list of the document excerpts an answer was based on. */
+function renderSources(sources) {
+  const details = document.createElement('details');
+  details.className = 'sources';
+
+  const summary = document.createElement('summary');
+  summary.textContent = sources.length === 1 ? 'Source: 1 excerpt' : `Sources: ${sources.length} excerpts`;
+  details.append(summary);
+
+  const list = document.createElement('ol');
+  list.className = 'sources-list';
+  for (const item of sources) {
+    const li = document.createElement('li');
+    const name = document.createElement('span');
+    name.className = 'source-name';
+    name.innerHTML = '<i class="bi bi-file-earmark-text" aria-hidden="true"></i> ';
+    name.append(item.page ? `${item.source}, page ${item.page}` : item.source);
+    const where = document.createElement('span');
+    where.className = 'source-chunk';
+    where.textContent = `part ${item.chunk}`;
+    const excerpt = document.createElement('mark');
+    excerpt.className = 'source-excerpt';
+    excerpt.textContent = item.excerpt;
+    li.append(name, where, excerpt);
+    list.append(li);
+  }
+  details.append(list);
+  return details;
+}
+
 /** Render one chat message. role: "user" | "assistant" | "error". */
-function appendMessage(role, text) {
+function appendMessage(role, text, sources = []) {
   els.emptyState.hidden = true;
 
   const row = document.createElement('div');
@@ -125,6 +155,7 @@ function appendMessage(role, text) {
   body.textContent = text;
 
   bubble.append(label, body);
+  if (role === 'assistant' && sources.length) bubble.append(renderSources(sources));
   row.append(avatar, bubble);
   els.messages.append(row);
   scrollToBottom();
@@ -157,17 +188,17 @@ function setLoading(isLoading) {
 }
 
 async function sendQuestion(question) {
-  const recentHistory = history.slice(-MAX_HISTORY_SENT);
+  const recentHistory = history.slice(-MAX_HISTORY_SENT).map(({ role, content }) => ({ role, content }));
   appendMessage('user', question);
   history.push({ role: 'user', content: question });
   saveHistory();
 
   setLoading(true);
   try {
-    const { answer } = await askQuestion(question, recentHistory);
+    const { answer, sources = [] } = await askQuestion(question, recentHistory);
     setLoading(false);
-    appendMessage('assistant', answer);
-    history.push({ role: 'assistant', content: answer });
+    appendMessage('assistant', answer, sources);
+    history.push({ role: 'assistant', content: answer, sources });
     saveHistory();
   } catch (error) {
     setLoading(false);
@@ -186,7 +217,7 @@ async function sendQuestion(question) {
 }
 
 function renderHistory() {
-  for (const message of history) appendMessage(message.role, message.content);
+  for (const message of history) appendMessage(message.role, message.content, message.sources);
 }
 
 function autoGrow() {

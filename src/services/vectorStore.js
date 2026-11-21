@@ -40,6 +40,7 @@ export function hasDocuments() {
   return documents.size > 0;
 }
 
+/** Top-k chunks with their cosine similarity score: [[Document, score], ...] */
 export async function search(query, k = config.topK) {
-  return store.similaritySearch(query, k);
+  return store.similaritySearchWithScore(query, k);
 }

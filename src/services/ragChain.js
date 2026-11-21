@@ -38,6 +38,35 @@ export function createLlm() {
   });
 }
 
+// A chunk is shown as a source only if it is clearly related to the question.
+const MIN_SOURCE_SCORE = 0.2;
+const RELATIVE_SOURCE_SCORE = 0.7;
+
+/** Short, de-duplicated list of the relevant chunks used for an answer. */
+function toSources(results) {
+  const best = results[0]?.[1] ?? 0;
+  const threshold = Math.max(MIN_SOURCE_SCORE, best * RELATIVE_SOURCE_SCORE);
+  const seen = new Set();
+  return results
+    .filter(([, score]) => score >= threshold)
+    .map(([chunk]) => chunk)
+    .filter((chunk) => {
+      const key = `${chunk.metadata.docId}:${chunk.metadata.chunk}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((chunk) => {
+      const text = chunk.pageContent.replace(/\s+/g, ' ').trim();
+      return {
+        source: chunk.metadata.source,
+        page: chunk.metadata.page ?? null,
+        chunk: chunk.metadata.chunk,
+        excerpt: text.length > 280 ? `${text.slice(0, 280)}…` : text,
+      };
+    });
+}
+
 function formatContext(chunks) {
   return chunks
     .map((chunk, index) => {
@@ -100,9 +129,10 @@ export async function answerQuestion({ question, history = [], llm }) {
   const model = llm ?? createLlm();
 
   const chatHistory = toChatHistory(history);
-  const chunks = await search(buildSearchQuery(question, chatHistory), config.topK);
+  const results = await search(buildSearchQuery(question, chatHistory), config.topK);
+  const chunks = results.map(([chunk]) => chunk);
   if (chunks.length === 0) {
-    return { answer: NOT_FOUND_ANSWER };
+    return { answer: NOT_FOUND_ANSWER, sources: [] };
   }
 
   const chain = prompt.pipe(model).pipe(new StringOutputParser());
@@ -116,5 +146,8 @@ export async function answerQuestion({ question, history = [], llm }) {
   } catch (error) {
     throw toLlmError(error);
   }
-  return { answer: answer.trim() || NOT_FOUND_ANSWER };
+  answer = answer.trim() || NOT_FOUND_ANSWER;
+  // When the answer is not in the documents, there is no source to show.
+  const sources = answer.includes(NOT_FOUND_ANSWER) ? [] : toSources(results);
+  return { answer, sources };
 }
