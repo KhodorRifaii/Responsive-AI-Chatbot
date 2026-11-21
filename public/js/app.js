@@ -1,4 +1,4 @@
-import { uploadDocuments, askQuestion, getHealth } from './api.js';
+import { uploadDocuments, askQuestion, getHealth, getDocuments } from './api.js';
 
 const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.txt', '.csv'];
 const MAX_FILE_SIZE_MB = 10;
@@ -14,7 +14,52 @@ const els = {
   sendButton: document.getElementById('sendButton'),
   questionError: document.getElementById('questionError'),
   setupAlert: document.getElementById('setupAlert'),
+  docsList: document.getElementById('docsList'),
+  docsCount: document.getElementById('docsCount'),
+  docsEmpty: document.getElementById('docsEmpty'),
 };
+
+// ---- Documents list ----
+
+const FILE_ICONS = { pdf: 'bi-file-earmark-pdf', docx: 'bi-file-earmark-word', txt: 'bi-file-earmark-text', csv: 'bi-file-earmark-spreadsheet' };
+
+function formatSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function renderDocuments(documents) {
+  els.docsList.replaceChildren(...documents.map((doc) => {
+    const extension = doc.name.split('.').pop().toLowerCase();
+    const li = document.createElement('li');
+    li.className = 'doc-item';
+    li.innerHTML = `<i class="bi ${FILE_ICONS[extension] ?? 'bi-file-earmark'}" aria-hidden="true"></i>`;
+    const text = document.createElement('div');
+    text.className = 'doc-text';
+    const name = document.createElement('span');
+    name.className = 'doc-name';
+    name.textContent = doc.name;
+    name.title = doc.name;
+    const meta = document.createElement('span');
+    meta.className = 'doc-meta';
+    meta.textContent = `${formatSize(doc.size)}, ${doc.chunks} ${doc.chunks === 1 ? 'part' : 'parts'}`;
+    text.append(name, meta);
+    li.append(text);
+    return li;
+  }));
+  els.docsCount.textContent = String(documents.length);
+  els.docsEmpty.hidden = documents.length > 0;
+}
+
+async function refreshDocuments() {
+  try {
+    const { documents } = await getDocuments();
+    renderDocuments(documents);
+  } catch {
+    // The list is informative only; upload errors are shown elsewhere.
+  }
+}
 
 function setUploadStatus(message, type = 'info') {
   els.uploadStatus.textContent = message;
@@ -66,6 +111,7 @@ async function handleFiles(fileList) {
     setUploadStatus(error.message, 'error');
   } finally {
     els.fileInput.value = '';
+    refreshDocuments();
   }
 }
 
@@ -259,6 +305,7 @@ els.questionInput.addEventListener('input', () => {
 });
 
 renderHistory();
+refreshDocuments();
 
 // Warn early when the server has no Gemini key.
 getHealth()
