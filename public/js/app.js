@@ -17,7 +17,34 @@ const els = {
   docsList: document.getElementById('docsList'),
   docsCount: document.getElementById('docsCount'),
   docsEmpty: document.getElementById('docsEmpty'),
+  themeToggle: document.getElementById('themeToggle'),
 };
+
+// ---- Theme (light / dark), remembered in localStorage ----
+
+const THEME_KEY = 'docchat-theme';
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-bs-theme', theme);
+  const next = theme === 'dark' ? 'light' : 'dark';
+  const label = `Switch to ${next} mode`;
+  els.themeToggle.setAttribute('aria-label', label);
+  els.themeToggle.title = label;
+  els.themeToggle.innerHTML = `<i class="bi ${theme === 'dark' ? 'bi-sun' : 'bi-moon-stars'}"></i>`;
+}
+
+els.themeToggle.addEventListener('click', () => {
+  const current = document.documentElement.getAttribute('data-bs-theme');
+  const theme = current === 'dark' ? 'light' : 'dark';
+  applyTheme(theme);
+  try {
+    localStorage.setItem(THEME_KEY, theme);
+  } catch {
+    // Storage unavailable: the theme still changes for this visit.
+  }
+});
+
+applyTheme(document.documentElement.getAttribute('data-bs-theme') || 'light');
 
 // ---- Documents list ----
 
