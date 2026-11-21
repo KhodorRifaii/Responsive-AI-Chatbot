@@ -52,6 +52,11 @@
         </div>
       </header>
 
+      <div class="setup-alert" id="setupAlert" role="alert" hidden>
+        <i class="bi bi-key" aria-hidden="true"></i>
+        <span>The AI is not set up yet. Add <code>GOOGLE_API_KEY</code> to the <code>.env</code> file and restart the server. You can still upload documents.</span>
+      </div>
+
       <div class="messages" id="messages" role="log" aria-live="polite" aria-relevant="additions">
         <div class="empty-state" id="emptyState">
           <i class="bi bi-chat-square-text" aria-hidden="true"></i>
@@ -60,10 +65,12 @@
         </div>
       </div>
 
+      <p class="composer-error" id="questionError" role="alert" hidden></p>
       <form class="composer" id="chatForm" novalidate>
         <label for="questionInput" class="visually-hidden">Your question</label>
         <textarea id="questionInput" class="form-control composer-input" rows="1"
-                  placeholder="Ask a question about your documents" maxlength="2000"></textarea>
+                  placeholder="Ask a question about your documents" maxlength="2000"
+                  aria-describedby="questionError"></textarea>
         <button type="submit" class="btn btn-primary btn-send" id="sendButton" aria-label="Send question">
           <i class="bi bi-send-fill"></i>
         </button>

@@ -1,4 +1,7 @@
-import { uploadDocuments, askQuestion } from './api.js';
+import { uploadDocuments, askQuestion, getHealth } from './api.js';
+
+const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.txt', '.csv'];
+const MAX_FILE_SIZE_MB = 10;
 
 const els = {
   fileInput: document.getElementById('fileInput'),
@@ -9,6 +12,8 @@ const els = {
   chatForm: document.getElementById('chatForm'),
   questionInput: document.getElementById('questionInput'),
   sendButton: document.getElementById('sendButton'),
+  questionError: document.getElementById('questionError'),
+  setupAlert: document.getElementById('setupAlert'),
 };
 
 function setUploadStatus(message, type = 'info') {
@@ -17,15 +22,46 @@ function setUploadStatus(message, type = 'info') {
   els.uploadStatus.hidden = !message;
 }
 
+/** Check files in the browser first so obvious problems get an instant message. */
+function validateFiles(files) {
+  const problems = [];
+  const valid = files.filter((file) => {
+    const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    if (!SUPPORTED_EXTENSIONS.includes(extension)) {
+      problems.push(`"${file.name}" is not supported. Upload a PDF, DOCX, TXT or CSV file.`);
+      return false;
+    }
+    if (file.size === 0) {
+      problems.push(`"${file.name}" is empty.`);
+      return false;
+    }
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      problems.push(`"${file.name}" is larger than ${MAX_FILE_SIZE_MB} MB.`);
+      return false;
+    }
+    return true;
+  });
+  return { valid, problems };
+}
+
 async function handleFiles(fileList) {
-  const files = [...fileList];
-  if (files.length === 0) return;
+  const { valid: files, problems } = validateFiles([...fileList]);
+  if (files.length === 0) {
+    if (problems.length) setUploadStatus(problems.join(' '), 'error');
+    els.fileInput.value = '';
+    return;
+  }
 
   setUploadStatus(`Reading ${files.length === 1 ? files[0].name : `${files.length} files`}…`);
   try {
-    const { documents } = await uploadDocuments(files);
+    const { documents, errors = [] } = await uploadDocuments(files);
     const names = documents.map((doc) => doc.name).join(', ');
-    setUploadStatus(`Ready: ${names}. Ask a question below.`, 'success');
+    const skipped = [...problems, ...errors.map((e) => e.error)];
+    if (skipped.length) {
+      setUploadStatus(`Ready: ${names}. Skipped: ${skipped.join(' ')}`, 'warning');
+    } else {
+      setUploadStatus(`Ready: ${names}. Ask a question below.`, 'success');
+    }
   } catch (error) {
     setUploadStatus(error.message, 'error');
   } finally {
@@ -63,7 +99,7 @@ function scrollToBottom() {
   els.messages.scrollTop = els.messages.scrollHeight;
 }
 
-/** Render one chat message. role: "user" | "assistant". */
+/** Render one chat message. role: "user" | "assistant" | "error". */
 function appendMessage(role, text) {
   els.emptyState.hidden = true;
 
@@ -73,14 +109,16 @@ function appendMessage(role, text) {
   const avatar = document.createElement('span');
   avatar.className = 'message-avatar';
   avatar.setAttribute('aria-hidden', 'true');
-  avatar.innerHTML = role === 'user' ? '<i class="bi bi-person"></i>' : '<i class="bi bi-journal-text"></i>';
+  const icons = { user: 'bi-person', assistant: 'bi-journal-text', error: 'bi-exclamation-triangle' };
+  avatar.innerHTML = `<i class="bi ${icons[role]}"></i>`;
 
   const bubble = document.createElement('div');
   bubble.className = 'message-bubble';
 
   const label = document.createElement('span');
   label.className = 'visually-hidden';
-  label.textContent = role === 'user' ? 'You said: ' : 'DocChat answered: ';
+  const labels = { user: 'You said: ', assistant: 'DocChat answered: ', error: 'Error: ' };
+  label.textContent = labels[role];
 
   const body = document.createElement('div');
   body.className = 'message-text';
@@ -131,6 +169,17 @@ async function sendQuestion(question) {
     appendMessage('assistant', answer);
     history.push({ role: 'assistant', content: answer });
     saveHistory();
+  } catch (error) {
+    setLoading(false);
+    // Failed turns are not kept in history; the question goes back in the box to retry.
+    history.pop();
+    saveHistory();
+    appendMessage('error', error.message);
+    if (!els.questionInput.value) {
+      els.questionInput.value = question;
+      autoGrow();
+    }
+    if (error.code === 'MISSING_API_KEY') els.setupAlert.hidden = false;
   } finally {
     setLoading(false);
   }
@@ -145,10 +194,22 @@ function autoGrow() {
   els.questionInput.style.height = `${els.questionInput.scrollHeight}px`;
 }
 
+function showQuestionError(message) {
+  els.questionError.textContent = message;
+  els.questionError.hidden = !message;
+  els.questionInput.classList.toggle('is-invalid', Boolean(message));
+}
+
 els.chatForm.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (els.sendButton.disabled) return;
   const question = els.questionInput.value.trim();
-  if (!question || els.sendButton.disabled) return;
+  if (!question) {
+    showQuestionError('Type a question first.');
+    els.questionInput.focus();
+    return;
+  }
+  showQuestionError('');
   els.questionInput.value = '';
   autoGrow();
   await sendQuestion(question);
@@ -161,6 +222,14 @@ els.questionInput.addEventListener('keydown', (event) => {
     els.chatForm.requestSubmit();
   }
 });
-els.questionInput.addEventListener('input', autoGrow);
+els.questionInput.addEventListener('input', () => {
+  autoGrow();
+  if (els.questionInput.value.trim()) showQuestionError('');
+});
 
 renderHistory();
+
+// Warn early when the server has no Gemini key.
+getHealth()
+  .then(({ llmConfigured }) => { els.setupAlert.hidden = llmConfigured; })
+  .catch(() => {});

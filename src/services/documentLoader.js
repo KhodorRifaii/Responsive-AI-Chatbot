@@ -5,6 +5,7 @@ import { PDFParse } from 'pdf-parse';
 import { Document } from '@langchain/core/documents';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import config from '../config.js';
+import { HttpError } from '../utils/httpError.js';
 
 export const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.txt', '.csv'];
 
@@ -67,7 +68,20 @@ const parsers = {
 export async function loadAndSplit(file, docId) {
   const extension = getExtension(file.originalname);
   const parse = parsers[extension];
-  const sections = await parse(file.buffer);
+  if (!parse) {
+    throw new HttpError(415, 'UNSUPPORTED_FILE', `"${file.originalname}" is not supported. Upload a PDF, DOCX, TXT or CSV file.`);
+  }
+  if (!file.buffer?.length) {
+    throw new HttpError(422, 'EMPTY_FILE', `"${file.originalname}" is empty.`);
+  }
+
+  let sections;
+  try {
+    sections = await parse(file.buffer);
+  } catch (error) {
+    console.error(`Failed to parse ${file.originalname}:`, error.message);
+    throw new HttpError(422, 'PARSE_FAILED', `"${file.originalname}" could not be read. The file may be damaged or password-protected.`);
+  }
 
   const pages = sections
     .map((section) => ({ ...section, text: section.text.replace(/\u0000/g, '').trim() }))
@@ -80,6 +94,10 @@ export async function loadAndSplit(file, docId) {
         ...(section.page ? { page: section.page } : {}),
       },
     }));
+
+  if (pages.length === 0) {
+    throw new HttpError(422, 'EMPTY_FILE', `"${file.originalname}" has no readable text. Scanned PDFs (images only) are not supported.`);
+  }
 
   const splitter = new RecursiveCharacterTextSplitter({
     chunkSize: config.chunkSize,

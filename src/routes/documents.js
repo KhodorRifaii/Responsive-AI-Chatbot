@@ -16,10 +16,21 @@ router.post('/', upload.array('files', 10), async (req, res, next) => {
     }
 
     const added = [];
+    const errors = [];
     for (const file of files) {
-      added.push(await addDocument(file));
+      try {
+        added.push(await addDocument(file));
+      } catch (error) {
+        if (!error.status || (error.status >= 500 && error.code !== 'EMBEDDING_FAILED')) throw error;
+        errors.push({ name: file.originalname, error: error.message, code: error.code });
+      }
     }
-    res.status(201).json({ documents: added });
+
+    if (added.length === 0) {
+      const [first] = errors;
+      return res.status(422).json({ error: errors.map((e) => e.error).join(' '), code: first.code, errors });
+    }
+    res.status(201).json({ documents: added, errors });
   } catch (error) {
     next(error);
   }

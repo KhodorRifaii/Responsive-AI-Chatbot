@@ -40,3 +40,7 @@ export function askQuestion(question, history = []) {
     body: JSON.stringify({ question, history }),
   });
 }
+
+export function getHealth() {
+  return request('/api/health');
+}
