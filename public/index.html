@@ -60,7 +60,11 @@
     </aside>
 
     <!-- Main chat area -->
-    <main class="chat">
+    <main class="chat" id="chatArea">
+      <div class="drop-overlay" id="dropOverlay" hidden>
+        <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+        <span>Drop files to add them to the chat</span>
+      </div>
       <header class="chat-header">
         <button class="btn btn-icon d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Open documents">
           <i class="bi bi-layout-sidebar"></i>
@@ -92,6 +96,9 @@
 
       <p class="composer-error" id="questionError" role="alert" hidden></p>
       <form class="composer" id="chatForm" novalidate>
+        <label for="fileInput" class="btn btn-icon composer-attach" title="Add documents" tabindex="0" role="button" aria-label="Add documents">
+          <i class="bi bi-paperclip"></i>
+        </label>
         <label for="questionInput" class="visually-hidden">Your question</label>
         <textarea id="questionInput" class="form-control composer-input" rows="1"
                   placeholder="Ask a question about your documents" maxlength="2000"

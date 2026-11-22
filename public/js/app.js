@@ -19,6 +19,8 @@ const els = {
   docsEmpty: document.getElementById('docsEmpty'),
   themeToggle: document.getElementById('themeToggle'),
   clearChat: document.getElementById('clearChat'),
+  chatArea: document.getElementById('chatArea'),
+  dropOverlay: document.getElementById('dropOverlay'),
 };
 
 // ---- Theme (light / dark), remembered in localStorage ----
@@ -124,7 +126,10 @@ function validateFiles(files) {
 async function handleFiles(fileList) {
   const { valid: files, problems } = validateFiles([...fileList]);
   if (files.length === 0) {
-    if (problems.length) setUploadStatus(problems.join(' '), 'error');
+    if (problems.length) {
+      setUploadStatus(problems.join(' '), 'error');
+      appendMessage('error', problems.join(' '));
+    }
     els.fileInput.value = '';
     return;
   }
@@ -139,8 +144,11 @@ async function handleFiles(fileList) {
     } else {
       setUploadStatus(`Ready: ${names}. Ask a question below.`, 'success');
     }
+    // New files are searchable right away, no restart needed; tell the user in the chat too.
+    appendNotice(`Added ${names}. You can ask about ${documents.length === 1 ? 'it' : 'them'} now.`);
   } catch (error) {
     setUploadStatus(error.message, 'error');
+    appendMessage('error', error.message);
   } finally {
     els.fileInput.value = '';
     refreshDocuments();
@@ -148,6 +156,45 @@ async function handleFiles(fileList) {
 }
 
 els.fileInput.addEventListener('change', () => handleFiles(els.fileInput.files));
+
+// Drag and drop files anywhere on the page, at any time during the chat.
+let dragDepth = 0;
+function hasFiles(event) {
+  return [...(event.dataTransfer?.types ?? [])].includes('Files');
+}
+function showDropOverlay(show) {
+  els.dropOverlay.hidden = !show;
+  els.dropzone.classList.toggle('is-dragover', show);
+}
+document.addEventListener('dragenter', (event) => {
+  if (!hasFiles(event)) return;
+  event.preventDefault();
+  dragDepth += 1;
+  showDropOverlay(true);
+});
+document.addEventListener('dragover', (event) => {
+  if (hasFiles(event)) event.preventDefault();
+});
+document.addEventListener('dragleave', (event) => {
+  if (!hasFiles(event)) return;
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) showDropOverlay(false);
+});
+document.addEventListener('drop', (event) => {
+  if (!hasFiles(event)) return;
+  event.preventDefault();
+  dragDepth = 0;
+  showDropOverlay(false);
+  handleFiles(event.dataTransfer.files);
+});
+
+// The paperclip label opens the file picker with Enter/Space too.
+document.querySelector('.composer-attach').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    els.fileInput.click();
+  }
+});
 
 // ---- Chat ----
 
@@ -268,6 +315,18 @@ function setLoading(isLoading) {
     els.messages.append(row);
     scrollToBottom();
   }
+}
+
+/** Small centered note in the chat (not part of the conversation history). */
+function appendNotice(text) {
+  els.emptyState.hidden = true;
+  const note = document.createElement('p');
+  note.className = 'message chat-notice';
+  note.setAttribute('role', 'status');
+  note.innerHTML = '<i class="bi bi-file-earmark-check" aria-hidden="true"></i> ';
+  note.append(text);
+  els.messages.append(note);
+  scrollToBottom();
 }
 
 async function sendQuestion(question) {

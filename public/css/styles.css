@@ -434,3 +434,40 @@ body {
 .doc-meta { font-size: 0.85rem; color: var(--dc-muted); }
 .docs-empty { font-size: 0.92rem; color: var(--dc-muted); margin: 0; }
 .docs-empty[hidden] { display: none; }
+
+/* Add documents during the chat */
+.chat { position: relative; }
+.composer-attach { flex-shrink: 0; width: 46px; height: 46px; border-radius: 14px; cursor: pointer; }
+.chat-notice {
+  align-self: center;
+  justify-content: center;
+  width: auto;
+  max-width: 36rem;
+  margin: 0;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dc-primary) 10%, transparent);
+  color: var(--dc-ink);
+  font-size: 0.9rem;
+  text-align: center;
+  gap: 0.35rem;
+}
+.drop-overlay {
+  position: absolute;
+  inset: 0.75rem;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 3px dashed var(--dc-primary);
+  border-radius: var(--dc-radius-lg);
+  background: color-mix(in srgb, var(--dc-surface) 88%, transparent);
+  color: var(--dc-primary);
+  font-family: var(--dc-font-display);
+  font-size: 1.2rem;
+  pointer-events: none;
+}
+.drop-overlay i { font-size: 2.5rem; }
+.drop-overlay[hidden] { display: none; }
