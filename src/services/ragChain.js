@@ -63,8 +63,38 @@ function pickSourceChunks(results, cited) {
   return results.filter(([, score]) => score >= threshold).map(([chunk]) => chunk);
 }
 
+const EXCERPT_LENGTH = 280;
+const STOP_WORDS = new Set(['the', 'and', 'for', 'are', 'was', 'what', 'which', 'how', 'does', 'did', 'with', 'that', 'this', 'from', 'your', 'you', 'can', 'its', 'has', 'have', 'about', 'there', 'when', 'where', 'who', 'much', 'many']);
+
+function keywords(text) {
+  return new Set((text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).filter((w) => w.length > 2 && !STOP_WORDS.has(w)));
+}
+
+/**
+ * Pick the part of a chunk that matters for this answer: start at the sentence
+ * (or CSV row) sharing the most words with the question and answer.
+ */
+function bestExcerpt(text, focusWords) {
+  const sentences = text.split(/(?<=[.!?])\s+|\n+/).map((x) => x.trim()).filter(Boolean);
+  let bestIndex = 0;
+  let bestScore = 0;
+  sentences.forEach((sentence, index) => {
+    const words = keywords(sentence);
+    let score = 0;
+    for (const word of focusWords) if (words.has(word)) score += 1;
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  });
+  const excerpt = sentences.slice(bestIndex).join(' ');
+  const prefix = bestIndex > 0 ? '…' : '';
+  return excerpt.length > EXCERPT_LENGTH ? `${prefix}${excerpt.slice(0, EXCERPT_LENGTH)}…` : `${prefix}${excerpt}`;
+}
+
 /** Short, de-duplicated list of the chunks an answer was based on. */
-function toSources(chunks) {
+function toSources(chunks, focusText = '') {
+  const focusWords = keywords(focusText);
   const seen = new Set();
   return chunks
     .filter((chunk) => {
@@ -74,12 +104,11 @@ function toSources(chunks) {
       return true;
     })
     .map((chunk) => {
-      const text = chunk.pageContent.replace(/\s+/g, ' ').trim();
       return {
         source: chunk.metadata.source,
         page: chunk.metadata.page ?? null,
         chunk: chunk.metadata.chunk,
-        excerpt: text.length > 280 ? `${text.slice(0, 280)}…` : text,
+        excerpt: bestExcerpt(chunk.pageContent, focusWords),
       };
     });
 }
@@ -166,6 +195,6 @@ export async function answerQuestion({ question, history = [], llm }) {
   const { answer: text, cited } = splitCitations(answer);
   const finalAnswer = text || NOT_FOUND_ANSWER;
   // When the answer is not in the documents, there is no source to show.
-  const sources = finalAnswer.includes(NOT_FOUND_ANSWER) ? [] : toSources(pickSourceChunks(results, cited));
+  const sources = finalAnswer.includes(NOT_FOUND_ANSWER) ? [] : toSources(pickSourceChunks(results, cited), `${question}\n${finalAnswer}`);
   return { answer: finalAnswer, sources };
 }
