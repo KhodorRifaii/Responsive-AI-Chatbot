@@ -96,7 +96,8 @@ export async function loadAndSplit(file, docId) {
     }));
 
   if (pages.length === 0) {
-    throw new HttpError(422, 'EMPTY_FILE', `"${file.originalname}" has no readable text. Scanned PDFs (images only) are not supported.`);
+    const hint = extension === '.pdf' ? ' Scanned PDFs (images only) are not supported.' : '';
+    throw new HttpError(422, 'EMPTY_FILE', `"${file.originalname}" has no readable text.${hint}`);
   }
 
   const splitter = new RecursiveCharacterTextSplitter({
