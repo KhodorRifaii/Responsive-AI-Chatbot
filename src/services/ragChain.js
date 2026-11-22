@@ -18,6 +18,8 @@ Rules:
 - Be concise and clear. Use short lists when they help.
 - Answer in the same language as the question.
 - Use the earlier conversation only to understand follow-up questions; facts must still come from the context.
+- End with one last line listing the numbers of the context excerpts you used, like: SOURCES: 1, 3
+  If you could not find the answer, end with: SOURCES: none
 
 Context:
 {context}`;
@@ -39,18 +41,32 @@ export function createLlm() {
   });
 }
 
-// A chunk is shown as a source only if it is clearly related to the question.
+// Fallback when the model does not cite: show chunks clearly related to the question.
 const MIN_SOURCE_SCORE = 0.2;
 const RELATIVE_SOURCE_SCORE = 0.7;
+const SOURCES_LINE = /\n?[ \t]*\**SOURCES:?\**:?[ \t]*([^\n]*)\s*$/i;
 
-/** Short, de-duplicated list of the relevant chunks used for an answer. */
-function toSources(results) {
+/** Split the model output into the answer and the context numbers it cited (null = no SOURCES line). */
+export function splitCitations(output) {
+  const match = output.match(SOURCES_LINE);
+  if (!match) return { answer: output.trim(), cited: null };
+  const cited = [...match[1].matchAll(/\d+/g)].map((m) => Number(m[0]));
+  return { answer: output.slice(0, match.index).trim(), cited };
+}
+
+function pickSourceChunks(results, cited) {
+  if (cited) {
+    return cited.map((n) => results[n - 1]?.[0]).filter(Boolean);
+  }
   const best = results[0]?.[1] ?? 0;
   const threshold = Math.max(MIN_SOURCE_SCORE, best * RELATIVE_SOURCE_SCORE);
+  return results.filter(([, score]) => score >= threshold).map(([chunk]) => chunk);
+}
+
+/** Short, de-duplicated list of the chunks an answer was based on. */
+function toSources(chunks) {
   const seen = new Set();
-  return results
-    .filter(([, score]) => score >= threshold)
-    .map(([chunk]) => chunk)
+  return chunks
     .filter((chunk) => {
       const key = `${chunk.metadata.docId}:${chunk.metadata.chunk}`;
       if (seen.has(key)) return false;
@@ -147,8 +163,9 @@ export async function answerQuestion({ question, history = [], llm }) {
   } catch (error) {
     throw toLlmError(error);
   }
-  answer = answer.trim() || NOT_FOUND_ANSWER;
+  const { answer: text, cited } = splitCitations(answer);
+  const finalAnswer = text || NOT_FOUND_ANSWER;
   // When the answer is not in the documents, there is no source to show.
-  const sources = answer.includes(NOT_FOUND_ANSWER) ? [] : toSources(results);
-  return { answer, sources };
+  const sources = finalAnswer.includes(NOT_FOUND_ANSWER) ? [] : toSources(pickSourceChunks(results, cited));
+  return { answer: finalAnswer, sources };
 }
