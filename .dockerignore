@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+node_modules
+.cache
+.git
+.gitignore
+.DS_Store
+npm-debug.log*
+uploads
+Dockerfile
+.dockerignore
