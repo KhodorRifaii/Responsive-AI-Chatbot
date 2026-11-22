@@ -20,7 +20,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY --chown=node:node . .
 
 # Download the embedding model at build time so the first upload is fast.
-RUN node --input-type=module -e "const { LocalEmbeddings } = await import('./src/services/embeddings.js'); await new LocalEmbeddings({ model: process.env.EMBEDDING_MODEL || 'Xenova/all-MiniLM-L6-v2' }).embedQuery('warm up'); console.log('Embedding model cached');"
+RUN node --input-type=module -e "const { default: c } = await import('./src/config.js'); const { LocalEmbeddings } = await import('./src/services/embeddings.js'); await new LocalEmbeddings({ model: c.embeddingModel, dtype: c.embeddingDtype, threads: c.embeddingThreads }).embedQuery('warm up'); console.log('Embedding model cached:', c.embeddingModel, c.embeddingDtype);"
 
 EXPOSE 7860
 

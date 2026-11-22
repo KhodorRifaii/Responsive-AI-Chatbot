@@ -5,7 +5,11 @@ import { loadAndSplit } from './documentLoader.js';
 import config from '../config.js';
 import { HttpError } from '../utils/httpError.js';
 
-const embeddings = new LocalEmbeddings({ model: config.embeddingModel });
+const embeddings = new LocalEmbeddings({
+  model: config.embeddingModel,
+  dtype: config.embeddingDtype,
+  threads: config.embeddingThreads,
+});
 const store = new MemoryVectorStore(embeddings);
 
 /** Uploaded documents for this server session, newest last. */

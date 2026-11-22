@@ -13,16 +13,21 @@ env.cacheDir = path.join(__dirname, '..', '..', '.cache', 'models');
  * The model is downloaded once from the Hugging Face Hub, then cached.
  */
 export class LocalEmbeddings extends Embeddings {
-  constructor({ model = 'Xenova/all-MiniLM-L6-v2', batchSize = 16, ...rest } = {}) {
+  constructor({ model = 'Xenova/all-MiniLM-L6-v2', dtype = 'q8', threads = 1, batchSize = 16, ...rest } = {}) {
     super(rest);
     this.model = model;
+    this.dtype = dtype;
+    this.threads = threads;
     this.batchSize = batchSize;
     this.extractorPromise = null;
   }
 
   getExtractor() {
     if (!this.extractorPromise) {
-      this.extractorPromise = pipeline('feature-extraction', this.model, { dtype: 'fp32' })
+      this.extractorPromise = pipeline('feature-extraction', this.model, {
+        dtype: this.dtype,
+        session_options: { intraOpNumThreads: this.threads, interOpNumThreads: 1 },
+      })
         .catch((error) => {
           this.extractorPromise = null;
           throw error;
