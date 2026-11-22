@@ -32,12 +32,23 @@ async function parseDocx(buffer) {
   return [{ text: value }];
 }
 
+/** Text from a buffer, honouring UTF-16 byte order marks (Windows "Unicode" files) and UTF-8 ones. */
+function decodeText(buffer) {
+  if (buffer[0] === 0xff && buffer[1] === 0xfe) return buffer.subarray(2).toString('utf16le');
+  if (buffer[0] === 0xfe && buffer[1] === 0xff) {
+    const swapped = Buffer.from(buffer.subarray(2));
+    return swapped.swap16().toString('utf16le');
+  }
+  const text = buffer.toString('utf8');
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
 function parseTxt(buffer) {
-  return [{ text: buffer.toString('utf8') }];
+  return [{ text: decodeText(buffer) }];
 }
 
 function parseCsv(buffer) {
-  const { data, meta } = Papa.parse(buffer.toString('utf8'), {
+  const { data, meta } = Papa.parse(decodeText(buffer), {
     header: true,
     skipEmptyLines: 'greedy',
   });
