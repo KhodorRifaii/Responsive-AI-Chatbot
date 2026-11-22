@@ -16,6 +16,7 @@ The chatbot covers the following:
 - Clear error messages for unsupported, empty or damaged files, empty questions, a missing API key and AI service errors
 - The document sources (file name, page for PDFs and an excerpt) behind each answer
 - Several documents at once, with a list of everything uploaded
+- Private documents: each visitor only sees and searches their own files
 - Dark and light mode, remembered in your browser
 - Clear chat history button
 - Add new documents at any time (sidebar, paperclip or drag and drop) without restarting the server
@@ -63,6 +64,7 @@ The backend lives in `src/` and the static frontend in `public/`:
 │   ├── app.js               # Express app, routes and error handler
 │   ├── config.js            # Settings from .env
 │   ├── middleware/
+│   │   ├── session.js       # Per-visitor session cookie
 │   │   └── upload.js        # multer: size limit and file type whitelist
 │   ├── routes/
 │   │   ├── documents.js     # GET and POST /api/documents
@@ -70,7 +72,7 @@ The backend lives in `src/` and the static frontend in `public/`:
 │   ├── services/
 │   │   ├── documentLoader.js  # Parse PDF, DOCX, TXT, CSV and split into chunks
 │   │   ├── embeddings.js      # Local Transformers.js embeddings for LangChain
-│   │   ├── vectorStore.js     # MemoryVectorStore and the uploaded documents list
+│   │   ├── vectorStore.js     # One MemoryVectorStore per session, limits and expiry
 │   │   └── ragChain.js        # Prompt, retrieval, Gemini call and sources
 │   └── utils/
 │       └── httpError.js     # Errors with a status code and a user message
@@ -124,6 +126,10 @@ GEMINI_MODEL=gemini-3.5-flash
 | `EMBEDDING_MODEL` | `Xenova/all-MiniLM-L6-v2` | Local embedding model from the Hugging Face Hub. |
 | `PORT` | `3000` | Server port. |
 | `MAX_FILE_SIZE_MB` | `10` | Maximum size of each uploaded file. |
+| `SESSION_TTL_MINUTES` | `30` | Minutes without activity before a visitor's documents are deleted. |
+| `MAX_SESSIONS` | `100` | Maximum number of visitors with documents at the same time. |
+| `MAX_CHUNKS_PER_SESSION` | `1500` | Maximum text parts per visitor (roughly 1.5 MB of text). |
+| `MAX_TOTAL_CHUNKS` | `5000` | Maximum text parts for all visitors together, to stay within 512 MB of memory. |
 
 If Google retires the model or it becomes slow, set `GEMINI_MODEL` to another one, for example `gemini-flash-latest`, and restart the server.
 
@@ -146,7 +152,7 @@ Follow these steps once the server is running:
 5. Ask follow-up questions; the chatbot remembers the conversation until you close the tab.
 6. Use the trash button to clear the conversation, and the moon or sun button to switch between dark and light mode.
 
-Uploaded documents stay in memory only. The server never saves them to disk, and a restart clears them.
+Uploaded documents stay in memory only and are private to your browser. The server never saves them to disk. Closing the browser ends your access to them, and the server deletes them after 30 minutes without activity or when it restarts. Each visitor can keep up to 10 documents.
 
 ## API
 
@@ -157,7 +163,9 @@ Uploaded documents stay in memory only. The server never saves them to disk, and
 | `POST` | `/api/documents` | `multipart/form-data`, field `files` | `{ documents, errors }` |
 | `POST` | `/api/chat` | `{ question, history: [{ role, content }] }` | `{ answer, sources: [{ source, page, chunk, excerpt }] }` |
 
-Errors return `{ error, code }` with a matching HTTP status, for example `UNSUPPORTED_FILE`, `EMPTY_FILE`, `EMPTY_QUESTION`, `NO_DOCUMENTS` or `MISSING_API_KEY`.
+The server identifies each visitor with an httpOnly session cookie (`docchat_sid`), so every call only sees that visitor's documents.
+
+Errors return `{ error, code }` with a matching HTTP status, for example `UNSUPPORTED_FILE`, `EMPTY_FILE`, `EMPTY_QUESTION`, `NO_DOCUMENTS`, `DOCUMENT_TOO_LARGE`, `TOO_MANY_DOCUMENTS`, `SERVER_BUSY` or `MISSING_API_KEY`.
 
 ## Known limitations
 
@@ -165,5 +173,5 @@ Keep these in mind:
 
 - Scanned PDFs (images without a text layer) have no text to read, so the app rejects them.
 - The vector store lives in memory, so a restart clears your documents. Swap `MemoryVectorStore` for a persistent store to keep them.
-- Everyone using the same server shares the same documents.
+- Very long files (more than about 1.5 MB of text) are rejected so the server stays within its memory limit.
 - English documents and questions work best, because the local embedding model is trained on English.

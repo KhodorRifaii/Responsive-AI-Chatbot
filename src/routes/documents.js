@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import upload from '../middleware/upload.js';
 import { addDocument, listDocuments } from '../services/vectorStore.js';
+import { HttpError } from '../utils/httpError.js';
 
 const router = Router();
 
 router.get('/', (req, res) => {
-  res.json({ documents: listDocuments() });
+  res.json({ documents: listDocuments(req.docSession) });
 });
 
 router.post('/', upload.array('files', 10), async (req, res, next) => {
@@ -15,13 +16,14 @@ router.post('/', upload.array('files', 10), async (req, res, next) => {
       return res.status(400).json({ error: 'Choose at least one file to upload.' });
     }
 
+    const session = req.ensureDocSession();
     const added = [];
     const errors = [];
     for (const file of files) {
       try {
-        added.push(await addDocument(file));
+        added.push(await addDocument(session, file));
       } catch (error) {
-        if (!error.status || (error.status >= 500 && error.code !== 'EMBEDDING_FAILED')) throw error;
+        if (!(error instanceof HttpError)) throw error;
         errors.push({ name: file.originalname, error: error.message, code: error.code });
       }
     }

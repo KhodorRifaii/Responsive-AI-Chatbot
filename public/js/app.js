@@ -418,6 +418,7 @@ async function sendQuestion(question) {
       autoGrow();
     }
     if (error.code === 'MISSING_API_KEY') els.setupAlert.hidden = false;
+    if (error.code === 'NO_DOCUMENTS') refreshDocuments(); // e.g. the session expired
   } finally {
     setLoading(false);
   }

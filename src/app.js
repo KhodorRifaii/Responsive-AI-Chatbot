@@ -6,10 +6,15 @@ import config from './config.js';
 import { HttpError } from './utils/httpError.js';
 import documentsRouter from './routes/documents.js';
 import chatRouter from './routes/chat.js';
+import { sessionMiddleware } from './middleware/session.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
+
+// Render and similar hosts sit behind a proxy; this makes req.secure (Secure cookies) work.
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -22,6 +27,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+app.use('/api', sessionMiddleware);
 app.use('/api/documents', documentsRouter);
 app.use('/api/chat', chatRouter);
 

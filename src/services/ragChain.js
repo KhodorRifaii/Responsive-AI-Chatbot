@@ -151,7 +151,7 @@ function buildSearchQuery(question, history) {
 
 /**
  * Retrieve relevant chunks and ask the LLM to answer from them only.
- * @param {{ question: string, history?: Array<{ role: string, content: string }>, llm?: import('@langchain/core/language_models/chat_models').BaseChatModel }} params
+ * @param {{ question: string, history?: Array<{ role: string, content: string }>, llm?: import('@langchain/core/language_models/chat_models').BaseChatModel, session: object | null }} params
  */
 /** Turn provider errors into short messages the user can act on. */
 function toLlmError(error) {
@@ -173,20 +173,20 @@ function toLlmError(error) {
   return new HttpError(502, 'LLM_ERROR', 'The AI service could not answer right now. Please try again.');
 }
 
-export async function answerQuestion({ question, history = [], llm }) {
+export async function answerQuestion({ question, history = [], llm, session }) {
   if (!question) {
     throw new HttpError(400, 'EMPTY_QUESTION', 'Type a question first.');
   }
   if (question.length > 2000) {
     throw new HttpError(400, 'QUESTION_TOO_LONG', 'Your question is too long. Keep it under 2000 characters.');
   }
-  if (!hasDocuments()) {
-    throw new HttpError(400, 'NO_DOCUMENTS', 'Upload a document first, then ask your question.');
+  if (!hasDocuments(session)) {
+    throw new HttpError(400, 'NO_DOCUMENTS', `Upload a document first, then ask your question. Documents are removed after ${config.sessionTtlMinutes} minutes without activity.`);
   }
   const model = llm ?? createLlm();
 
   const chatHistory = toChatHistory(history);
-  const results = await search(buildSearchQuery(question, chatHistory), config.topK);
+  const results = await search(session, buildSearchQuery(question, chatHistory), config.topK);
   const chunks = results.map(([chunk]) => chunk);
   if (chunks.length === 0) {
     return { answer: NOT_FOUND_ANSWER, sources: [] };

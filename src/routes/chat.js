@@ -7,7 +7,7 @@ router.post('/', async (req, res, next) => {
   try {
     const question = String(req.body?.question ?? '').trim();
     const history = req.body?.history;
-    const result = await answerQuestion({ question, history });
+    const result = await answerQuestion({ question, history, session: req.docSession });
     res.json(result);
   } catch (error) {
     next(error);
