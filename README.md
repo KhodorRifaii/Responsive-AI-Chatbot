@@ -114,16 +114,18 @@ Open `.env` and paste your key:
 
 ```env
 GOOGLE_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-flash-latest
+GEMINI_MODEL=gemini-3.5-flash
 ```
 
 | Variable | Default | Description |
 | --- | --- | --- |
 | `GOOGLE_API_KEY` | (none) | Your Gemini API key. Required for answers. |
-| `GEMINI_MODEL` | `gemini-flash-latest` | Any Gemini model your key can use on the free tier. `gemini-flash-latest` always points to the current Flash model. |
+| `GEMINI_MODEL` | `gemini-3.5-flash` | Any Gemini model your key can use on the free tier. |
 | `EMBEDDING_MODEL` | `Xenova/all-MiniLM-L6-v2` | Local embedding model from the Hugging Face Hub. |
 | `PORT` | `3000` | Server port. |
 | `MAX_FILE_SIZE_MB` | `10` | Maximum size of each uploaded file. |
+
+If Google retires the model or it becomes slow, set `GEMINI_MODEL` to another one, for example `gemini-flash-latest`, and restart the server.
 
 ### 4. Start
 
@@ -164,3 +166,4 @@ Keep these in mind:
 - Scanned PDFs (images without a text layer) have no text to read, so the app rejects them.
 - The vector store lives in memory, so a restart clears your documents. Swap `MemoryVectorStore` for a persistent store to keep them.
 - Everyone using the same server shares the same documents.
+- English documents and questions work best, because the local embedding model is trained on English.
