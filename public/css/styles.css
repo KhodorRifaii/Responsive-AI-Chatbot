@@ -190,6 +190,12 @@ body {
   background: transparent;
 }
 .btn-icon:hover { background: color-mix(in srgb, var(--dc-ink) 6%, transparent); color: var(--dc-ink); }
+/* Bootstrap's .btn focus style has no colour for these plain buttons, so draw our own ring. */
+.btn-icon:focus-visible {
+  outline: 3px solid var(--dc-primary);
+  outline-offset: 2px;
+  box-shadow: none;
+}
 
 .messages {
   flex: 1;
