@@ -31,6 +31,11 @@ app.use('/api', sessionMiddleware);
 app.use('/api/documents', documentsRouter);
 app.use('/api/chat', chatRouter);
 
+// Unknown API routes answer in JSON like every other API error.
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'This API route does not exist.', code: 'NOT_FOUND' });
+});
+
 // Central error handler: always answer with a JSON { error } message.
 app.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {
