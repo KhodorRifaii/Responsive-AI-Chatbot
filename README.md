@@ -1,1 +1,166 @@
-# Responsive-AI-Chatbot
+# Responsive AI Document Chatbot
+
+A chatbot that answers questions about your own documents. Upload PDF, Word, text or CSV files, then ask anything about them. Answers come only from the uploaded content using Retrieval-Augmented Generation (RAG). If the answer is not in your documents, the chatbot says so instead of guessing.
+
+Every tool and service it uses is free.
+
+## Features
+
+The chatbot covers the following:
+
+- Responsive Bootstrap 5 interface that works on phones, tablets and desktops
+- Upload PDF, DOCX, TXT and CSV files (up to 10 MB each, 10 per upload)
+- Chat with clear user and AI messages
+- Conversation history for the browser session; recent messages are sent with each question so follow-up questions work
+- Loading indicator while an answer is generated
+- Clear error messages for unsupported, empty or damaged files, empty questions, a missing API key and AI service errors
+- The document sources (file name, page for PDFs and an excerpt) behind each answer
+- Several documents at once, with a list of everything uploaded
+- Dark and light mode, remembered in your browser
+- Clear chat history button
+- Add new documents at any time (sidebar, paperclip or drag and drop) without restarting the server
+
+## Tech stack
+
+Everything below is free and open source, except the Gemini API, which has a free tier:
+
+| Part | Choice |
+| --- | --- |
+| Backend | Node.js, Express 5 |
+| RAG framework | LangChain.js |
+| Language model | Google Gemini (free tier) via `@langchain/google-genai` |
+| Embeddings | `Xenova/all-MiniLM-L6-v2` running locally with Transformers.js (free, no key) |
+| Vector store | LangChain `MemoryVectorStore` (in memory) |
+| Text splitting | `RecursiveCharacterTextSplitter` (1000 characters, 150 overlap) |
+| File parsing | `pdf-parse` (PDF), `mammoth` (DOCX), `papaparse` (CSV) |
+| Uploads | `multer` (in memory, size limit and file type whitelist) |
+| Frontend | HTML, Bootstrap 5, Bootstrap Icons, vanilla JavaScript |
+
+## How it works
+
+RAG works in five steps:
+
+1. **Upload:** the server extracts the text from each file and splits it into overlapping chunks.
+2. **Embed:** a small embedding model running on your machine turns each chunk into a vector.
+3. **Store:** the vectors go into an in-memory vector store, so new files are searchable right away.
+4. **Ask:** the server embeds your question (plus the previous question, for follow-ups) and retrieves the 4 most similar chunks.
+5. **Answer:** Gemini receives only those chunks, the recent conversation and a strict prompt: use only the context, and reply "I couldn't find that in your uploaded documents." when the answer is not there.
+
+## Project structure
+
+The backend lives in `src/` and the static frontend in `public/`:
+
+```text
+.
+├── public/                  # Frontend (served statically)
+│   ├── index.html           # Chat page (Bootstrap 5)
+│   ├── css/styles.css       # Theme tokens, layout, light and dark mode
+│   └── js/
+│       ├── api.js           # Calls to the backend API
+│       └── app.js           # Chat, uploads, history, theme, errors
+├── src/
+│   ├── server.js            # Starts the HTTP server
+│   ├── app.js               # Express app, routes and error handler
+│   ├── config.js            # Settings from .env
+│   ├── middleware/
+│   │   └── upload.js        # multer: size limit and file type whitelist
+│   ├── routes/
+│   │   ├── documents.js     # GET and POST /api/documents
+│   │   └── chat.js          # POST /api/chat
+│   ├── services/
+│   │   ├── documentLoader.js  # Parse PDF, DOCX, TXT, CSV and split into chunks
+│   │   ├── embeddings.js      # Local Transformers.js embeddings for LangChain
+│   │   ├── vectorStore.js     # MemoryVectorStore and the uploaded documents list
+│   │   └── ragChain.js        # Prompt, retrieval, Gemini call and sources
+│   └── utils/
+│       └── httpError.js     # Errors with a status code and a user message
+├── .env.example
+├── package.json
+└── README.md
+```
+
+## Setup
+
+### Requirements
+
+You need:
+
+- Node.js 20 or newer
+- A free Google Gemini API key
+- An internet connection the first time you upload a file (the embedding model, about 100 MB, downloads once into `.cache/`)
+
+### 1. Get a free Gemini API key
+
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey) and sign in with a Google account.
+2. Click **Create API key** and copy it.
+
+The free tier has daily and per-minute limits that are enough for personal use. No credit card is needed.
+
+### 2. Install
+
+```bash
+git clone https://github.com/KhodorRifaii/Responsive-AI-Chatbot.git
+cd Responsive-AI-Chatbot
+npm install
+```
+
+### 3. Configure
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and paste your key:
+
+```env
+GOOGLE_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `GOOGLE_API_KEY` | (none) | Your Gemini API key. Required for answers. |
+| `GEMINI_MODEL` | `gemini-2.5-flash` | Any Gemini model available on the free tier, for example `gemini-2.5-flash-lite`. |
+| `EMBEDDING_MODEL` | `Xenova/all-MiniLM-L6-v2` | Local embedding model from the Hugging Face Hub. |
+| `PORT` | `3000` | Server port. |
+| `MAX_FILE_SIZE_MB` | `10` | Maximum size of each uploaded file. |
+
+### 4. Start
+
+```bash
+npm start
+```
+
+Open [http://localhost:3000](http://localhost:3000). For development, `npm run dev` restarts the server when you change a file.
+
+## Use the chatbot
+
+Follow these steps once the server is running:
+
+1. Add one or more documents with the upload area in the sidebar, the paperclip next to the question box, or by dropping files on the page. On a phone, open the sidebar with the button at the top left.
+2. Wait for the "Added …" note in the chat.
+3. Type a question and press Enter (Shift+Enter adds a new line).
+4. Open **Sources** under an answer to see which file, page and excerpt it came from.
+5. Ask follow-up questions; the chatbot remembers the conversation until you close the tab.
+6. Use the trash button to clear the conversation, and the moon or sun button to switch between dark and light mode.
+
+Uploaded documents stay in memory only. The server never saves them to disk, and a restart clears them.
+
+## API
+
+| Method | Path | Body | Response |
+| --- | --- | --- | --- |
+| `GET` | `/api/health` | | `{ status, llmConfigured, model }` |
+| `GET` | `/api/documents` | | `{ documents: [{ id, name, size, chunks, uploadedAt }] }` |
+| `POST` | `/api/documents` | `multipart/form-data`, field `files` | `{ documents, errors }` |
+| `POST` | `/api/chat` | `{ question, history: [{ role, content }] }` | `{ answer, sources: [{ source, page, chunk, excerpt }] }` |
+
+Errors return `{ error, code }` with a matching HTTP status, for example `UNSUPPORTED_FILE`, `EMPTY_FILE`, `EMPTY_QUESTION`, `NO_DOCUMENTS` or `MISSING_API_KEY`.
+
+## Known limitations
+
+Keep these in mind:
+
+- Scanned PDFs (images without a text layer) have no text to read, so the app rejects them.
+- The vector store lives in memory, so a restart clears your documents. Swap `MemoryVectorStore` for a persistent store to keep them.
+- Everyone using the same server shares the same documents.
