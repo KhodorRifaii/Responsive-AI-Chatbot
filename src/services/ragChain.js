@@ -38,6 +38,8 @@ export function createLlm() {
     model: config.geminiModel,
     apiKey: config.googleApiKey,
     temperature: 0.2,
+    // Fail fast when Gemini is overloaded instead of retrying for a minute or more.
+    maxRetries: 2,
   });
 }
 
@@ -152,6 +154,9 @@ function toLlmError(error) {
   console.error('LLM error:', text);
   if (status === 429 || /quota|rate.?limit|resource.?exhausted/i.test(text)) {
     return new HttpError(429, 'LLM_RATE_LIMIT', 'The free Gemini limit was reached. Wait a minute and try again.');
+  }
+  if (status === 503 || /overloaded|high demand|unavailable/i.test(text)) {
+    return new HttpError(503, 'LLM_BUSY', 'Gemini is busy right now. Try again in a moment, or set GEMINI_MODEL in .env to another model.');
   }
   if (status === 401 || status === 403 || /api.?key/i.test(text)) {
     return new HttpError(502, 'LLM_AUTH', 'Gemini rejected the API key. Check GOOGLE_API_KEY in your .env file.');
