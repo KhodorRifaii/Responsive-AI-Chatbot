@@ -18,6 +18,7 @@ const els = {
   docsCount: document.getElementById('docsCount'),
   docsEmpty: document.getElementById('docsEmpty'),
   themeToggle: document.getElementById('themeToggle'),
+  clearChat: document.getElementById('clearChat'),
 };
 
 // ---- Theme (light / dark), remembered in localStorage ----
@@ -76,6 +77,10 @@ function renderDocuments(documents) {
     return li;
   }));
   els.docsCount.textContent = String(documents.length);
+  if (documents.length > 0) {
+    document.getElementById('emptyTitle').textContent = 'Ask about your documents';
+    document.getElementById('emptyText').textContent = 'Type a question below. Answers only use what is in your files.';
+  }
   els.docsEmpty.hidden = documents.length > 0;
 }
 
@@ -160,7 +165,12 @@ function loadHistory() {
   }
 }
 
+function updateClearButton() {
+  els.clearChat.disabled = history.length === 0;
+}
+
 function saveHistory() {
+  updateClearButton();
   try {
     sessionStorage.setItem(HISTORY_KEY, JSON.stringify(history));
   } catch {
@@ -291,7 +301,20 @@ async function sendQuestion(question) {
 
 function renderHistory() {
   for (const message of history) appendMessage(message.role, message.content, message.sources);
+  updateClearButton();
 }
+
+function clearChat() {
+  if (els.sendButton.disabled) return; // wait for the current answer
+  if (!window.confirm('Clear the whole conversation? Your uploaded documents stay.')) return;
+  history = [];
+  saveHistory();
+  els.messages.querySelectorAll('.message').forEach((node) => node.remove());
+  els.emptyState.hidden = false;
+  els.questionInput.focus();
+}
+
+els.clearChat.addEventListener('click', clearChat);
 
 function autoGrow() {
   els.questionInput.style.height = 'auto';

@@ -69,6 +69,9 @@
           <h1 class="chat-title">Ask your documents</h1>
           <p class="chat-subtitle mb-0">Answers come only from the files you upload.</p>
         </div>
+        <button class="btn btn-icon" type="button" id="clearChat" aria-label="Clear chat history" title="Clear chat history" disabled>
+          <i class="bi bi-trash3"></i>
+        </button>
         <button class="btn btn-icon" type="button" id="themeToggle" aria-label="Switch to dark mode" title="Switch to dark mode">
           <i class="bi bi-moon-stars"></i>
         </button>
@@ -82,8 +85,8 @@
       <div class="messages" id="messages" role="log" aria-live="polite" aria-relevant="additions">
         <div class="empty-state" id="emptyState">
           <i class="bi bi-chat-square-text" aria-hidden="true"></i>
-          <h2>Upload a document to get started</h2>
-          <p>Add a PDF, Word file, text file or spreadsheet, then ask anything about it.</p>
+          <h2 id="emptyTitle">Upload a document to get started</h2>
+          <p id="emptyText">Add a PDF, Word file, text file or spreadsheet, then ask anything about it.</p>
         </div>
       </div>
 
