@@ -146,6 +146,8 @@ async function handleFiles(fileList) {
     }
     // New files are searchable right away, no restart needed; tell the user in the chat too.
     appendNotice(`Added ${names}. You can ask about ${documents.length === 1 ? 'it' : 'them'} now.`);
+    // The sidebar is hidden on phones, so skipped files are reported in the chat as well.
+    if (skipped.length) appendMessage('error', `Skipped: ${skipped.join(' ')}`);
   } catch (error) {
     setUploadStatus(error.message, 'error');
     appendMessage('error', error.message);
