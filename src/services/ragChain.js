@@ -6,6 +6,8 @@ import config from '../config.js';
 import { search, hasDocuments } from './vectorStore.js';
 import { HttpError } from '../utils/httpError.js';
 
+const MAX_MESSAGE_LENGTH = 2000;
+
 export const NOT_FOUND_ANSWER = "I couldn't find that in your uploaded documents.";
 
 const SYSTEM_PROMPT = `You are a document assistant. Answer the user's question using ONLY the context below.
@@ -137,6 +139,8 @@ function toChatHistory(history) {
   return history
     .filter((m) => (m?.role === 'user' || m?.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
     .slice(-config.maxHistoryMessages)
+    // Same limit as a question, so a tampered history can't send huge prompts to Gemini.
+    .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_MESSAGE_LENGTH) }))
     .map((m) => (m.role === 'user' ? new HumanMessage(m.content) : new AIMessage(m.content)));
 }
 
@@ -177,7 +181,7 @@ export async function answerQuestion({ question, history = [], llm, session }) {
   if (!question) {
     throw new HttpError(400, 'EMPTY_QUESTION', 'Type a question first.');
   }
-  if (question.length > 2000) {
+  if (question.length > MAX_MESSAGE_LENGTH) {
     throw new HttpError(400, 'QUESTION_TOO_LONG', 'Your question is too long. Keep it under 2000 characters.');
   }
   if (!hasDocuments(session)) {
