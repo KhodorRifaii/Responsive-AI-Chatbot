@@ -471,3 +471,18 @@ body {
 }
 .drop-overlay i { font-size: 2.5rem; }
 .drop-overlay[hidden] { display: none; }
+
+/* Formatted AI answers */
+.message-text.is-formatted { white-space: normal; }
+.message-text.is-formatted p { margin: 0 0 0.5rem; }
+.message-text.is-formatted ul,
+.message-text.is-formatted ol { margin: 0 0 0.5rem; padding-left: 1.25rem; }
+.message-text.is-formatted li + li { margin-top: 0.2rem; }
+.message-text.is-formatted > :last-child { margin-bottom: 0; }
+.message-text.is-formatted code {
+  font-size: 0.9em;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--dc-ink) 8%, transparent);
+  color: inherit;
+}

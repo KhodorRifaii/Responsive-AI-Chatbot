@@ -229,6 +229,64 @@ function scrollToBottom() {
   els.messages.scrollTop = els.messages.scrollHeight;
 }
 
+// ---- Minimal, safe Markdown for AI answers (bold, inline code, lists, paragraphs) ----
+
+function escapeHtml(text) {
+  return text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function renderInline(text) {
+  // Escape first, so the model's text can never inject HTML.
+  return escapeHtml(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+
+function renderMarkdown(text) {
+  const html = [];
+  let list = null; // 'ul' | 'ol' | null
+  let paragraph = [];
+
+  const flushParagraph = () => {
+    if (paragraph.length) html.push(`<p>${paragraph.join('<br>')}</p>`);
+    paragraph = [];
+  };
+  const closeList = () => {
+    if (list) html.push(`</${list}>`);
+    list = null;
+  };
+
+  for (const line of text.split('\n')) {
+    const bullet = line.match(/^\s*[-*•]\s+(.*)$/);
+    const numbered = line.match(/^\s*\d+[.)]\s+(.*)$/);
+    const heading = line.match(/^\s*#{1,6}\s+(.*)$/);
+    if (bullet || numbered) {
+      flushParagraph();
+      const type = bullet ? 'ul' : 'ol';
+      if (list !== type) {
+        closeList();
+        html.push(`<${type}>`);
+        list = type;
+      }
+      html.push(`<li>${renderInline((bullet || numbered)[1])}</li>`);
+    } else if (!line.trim()) {
+      flushParagraph();
+      closeList();
+    } else {
+      closeList();
+      if (heading) {
+        flushParagraph();
+        html.push(`<p><strong>${renderInline(heading[1])}</strong></p>`);
+      } else {
+        paragraph.push(renderInline(line.trim()));
+      }
+    }
+  }
+  flushParagraph();
+  closeList();
+  return html.join('');
+}
+
 /** Collapsible list of the document excerpts an answer was based on. */
 function renderSources(sources) {
   const details = document.createElement('details');
@@ -282,7 +340,12 @@ function appendMessage(role, text, sources = []) {
 
   const body = document.createElement('div');
   body.className = 'message-text';
-  body.textContent = text;
+  if (role === 'assistant') {
+    body.classList.add('is-formatted');
+    body.innerHTML = renderMarkdown(text);
+  } else {
+    body.textContent = text;
+  }
 
   bubble.append(label, body);
   if (role === 'assistant' && sources.length) bubble.append(renderSources(sources));
