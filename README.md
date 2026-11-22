@@ -114,13 +114,13 @@ Open `.env` and paste your key:
 
 ```env
 GOOGLE_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-flash-latest
 ```
 
 | Variable | Default | Description |
 | --- | --- | --- |
 | `GOOGLE_API_KEY` | (none) | Your Gemini API key. Required for answers. |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Any Gemini model available on the free tier, for example `gemini-2.5-flash-lite`. |
+| `GEMINI_MODEL` | `gemini-flash-latest` | Any Gemini model your key can use on the free tier. `gemini-flash-latest` always points to the current Flash model. |
 | `EMBEDDING_MODEL` | `Xenova/all-MiniLM-L6-v2` | Local embedding model from the Hugging Face Hub. |
 | `PORT` | `3000` | Server port. |
 | `MAX_FILE_SIZE_MB` | `10` | Maximum size of each uploaded file. |
