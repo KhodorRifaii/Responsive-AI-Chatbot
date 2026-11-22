@@ -69,21 +69,27 @@ const EXCERPT_LENGTH = 280;
 const STOP_WORDS = new Set(['the', 'and', 'for', 'are', 'was', 'what', 'which', 'how', 'does', 'did', 'with', 'that', 'this', 'from', 'your', 'you', 'can', 'its', 'has', 'have', 'about', 'there', 'when', 'where', 'who', 'much', 'many']);
 
 function keywords(text) {
-  return new Set((text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).filter((w) => w.length > 2 && !STOP_WORDS.has(w)));
+  // Numbers always count ("10", "22"); short words and common question words don't.
+  return new Set((text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])
+    .filter((w) => /\d/.test(w) || (w.length > 2 && !STOP_WORDS.has(w))));
 }
 
 /**
  * Pick the part of a chunk that matters for this answer: start at the sentence
- * (or CSV row) sharing the most words with the question and answer.
+ * (or CSV row) sharing the most words with the question and answer. Words that
+ * appear in many sentences of the chunk ("days", "year") count less than rare ones ("sick").
  */
 function bestExcerpt(text, focusWords) {
   const sentences = text.split(/(?<=[.!?])\s+|\n+/).map((x) => x.trim()).filter(Boolean);
+  const sentenceWords = sentences.map(keywords);
+  const frequency = new Map();
+  for (const words of sentenceWords) for (const w of words) frequency.set(w, (frequency.get(w) ?? 0) + 1);
+
   let bestIndex = 0;
   let bestScore = 0;
-  sentences.forEach((sentence, index) => {
-    const words = keywords(sentence);
+  sentenceWords.forEach((words, index) => {
     let score = 0;
-    for (const word of focusWords) if (words.has(word)) score += 1;
+    for (const word of focusWords) if (words.has(word)) score += 1 / frequency.get(word);
     if (score > bestScore) {
       bestScore = score;
       bestIndex = index;
