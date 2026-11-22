@@ -13,7 +13,9 @@ env.cacheDir = path.join(__dirname, '..', '..', '.cache', 'models');
  * The model is downloaded once from the Hugging Face Hub, then cached.
  */
 export class LocalEmbeddings extends Embeddings {
-  constructor({ model = 'Xenova/all-MiniLM-L6-v2', dtype = 'q8', threads = 1, batchSize = 16, ...rest } = {}) {
+  // batchSize 1: onnxruntime keeps the memory of its biggest batch, so small batches keep
+  // memory flat (~350 MB for 1,400 parts vs ~1 GB with 16) at the same speed.
+  constructor({ model = 'Xenova/all-MiniLM-L6-v2', dtype = 'q8', threads = 1, batchSize = 1, ...rest } = {}) {
     super(rest);
     this.model = model;
     this.dtype = dtype;
