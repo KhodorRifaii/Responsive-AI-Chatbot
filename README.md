@@ -78,6 +78,7 @@ The backend lives in `src/` and the static frontend in `public/`:
 │   │   └── ragChain.js        # Prompt, retrieval, Gemini call and sources
 │   └── utils/
 │       └── httpError.js     # Errors with a status code and a user message
+├── test/                    # Automated tests (node:test) and small sample files
 ├── .env.example
 ├── package.json
 └── README.md
@@ -146,6 +147,14 @@ npm start
 ```
 
 Open [http://localhost:3000](http://localhost:3000). For development, `npm run dev` restarts the server when you change a file.
+
+### 5. Run the tests
+
+```bash
+npm test
+```
+
+The tests use Node's built-in test runner, so there is nothing extra to install. They cover the file loaders, private sessions, the memory limits, the rate limits, the SOURCES line and the main API routes. They never call Gemini, but the first run needs the embedding model (downloaded once, like the first upload).
 
 ## Use the chatbot
 
