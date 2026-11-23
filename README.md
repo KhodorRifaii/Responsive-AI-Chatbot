@@ -91,7 +91,7 @@ The backend lives in `src/` and the static frontend in `public/`:
 
 You need:
 
-- Node.js 20 or newer
+- Node.js 22 or newer (`npm test` uses test file patterns that need it)
 - A free Google Gemini API key
 - An internet connection the first time you upload a file (the embedding model, about 100 MB, downloads once into `.cache/`)
 

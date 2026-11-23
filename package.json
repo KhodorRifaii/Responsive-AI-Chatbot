@@ -20,7 +20,7 @@
   "author": "Khodor Rifaii",
   "license": "MIT",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.2",
