@@ -10,17 +10,7 @@
   <link href="vendor/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
   <link href="vendor/bootstrap-icons/1.11.3/bootstrap-icons.min.css" rel="stylesheet">
   <link href="css/styles.css" rel="stylesheet">
-  <script>
-    // Apply the saved theme before the page paints to avoid a flash.
-    (function () {
-      var theme = null;
-      try { theme = localStorage.getItem('docchat-theme'); } catch (e) {}
-      if (theme !== 'light' && theme !== 'dark') {
-        theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      }
-      document.documentElement.setAttribute('data-bs-theme', theme);
-    })();
-  </script>
+  <script src="js/theme-init.js"></script>
 </head>
 <body>
   <div class="app-shell">

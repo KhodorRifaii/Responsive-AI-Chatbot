@@ -20,6 +20,7 @@ The chatbot covers the following:
 - Per-visitor rate limits, so one visitor can't use up the shared free Gemini quota
 - Automatic fallback to a second Gemini model when the main one is out of quota, busy, too slow or retired
 - Dark and light mode, remembered in your browser
+- Security headers: a strict Content Security Policy (only this site, no inline scripts), `nosniff`, no framing, no referrer, HSTS over HTTPS
 - Clear chat history button
 - Add new documents at any time (sidebar, paperclip or drag and drop) without restarting the server
 
@@ -62,6 +63,7 @@ The backend lives in `src/` and the static frontend in `public/`:
 │   ├── vendor/              # Self-hosted Bootstrap, Bootstrap Icons and fonts, with their licenses
 │   └── js/
 │       ├── api.js           # Calls to the backend API
+│       ├── theme-init.js    # Applies the saved theme before the page paints
 │       └── app.js           # Chat, uploads, history, theme, errors
 ├── src/
 │   ├── server.js            # Starts the HTTP server
@@ -69,6 +71,7 @@ The backend lives in `src/` and the static frontend in `public/`:
 │   ├── config.js            # Settings from .env
 │   ├── middleware/
 │   │   ├── rateLimit.js     # Per-visitor request limits (in memory)
+│   │   ├── securityHeaders.js  # CSP, nosniff, frame and referrer headers
 │   │   ├── session.js       # Per-visitor session cookie
 │   │   └── upload.js        # multer: size limit and file type whitelist
 │   ├── routes/
@@ -160,7 +163,7 @@ Open [http://localhost:3000](http://localhost:3000). For development, `npm run d
 npm test
 ```
 
-The tests use Node's built-in test runner, so there is nothing extra to install. They cover the file loaders, private sessions, the memory limits, the rate limits, the model fallback, the SOURCES line and the main API routes. They never call Gemini, but the first run needs the embedding model (downloaded once, like the first upload).
+The tests use Node's built-in test runner, so there is nothing extra to install. They cover the file loaders, private sessions, the memory limits, the rate limits, the model fallback, the security headers, the SOURCES line and the main API routes. They never call Gemini, but the first run needs the embedding model (downloaded once, like the first upload).
 
 ## Deployment
 
@@ -197,6 +200,8 @@ Errors return `{ error, code }` with a matching HTTP status, for example `UNSUPP
 ## Third-party files
 
 Bootstrap 5.3.3 (MIT), Bootstrap Icons 1.11.3 (MIT) and the Bricolage Grotesque and Source Sans 3 fonts (SIL Open Font License 1.1) are served from `public/vendor/` instead of a CDN. The page makes no third-party requests and keeps working when a CDN is slow or blocked. Each library's license file sits next to it; `public/vendor/README.md` lists the sources and SHA-256 checksums.
+
+Because everything is self-hosted, the Content Security Policy (`src/middleware/securityHeaders.js`) allows only this site. If you add an external script, style, font or API, add its origin to the matching directive there, or the browser will block it.
 
 ## Known limitations
 
