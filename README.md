@@ -38,7 +38,7 @@ Everything below is free and open source, except the Gemini API, which has a fre
 | File parsing | `pdf-parse` (PDF), `mammoth` (DOCX), `papaparse` (CSV) |
 | Uploads | `multer` (in memory, size limit and file type whitelist) |
 | Rate limits | `express-rate-limit` (in memory, per visitor IP, IPv6 grouped by /64) |
-| Frontend | HTML, Bootstrap 5, Bootstrap Icons, vanilla JavaScript |
+| Frontend | HTML, Bootstrap 5, Bootstrap Icons, vanilla JavaScript (all self-hosted, no CDN) |
 
 ## How it works
 
@@ -59,6 +59,7 @@ The backend lives in `src/` and the static frontend in `public/`:
 ├── public/                  # Frontend (served statically)
 │   ├── index.html           # Chat page (Bootstrap 5)
 │   ├── css/styles.css       # Theme tokens, layout, light and dark mode
+│   ├── vendor/              # Self-hosted Bootstrap, Bootstrap Icons and fonts, with their licenses
 │   └── js/
 │       ├── api.js           # Calls to the backend API
 │       └── app.js           # Chat, uploads, history, theme, errors
@@ -192,6 +193,10 @@ Uploaded documents stay in memory only and are private to your browser. The serv
 The server identifies each visitor with an httpOnly session cookie (`docchat_sid`), so every call only sees that visitor's documents. When the cookie points to a session the server no longer has (30 idle minutes or a restart), `sessionExpired` is `true` once (on the document list or an upload), chat answers `410 SESSION_EXPIRED`, and the old cookie is removed.
 
 Errors return `{ error, code }` with a matching HTTP status, for example `UNSUPPORTED_FILE`, `EMPTY_FILE`, `EMPTY_QUESTION`, `NO_DOCUMENTS`, `DOCUMENT_TOO_LARGE`, `TOO_MANY_DOCUMENTS`, `SERVER_BUSY`, `SESSION_EXPIRED`, `RATE_LIMITED` (with a `Retry-After` header), `LLM_RATE_LIMIT`, `LLM_BUSY`, `LLM_TIMEOUT` or `MISSING_API_KEY`.
+
+## Third-party files
+
+Bootstrap 5.3.3 (MIT), Bootstrap Icons 1.11.3 (MIT) and the Bricolage Grotesque and Source Sans 3 fonts (SIL Open Font License 1.1) are served from `public/vendor/` instead of a CDN. The page makes no third-party requests and keeps working when a CDN is slow or blocked. Each library's license file sits next to it; `public/vendor/README.md` lists the sources and SHA-256 checksums.
 
 ## Known limitations
 
