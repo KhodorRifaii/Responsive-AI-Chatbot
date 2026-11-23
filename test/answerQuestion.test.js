@@ -1,8 +1,7 @@
+import './env.js';
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { FakeListChatModel } from '@langchain/core/utils/testing';
-
-process.env.GOOGLE_API_KEY = '';
 
 let rag;
 let store;

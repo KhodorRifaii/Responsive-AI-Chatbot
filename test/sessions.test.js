@@ -1,18 +1,16 @@
+import './env.js';
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 
-// Small limits so they are quick to reach. Set before the app's config is loaded.
-Object.assign(process.env, {
-  GOOGLE_API_KEY: '',
-  MAX_SESSIONS: '3',
-  MAX_CHUNKS_PER_SESSION: '4',
-  MAX_TOTAL_CHUNKS: '6',
-  SESSION_TTL_MINUTES: '30',
-});
+// Small limits so they are quick to reach. Set before the app's config is loaded (dynamic import below).
+Object.assign(process.env, { MAX_SESSIONS: '3', MAX_CHUNKS_PER_SESSION: '4', MAX_TOTAL_CHUNKS: '6' });
 
 let store;
+let afterTtl;
 before(async () => {
   store = await import('../src/services/vectorStore.js');
+  const { default: config } = await import('../src/config.js');
+  afterTtl = () => Date.now() + (config.sessionTtlMinutes + 1) * 60 * 1000;
 });
 
 const file = (name, text) => ({ originalname: name, buffer: Buffer.from(text), size: text.length });
@@ -52,7 +50,7 @@ test('per-session and global part limits give friendly errors and keep the count
 
 test('expired sessions are removed and their parts are freed', async () => {
   const before = store.getStats();
-  store.removeExpiredSessions(Date.now() + 31 * 60 * 1000);
+  store.removeExpiredSessions(afterTtl());
   const after = store.getStats();
   assert.equal(after.sessions, 0);
   assert.equal(after.totalChunks, 0);
@@ -68,7 +66,7 @@ test('too many sessions answers SERVER_BUSY, and a full server answers SERVER_BU
 });
 
 test('a session holds at most 10 documents', async () => {
-  store.removeExpiredSessions(Date.now() + 31 * 60 * 1000);
+  store.removeExpiredSessions(afterTtl());
   const session = store.createSession();
   session.documents = new Map(Array.from({ length: 10 }, (_, i) => [String(i), {}]));
   await rejectsWith(store.addDocument(session, file('eleven.txt', 'one more')), 'TOO_MANY_DOCUMENTS');

@@ -1,14 +1,15 @@
+import './env.js';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-
-process.env.GOOGLE_API_KEY = '';
 
 let server;
 let base;
 let store;
+let config;
 before(async () => {
   const { default: app } = await import('../src/app.js');
   store = await import('../src/services/vectorStore.js');
+  ({ default: config } = await import('../src/config.js'));
   server = app.listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
@@ -54,15 +55,15 @@ test('a live session is not expired', async () => {
   assert.equal(data.documents.length, 1);
 });
 
-test('after 30 idle minutes, the documents list and chat both say the session expired', async () => {
+test('after the idle time limit, the documents list and chat both say the session expired', async () => {
   const cookie = await uploadCookie();
-  store.removeExpiredSessions(Date.now() + 31 * 60 * 1000);
+  store.removeExpiredSessions(Date.now() + (config.sessionTtlMinutes + 1) * 60 * 1000);
 
   const chat = await ask(cookie);
   assert.equal(chat.status, 410);
   const body = await chat.json();
   assert.equal(body.code, 'SESSION_EXPIRED');
-  assert.match(body.error, /removed after 30 minutes without activity/);
+  assert.ok(body.error.includes(`removed after ${config.sessionTtlMinutes} minutes without activity`));
   assert.match(body.error, /[Uu]pload/);
 
   assert.equal((await (await getDocs(cookie)).json()).sessionExpired, true);

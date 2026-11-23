@@ -1,13 +1,14 @@
+import './env.js';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 
-// No key: these tests never call Gemini. Low limits so rate limiting is quick to check.
-Object.assign(process.env, { GOOGLE_API_KEY: '', RATE_LIMIT_CHAT_PER_MINUTE: '3', RATE_LIMIT_UPLOADS_PER_HOUR: '3' });
-
+// No key (test/env.js): these tests never call Gemini. Low limits so rate limiting is quick to check.
 let server;
 let base;
+let config;
 before(async () => {
   const { default: app } = await import('../src/app.js');
+  ({ default: config } = await import('../src/config.js'));
   server = app.listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
@@ -58,13 +59,14 @@ test('API errors are JSON with a code', async () => {
 test('questions over the per-minute limit get a friendly 429', async () => {
   const statuses = [];
   let last;
-  for (let i = 0; i < 4; i += 1) {
+  const limit = config.chatPerMinute;
+  for (let i = 0; i <= limit; i += 1) {
     last = await ask('Hello?');
     statuses.push(last.status);
   }
-  // NO_DOCUMENTS (400) for the first 3, then the limit of 3 per minute is reached.
+  // NO_DOCUMENTS (400) until the per-minute limit is reached, then 429.
   // (The BAD_JSON request above is rejected before the limiter, so it does not count.)
-  assert.deepEqual(statuses, [400, 400, 400, 429]);
+  assert.deepEqual(statuses, [...Array(limit).fill(400), 429]);
   assert.ok(Number(last.headers.get('retry-after')) > 0);
   const body = await last.json();
   assert.equal(body.code, 'RATE_LIMITED');
