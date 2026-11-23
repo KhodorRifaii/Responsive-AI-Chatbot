@@ -123,6 +123,7 @@ GEMINI_MODEL=gemini-3.5-flash
 | --- | --- | --- |
 | `GOOGLE_API_KEY` | (none) | Your Gemini API key. Required for answers. |
 | `GEMINI_MODEL` | `gemini-3.5-flash` | Any Gemini model your key can use on the free tier. |
+| `GEMINI_THINKING_BUDGET` | `0` | Gemini "thinking" tokens per answer. `0` turns thinking off, which saves most of the free quota; `default` uses the model's own setting. |
 | `EMBEDDING_MODEL` | `Xenova/all-MiniLM-L6-v2` | Local embedding model from the Hugging Face Hub. |
 | `PORT` | `3000` | Server port. |
 | `MAX_FILE_SIZE_MB` | `10` | Maximum size of each uploaded file. |

@@ -42,6 +42,8 @@ export function createLlm() {
     temperature: 0.2,
     // Fail fast when Gemini is overloaded instead of retrying for a minute or more.
     maxRetries: 2,
+    // Thinking off by default: about 6x fewer tokens per answer, and simple maths still works.
+    ...(config.geminiThinkingBudget === null ? {} : { thinkingConfig: { thinkingBudget: config.geminiThinkingBudget } }),
   });
 }
 
@@ -170,6 +172,9 @@ function toLlmError(error) {
   }
   if (status === 401 || status === 403 || /api.?key/i.test(text)) {
     return new HttpError(502, 'LLM_AUTH', 'Gemini rejected the API key. Check GOOGLE_API_KEY in your .env file.');
+  }
+  if (status === 400 && /thinking/i.test(text)) {
+    return new HttpError(502, 'LLM_THINKING', `The model "${config.geminiModel}" does not accept GEMINI_THINKING_BUDGET=${config.geminiThinkingBudget}. Set GEMINI_THINKING_BUDGET=default in .env.`);
   }
   if (status === 404 || /not found/i.test(text)) {
     return new HttpError(502, 'LLM_MODEL', `The model "${config.geminiModel}" is not available. Set GEMINI_MODEL in .env to a current model.`);
