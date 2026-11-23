@@ -30,9 +30,10 @@ router.post('/', upload.array('files', 10), async (req, res, next) => {
 
     if (added.length === 0) {
       const [first] = errors;
-      return res.status(422).json({ error: errors.map((e) => e.error).join(' '), code: first.code, errors });
+      return res.status(422).json({ error: errors.map((e) => e.error).join(' '), code: first.code, errors, sessionExpired: req.sessionExpired });
     }
-    res.status(201).json({ documents: added, errors });
+    // sessionExpired: the visitor's earlier documents were gone, so the page clears its old chat.
+    res.status(201).json({ documents: added, errors, sessionExpired: req.sessionExpired });
   } catch (error) {
     next(error);
   }

@@ -2,6 +2,9 @@ import './env.js';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 
+// This file checks session expiry, not limits: no upload limit (set before the app loads below).
+process.env.RATE_LIMIT_UPLOADS_PER_HOUR = '0';
+
 let server;
 let base;
 let store;
@@ -81,4 +84,28 @@ test('uploading with an expired cookie starts a new session that works', async (
   const data = await (await getDocs(fresh)).json();
   assert.deepEqual(data.documents.map((d) => d.name), ['gym.txt']);
   assert.equal(data.sessionExpired, false);
+});
+
+test('an upload with an expired cookie tells the page the old session expired', async () => {
+  const body = new FormData();
+  body.append('files', new Blob(['Pool opens at 7 am.'], { type: 'text/plain' }), 'pool.txt');
+  const response = await fetch(`${base}/api/documents`, { method: 'POST', body, headers: { cookie: GONE } });
+  assert.equal(response.status, 201);
+  assert.equal((await response.json()).sessionExpired, true);
+});
+
+test('a failed upload with an expired cookie also says the session expired', async () => {
+  const body = new FormData();
+  body.append('files', new Blob(['   '], { type: 'text/plain' }), 'blank.txt');
+  const response = await fetch(`${base}/api/documents`, { method: 'POST', body, headers: { cookie: GONE } });
+  assert.equal(response.status, 422);
+  assert.equal((await response.json()).sessionExpired, true);
+});
+
+test('a normal upload does not say the session expired', async () => {
+  const cookie = await uploadCookie();
+  const body = new FormData();
+  body.append('files', new Blob(['Bus leaves at 5 pm.'], { type: 'text/plain' }), 'bus.txt');
+  const response = await fetch(`${base}/api/documents`, { method: 'POST', body, headers: { cookie } });
+  assert.equal((await response.json()).sessionExpired, false);
 });

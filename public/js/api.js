@@ -18,6 +18,7 @@ async function request(url, options = {}) {
   if (!response.ok) {
     const error = new Error(data.error || `Request failed (${response.status}).`);
     error.code = data.code;
+    error.sessionExpired = Boolean(data.sessionExpired);
     throw error;
   }
   return data;

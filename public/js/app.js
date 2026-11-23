@@ -127,6 +127,8 @@ function validateFiles(files) {
   return { valid, problems };
 }
 
+const EXPIRED_UPLOAD_NOTE = 'Your earlier documents were removed after a period without activity (or a server restart), so the old chat was cleared.';
+
 async function handleFiles(fileList) {
   const { valid: files, problems } = validateFiles([...fileList]);
   if (files.length === 0) {
@@ -140,7 +142,9 @@ async function handleFiles(fileList) {
 
   setUploadStatus(`Reading ${files.length === 1 ? files[0].name : `${files.length} files`}…`);
   try {
-    const { documents, errors = [] } = await uploadDocuments(files);
+    const { documents, errors = [], sessionExpired } = await uploadDocuments(files);
+    // The earlier documents were gone before this upload: their old answers must not stay on screen.
+    if (sessionExpired && history.length > 0) expireChat(EXPIRED_UPLOAD_NOTE);
     const names = documents.map((doc) => doc.name).join(', ');
     const skipped = [...problems, ...errors.map((e) => e.error)];
     if (skipped.length) {
@@ -153,6 +157,7 @@ async function handleFiles(fileList) {
     // The sidebar is hidden on phones, so skipped files are reported in the chat as well.
     if (skipped.length) appendMessage('error', `Skipped: ${skipped.join(' ')}`);
   } catch (error) {
+    if (error.sessionExpired && history.length > 0) expireChat(EXPIRED_UPLOAD_NOTE);
     setUploadStatus(error.message, 'error');
     appendMessage('error', error.message);
   } finally {
