@@ -13,6 +13,7 @@ The chatbot covers the following:
 - Chat with clear user and AI messages
 - Conversation history for the browser session; recent messages are sent with each question so follow-up questions work
 - Loading indicator while an answer is generated
+- Upload progress: which file is being read and how many of its parts are indexed, shown in the chat and the sidebar
 - Clear error messages for unsupported, empty or damaged files, empty questions, a missing API key and AI service errors
 - The document sources (file name, page for PDFs and an excerpt) behind each answer
 - Several documents at once, with a list of everything uploaded
@@ -83,7 +84,8 @@ The backend lives in `src/` and the static frontend in `public/`:
 │   │   ├── vectorStore.js     # One MemoryVectorStore per session, limits and expiry
 │   │   └── ragChain.js        # Prompt, retrieval, Gemini call and sources
 │   └── utils/
-│       └── httpError.js     # Errors with a status code and a user message
+│       ├── httpError.js     # Errors with a status code and a user message
+│       └── ndjson.js        # Streamed (newline-delimited JSON) responses
 ├── test/                    # Automated tests (node:test) and small sample files
 ├── .env.example
 ├── package.json
@@ -163,7 +165,7 @@ Open [http://localhost:3000](http://localhost:3000). For development, `npm run d
 npm test
 ```
 
-The tests use Node's built-in test runner, so there is nothing extra to install. They cover the file loaders, private sessions, the memory limits, the rate limits, the model fallback, the security headers, the SOURCES line and the main API routes. They never call Gemini, but the first run needs the embedding model (downloaded once, like the first upload).
+The tests use Node's built-in test runner, so there is nothing extra to install. They cover the file loaders, private sessions, the memory limits, the rate limits, the model fallback, the security headers, the upload progress stream, the SOURCES line and the main API routes. They never call Gemini, but the first run needs the embedding model (downloaded once, like the first upload).
 
 ## Deployment
 
@@ -190,8 +192,10 @@ Uploaded documents stay in memory only and are private to your browser. The serv
 | --- | --- | --- | --- |
 | `GET` | `/api/health` | | `{ status, llmConfigured, model, fallbackModel }` |
 | `GET` | `/api/documents` | | `{ documents: [{ id, name, size, chunks, uploadedAt }], sessionExpired }` |
-| `POST` | `/api/documents` | `multipart/form-data`, field `files` | `{ documents, errors, sessionExpired }` |
+| `POST` | `/api/documents` | `multipart/form-data`, field `files` | `{ documents, errors, sessionExpired }`, or a progress stream (below) |
 | `POST` | `/api/chat` | `{ question, history: [{ role, content }] }` | `{ answer, sources: [{ source, page, chunk, excerpt }] }` |
+
+**Upload progress.** Send `Accept: application/x-ndjson` with the upload to get one JSON event per line while the server works: `{ "type": "progress", file, files, name, stage, done, total }` (`stage` is `reading`, then `embedding` with `done` of `total` parts), then one final `{ "type": "result", status, ... }` with the same body and status code as the plain JSON answer. Errors that happen before any file is processed (rate limit, size or type limits, no files, server busy) are plain JSON with their HTTP status in both modes. Without the header the answer is plain JSON as before.
 
 The server identifies each visitor with an httpOnly session cookie (`docchat_sid`), so every call only sees that visitor's documents. When the cookie points to a session the server no longer has (30 idle minutes or a restart), `sessionExpired` is `true` once (on the document list or an upload), chat answers `410 SESSION_EXPIRED`, and the old cookie is removed.
 

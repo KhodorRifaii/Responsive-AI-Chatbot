@@ -67,11 +67,33 @@ export function createSession() {
   return session;
 }
 
-export async function addDocument(session, file) {
+// Chunks embedded per progress step. The model still embeds one at a time (memory stays flat).
+const EMBED_STEP = 16;
+const PROGRESS_INTERVAL_MS = 200;
+
+/** Calls onProgress at most every 200 ms, except for forced (stage change, last step) updates. */
+function progressReporter(onProgress) {
+  let last = 0;
+  return (progress, force = false) => {
+    if (!onProgress) return;
+    const now = Date.now();
+    if (!force && now - last < PROGRESS_INTERVAL_MS) return;
+    last = now;
+    onProgress(progress);
+  };
+}
+
+/**
+ * Parse, split and embed one file into the session's store.
+ * onProgress({ stage: 'reading' | 'embedding', done, total }) reports how far it got.
+ */
+export async function addDocument(session, file, { onProgress } = {}) {
   if (session.documents.size >= config.maxDocsPerSession) {
     throw new HttpError(409, 'TOO_MANY_DOCUMENTS', `You can have up to ${config.maxDocsPerSession} documents at a time. Your documents are cleared after ${config.sessionTtlMinutes} minutes without activity.`);
   }
 
+  const report = progressReporter(onProgress);
+  report({ stage: 'reading', done: 0, total: 0 }, true);
   const id = randomUUID();
   const chunks = await loadAndSplit(file, id);
 
@@ -83,11 +105,24 @@ export async function addDocument(session, file) {
     throw new HttpError(503, 'SERVER_BUSY', 'The server is full right now. Please try again in a few minutes.');
   }
 
+  // A session that expired during an earlier (slow) file of the same upload must not reserve
+  // space again: it was already freed, so the reservation would never be given back.
+  if (sessions.get(session.id) !== session) {
+    throw new HttpError(410, 'SESSION_EXPIRED', 'Your session expired. Please upload the file again.');
+  }
   // Reserve the space before the slow embedding step so parallel uploads can't overshoot the limits.
   session.chunks += chunks.length;
   totalChunks += chunks.length;
   try {
-    await session.store.addDocuments(chunks);
+    // Embed in steps to report progress, then add all vectors at once: a failure adds nothing.
+    const texts = chunks.map((chunk) => chunk.pageContent);
+    const vectors = [];
+    report({ stage: 'embedding', done: 0, total: texts.length }, true);
+    for (let i = 0; i < texts.length; i += EMBED_STEP) {
+      vectors.push(...await embeddings.embedDocuments(texts.slice(i, i + EMBED_STEP)));
+      report({ stage: 'embedding', done: vectors.length, total: texts.length }, vectors.length === texts.length);
+    }
+    await session.store.addVectors(vectors, chunks);
   } catch (error) {
     session.chunks -= chunks.length;
     totalChunks -= chunks.length;

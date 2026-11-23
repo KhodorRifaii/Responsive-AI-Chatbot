@@ -127,6 +127,58 @@ function validateFiles(files) {
   return { valid, problems };
 }
 
+/**
+ * Progress note in the chat while files are uploaded and indexed (visible on phones too,
+ * where the sidebar is hidden). Only the bar and its text change; the sidebar status is
+ * updated once per file and stage, so screen readers are not flooded with percentages.
+ */
+function showUploadProgress(label) {
+  els.emptyState.hidden = true;
+  const note = document.createElement('div');
+  note.className = 'message chat-notice upload-progress';
+  note.innerHTML = '<i class="bi bi-hourglass-split" aria-hidden="true"></i>';
+  const text = document.createElement('span');
+  text.className = 'upload-progress-text';
+  text.textContent = label;
+  const bar = document.createElement('div');
+  bar.className = 'progress';
+  bar.setAttribute('role', 'progressbar');
+  bar.setAttribute('aria-label', 'Upload progress');
+  bar.setAttribute('aria-valuemin', '0');
+  bar.setAttribute('aria-valuemax', '100');
+  bar.setAttribute('aria-valuenow', '0');
+  const fill = document.createElement('div');
+  fill.className = 'progress-bar';
+  fill.style.width = '0%';
+  bar.append(fill);
+  note.append(text, bar);
+  els.messages.append(note);
+  scrollToBottom();
+
+  let lastStep = '';
+  return {
+    update({ file, files, name, stage, done, total }) {
+      const which = files > 1 ? ` (file ${file} of ${files})` : '';
+      const message = stage === 'embedding' && total
+        ? `Indexing ${name}${which}: ${done} of ${total} parts`
+        : `Reading ${name}${which}…`;
+      text.textContent = message;
+      const fileShare = stage === 'embedding' && total ? done / total : 0;
+      const percent = Math.round(((file - 1 + fileShare) / files) * 100);
+      fill.style.width = `${percent}%`;
+      bar.setAttribute('aria-valuenow', String(percent));
+      const step = `${file}:${stage}`;
+      if (step !== lastStep) {
+        lastStep = step;
+        setUploadStatus(stage === 'embedding' ? `Indexing ${name}${which}…` : message);
+      }
+    },
+    remove() {
+      note.remove();
+    },
+  };
+}
+
 const EXPIRED_UPLOAD_NOTE = 'Your earlier documents were removed after a period without activity (or a server restart), so the old chat was cleared.';
 
 async function handleFiles(fileList) {
@@ -140,9 +192,12 @@ async function handleFiles(fileList) {
     return;
   }
 
-  setUploadStatus(`Reading ${files.length === 1 ? files[0].name : `${files.length} files`}…`);
+  const uploading = `Uploading ${files.length === 1 ? files[0].name : `${files.length} files`}…`;
+  setUploadStatus(uploading);
+  const progress = showUploadProgress(uploading);
   try {
-    const { documents, errors = [], sessionExpired } = await uploadDocuments(files);
+    const { documents, errors = [], sessionExpired } = await uploadDocuments(files, { onProgress: progress.update });
+    progress.remove();
     // The earlier documents were gone before this upload: their old answers must not stay on screen.
     if (sessionExpired && history.length > 0) expireChat(EXPIRED_UPLOAD_NOTE);
     const names = documents.map((doc) => doc.name).join(', ');
@@ -157,6 +212,7 @@ async function handleFiles(fileList) {
     // The sidebar is hidden on phones, so skipped files are reported in the chat as well.
     if (skipped.length) appendMessage('error', `Skipped: ${skipped.join(' ')}`);
   } catch (error) {
+    progress.remove();
     if (error.sessionExpired && history.length > 0) expireChat(EXPIRED_UPLOAD_NOTE);
     setUploadStatus(error.message, 'error');
     appendMessage('error', error.message);

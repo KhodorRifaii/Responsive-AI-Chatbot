@@ -458,6 +458,10 @@ body {
   text-align: center;
   gap: 0.35rem;
 }
+/* Upload progress note (bar width is set from JavaScript) */
+.upload-progress { flex-wrap: wrap; border-radius: var(--dc-radius-sm); min-width: min(20rem, 100%); }
+.upload-progress .progress { flex-basis: 100%; height: 6px; background: color-mix(in srgb, var(--dc-ink) 10%, transparent); }
+.upload-progress .progress-bar { background: var(--dc-primary); transition: width 0.2s ease; }
 .drop-overlay {
   position: absolute;
   inset: 0.75rem;
