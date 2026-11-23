@@ -4,6 +4,9 @@
 Object.assign(process.env, {
   GOOGLE_API_KEY: '',
   GEMINI_MODEL: 'gemini-3.5-flash',
+  GEMINI_FALLBACK_MODEL: 'gemini-3.5-flash-lite',
+  // Short, so the timeout test is quick. Fake models answer instantly.
+  GEMINI_TIMEOUT_SECONDS: '0.2',
   GEMINI_THINKING_BUDGET: '0',
   EMBEDDING_MODEL: 'Xenova/all-MiniLM-L6-v2',
   EMBEDDING_DTYPE: 'q8',

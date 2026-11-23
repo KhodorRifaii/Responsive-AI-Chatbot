@@ -24,17 +24,33 @@ function readTrustProxy(value) {
   return /^\d+$/.test(text) ? Number(text) : text;
 }
 
+/**
+ * Second Gemini model, used when the main one is out of quota, overloaded, too slow or retired.
+ * "none" (or the same name as the main model) turns the fallback off.
+ */
+function readFallbackModel(value, mainModel) {
+  const text = value?.trim();
+  if (text?.toLowerCase() === 'none') return null;
+  const model = text || 'gemini-3.5-flash-lite';
+  return model === mainModel ? null : model;
+}
+
 /** A non-negative whole number from the environment (0 allowed), or the fallback. */
 function readLimit(value, fallback) {
   const number = Number(value?.trim());
   return value?.trim() && Number.isInteger(number) && number >= 0 ? number : fallback;
 }
 
+const geminiModel = process.env.GEMINI_MODEL?.trim() || 'gemini-3.5-flash';
+
 const config = {
   port: Number(process.env.PORT) || 3000,
   trustProxy: readTrustProxy(process.env.TRUST_PROXY),
   googleApiKey: process.env.GOOGLE_API_KEY?.trim() || '',
-  geminiModel: process.env.GEMINI_MODEL?.trim() || 'gemini-3.5-flash',
+  geminiModel,
+  geminiFallbackModel: readFallbackModel(process.env.GEMINI_FALLBACK_MODEL, geminiModel),
+  // Seconds each model gets to answer (its own retries included) before the fallback is tried.
+  geminiTimeoutSeconds: Number(process.env.GEMINI_TIMEOUT_SECONDS) > 0 ? Number(process.env.GEMINI_TIMEOUT_SECONDS) : 30,
   geminiThinkingBudget: readThinkingBudget(process.env.GEMINI_THINKING_BUDGET),
   embeddingModel: process.env.EMBEDDING_MODEL?.trim() || 'Xenova/all-MiniLM-L6-v2',
   // q8 (quantized) and 1 thread keep memory low enough for 512 MB hosts.

@@ -18,6 +18,7 @@ The chatbot covers the following:
 - Several documents at once, with a list of everything uploaded
 - Private documents: each visitor only sees and searches their own files
 - Per-visitor rate limits, so one visitor can't use up the shared free Gemini quota
+- Automatic fallback to a second Gemini model when the main one is out of quota, busy, too slow or retired
 - Dark and light mode, remembered in your browser
 - Clear chat history button
 - Add new documents at any time (sidebar, paperclip or drag and drop) without restarting the server
@@ -127,6 +128,8 @@ GEMINI_MODEL=gemini-3.5-flash
 | --- | --- | --- |
 | `GOOGLE_API_KEY` | (none) | Your Gemini API key. Required for answers. |
 | `GEMINI_MODEL` | `gemini-3.5-flash` | Any Gemini model your key can use on the free tier. |
+| `GEMINI_FALLBACK_MODEL` | `gemini-3.5-flash-lite` | Second model, tried automatically when the main model is out of quota, overloaded, too slow or retired. It uses the same API key. `none` turns the fallback off. |
+| `GEMINI_TIMEOUT_SECONDS` | `30` | Seconds each model gets to answer (its own retries included) before the fallback is tried. |
 | `GEMINI_THINKING_BUDGET` | `0` | Gemini "thinking" tokens per answer. `0` turns thinking off, which saves most of the free quota; `default` uses the model's own setting. |
 | `EMBEDDING_MODEL` | `Xenova/all-MiniLM-L6-v2` | Local embedding model from the Hugging Face Hub. |
 | `PORT` | `3000` | Server port. |
@@ -140,7 +143,7 @@ GEMINI_MODEL=gemini-3.5-flash
 | `RATE_LIMIT_UPLOADS_PER_HOUR` | `30` | Upload requests per visitor per hour (each can hold up to 10 files). |
 | `TRUST_PROXY` | `1` | Number of proxies in front of the app, so rate limits see each visitor's real IP. `1` fits Render. Use `false` when you run the app with nothing in front of it (for example `npm start` on a public server), so visitors can't fake their IP with an `X-Forwarded-For` header. |
 
-If Google retires the model or it becomes slow, set `GEMINI_MODEL` to another one, for example `gemini-flash-latest`, and restart the server.
+If the main model is out of quota, overloaded, too slow or retired, the server asks `GEMINI_FALLBACK_MODEL` instead and logs `LLM fallback: …`. Bad requests and a rejected key are not retried on the fallback, because they would fail there too. If both models fail, the error names the main model. If Google retires the model for good, set `GEMINI_MODEL` to another one, for example `gemini-flash-latest`, and restart the server.
 
 ### 4. Start
 
@@ -156,7 +159,7 @@ Open [http://localhost:3000](http://localhost:3000). For development, `npm run d
 npm test
 ```
 
-The tests use Node's built-in test runner, so there is nothing extra to install. They cover the file loaders, private sessions, the memory limits, the rate limits, the SOURCES line and the main API routes. They never call Gemini, but the first run needs the embedding model (downloaded once, like the first upload).
+The tests use Node's built-in test runner, so there is nothing extra to install. They cover the file loaders, private sessions, the memory limits, the rate limits, the model fallback, the SOURCES line and the main API routes. They never call Gemini, but the first run needs the embedding model (downloaded once, like the first upload).
 
 ## Deployment
 
@@ -181,14 +184,14 @@ Uploaded documents stay in memory only and are private to your browser. The serv
 
 | Method | Path | Body | Response |
 | --- | --- | --- | --- |
-| `GET` | `/api/health` | | `{ status, llmConfigured, model }` |
+| `GET` | `/api/health` | | `{ status, llmConfigured, model, fallbackModel }` |
 | `GET` | `/api/documents` | | `{ documents: [{ id, name, size, chunks, uploadedAt }], sessionExpired }` |
 | `POST` | `/api/documents` | `multipart/form-data`, field `files` | `{ documents, errors, sessionExpired }` |
 | `POST` | `/api/chat` | `{ question, history: [{ role, content }] }` | `{ answer, sources: [{ source, page, chunk, excerpt }] }` |
 
 The server identifies each visitor with an httpOnly session cookie (`docchat_sid`), so every call only sees that visitor's documents. When the cookie points to a session the server no longer has (30 idle minutes or a restart), `sessionExpired` is `true` once (on the document list or an upload), chat answers `410 SESSION_EXPIRED`, and the old cookie is removed.
 
-Errors return `{ error, code }` with a matching HTTP status, for example `UNSUPPORTED_FILE`, `EMPTY_FILE`, `EMPTY_QUESTION`, `NO_DOCUMENTS`, `DOCUMENT_TOO_LARGE`, `TOO_MANY_DOCUMENTS`, `SERVER_BUSY`, `SESSION_EXPIRED`, `RATE_LIMITED` (with a `Retry-After` header) or `MISSING_API_KEY`.
+Errors return `{ error, code }` with a matching HTTP status, for example `UNSUPPORTED_FILE`, `EMPTY_FILE`, `EMPTY_QUESTION`, `NO_DOCUMENTS`, `DOCUMENT_TOO_LARGE`, `TOO_MANY_DOCUMENTS`, `SERVER_BUSY`, `SESSION_EXPIRED`, `RATE_LIMITED` (with a `Retry-After` header), `LLM_RATE_LIMIT`, `LLM_BUSY`, `LLM_TIMEOUT` or `MISSING_API_KEY`.
 
 ## Known limitations
 

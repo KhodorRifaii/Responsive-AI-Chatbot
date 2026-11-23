@@ -32,12 +32,12 @@ const prompt = ChatPromptTemplate.fromMessages([
   ['human', '{question}'],
 ]);
 
-export function createLlm() {
+export function createLlm(model = config.geminiModel) {
   if (!config.googleApiKey) {
     throw new HttpError(503, 'MISSING_API_KEY', 'The AI is not set up yet: add GOOGLE_API_KEY to the .env file and restart the server. You can get a free key at aistudio.google.com.');
   }
   return new ChatGoogleGenerativeAI({
-    model: config.geminiModel,
+    model,
     apiKey: config.googleApiKey,
     temperature: 0.2,
     // Fail fast when Gemini is overloaded instead of retrying for a minute or more.
@@ -155,15 +155,96 @@ function buildSearchQuery(question, history) {
   return lastUserMessage ? `${lastUserMessage.content}\n${question}` : question;
 }
 
+/** A model took longer than GEMINI_TIMEOUT_SECONDS. */
+export class LlmTimeoutError extends Error {
+  constructor() {
+    super(`No answer within ${config.geminiTimeoutSeconds} seconds.`);
+    this.name = 'LlmTimeoutError';
+  }
+}
+
+const errorStatus = (error) => Number(error?.status ?? error?.response?.status) || 0;
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+const RETRYABLE_TEXT = /quota|rate.?limit|resource.?exhausted|overloaded|high demand|unavailable|timed? ?out|fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|model.*not found/i;
+
 /**
- * Retrieve relevant chunks and ask the LLM to answer from them only.
- * @param {{ question: string, history?: Array<{ role: string, content: string }>, llm?: import('@langchain/core/language_models/chat_models').BaseChatModel, session: object | null }} params
+ * Errors another model may not have: quota, overload, timeouts, network problems and a
+ * retired model (404). Bad requests and key problems would fail on every model.
  */
+export function isRetryableLlmError(error) {
+  if (error instanceof LlmTimeoutError) return true;
+  const status = errorStatus(error);
+  if (RETRYABLE_STATUS.has(status)) return true;
+  // 404 only when the model itself is unknown or retired ("models/x is not found").
+  if (status === 404) return /model/i.test(String(error?.message ?? ''));
+  if (status === 400 || status === 401 || status === 403) return false;
+  const text = String(error?.message ?? '');
+  return !/api.?key|permission|thinking/i.test(text) && RETRYABLE_TEXT.test(text);
+}
+
+/** Short reason for logs: status and the start of the provider message (never the prompt). */
+function describeError(error) {
+  const status = errorStatus(error);
+  const text = String(error?.message ?? error).split('\n')[0].slice(0, 120);
+  return status ? `${status} ${text}` : text;
+}
+
+/** Run one model call with GEMINI_TIMEOUT_SECONDS; a timeout aborts the request. */
+async function withTimeout(call) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), config.geminiTimeoutSeconds * 1000);
+  try {
+    const result = await call(controller.signal);
+    if (controller.signal.aborted) throw new LlmTimeoutError();
+    return result;
+  } catch (error) {
+    throw controller.signal.aborted ? new LlmTimeoutError() : error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** The models to try in order: the main model, then the fallback (if set). */
+function modelAttempts(llm, fallbackLlm) {
+  if (llm) {
+    return [{ name: llm.model ?? 'main model', llm }, ...(fallbackLlm ? [{ name: fallbackLlm.model ?? 'fallback model', llm: fallbackLlm }] : [])];
+  }
+  const attempts = [{ name: config.geminiModel, llm: createLlm() }];
+  if (config.geminiFallbackModel) attempts.push({ name: config.geminiFallbackModel, llm: createLlm(config.geminiFallbackModel) });
+  return attempts;
+}
+
+/**
+ * Ask each model in turn. Move to the next one only for errors another model may not have
+ * (quota, overload, timeout, retired model); otherwise, or when all fail, report the main
+ * model's error, because GEMINI_MODEL is the setting the user can fix.
+ */
+async function invokeWithFallback(attempts, input) {
+  let firstError;
+  for (const [index, { name, llm }] of attempts.entries()) {
+    const chain = prompt.pipe(llm).pipe(new StringOutputParser());
+    try {
+      const answer = await withTimeout((signal) => chain.invoke(input, { signal }));
+      if (index > 0) console.warn(`LLM answered with fallback model ${name}.`);
+      return answer;
+    } catch (error) {
+      firstError ??= error;
+      const next = attempts[index + 1];
+      if (!next || !isRetryableLlmError(error)) break;
+      console.warn(`LLM fallback: ${name} failed (${describeError(error)}), trying ${next.name}.`);
+    }
+  }
+  throw toLlmError(firstError);
+}
+
 /** Turn provider errors into short messages the user can act on. */
 function toLlmError(error) {
-  const status = error?.status ?? error?.response?.status;
+  const status = errorStatus(error);
   const text = String(error?.message ?? '');
   console.error('LLM error:', text);
+  if (error instanceof LlmTimeoutError) {
+    return new HttpError(504, 'LLM_TIMEOUT', 'The AI took too long to answer. Please try again.');
+  }
   if (status === 429 || /quota|rate.?limit|resource.?exhausted/i.test(text)) {
     return new HttpError(429, 'LLM_RATE_LIMIT', 'The free Gemini limit was reached. Wait a minute and try again.');
   }
@@ -182,7 +263,12 @@ function toLlmError(error) {
   return new HttpError(502, 'LLM_ERROR', 'The AI service could not answer right now. Please try again.');
 }
 
-export async function answerQuestion({ question, history = [], llm, session }) {
+/**
+ * Retrieve relevant chunks and ask the LLM to answer from them only. Tests can pass
+ * `llm` (and `fallbackLlm`) instead of the configured Gemini models.
+ * @param {{ question: string, history?: Array<{ role: string, content: string }>, llm?: import('@langchain/core/runnables').Runnable, fallbackLlm?: import('@langchain/core/runnables').Runnable, session: object | null }} params
+ */
+export async function answerQuestion({ question, history = [], llm, fallbackLlm, session }) {
   if (!question) {
     throw new HttpError(400, 'EMPTY_QUESTION', 'Type a question first.');
   }
@@ -192,7 +278,7 @@ export async function answerQuestion({ question, history = [], llm, session }) {
   if (!hasDocuments(session)) {
     throw new HttpError(400, 'NO_DOCUMENTS', `Upload a document first, then ask your question. Documents are removed after ${config.sessionTtlMinutes} minutes without activity.`);
   }
-  const model = llm ?? createLlm();
+  const attempts = modelAttempts(llm, fallbackLlm);
 
   const chatHistory = toChatHistory(history);
   const results = await search(session, buildSearchQuery(question, chatHistory), config.topK);
@@ -201,17 +287,11 @@ export async function answerQuestion({ question, history = [], llm, session }) {
     return { answer: NOT_FOUND_ANSWER, sources: [] };
   }
 
-  const chain = prompt.pipe(model).pipe(new StringOutputParser());
-  let answer;
-  try {
-    answer = await chain.invoke({
-      context: formatContext(chunks),
-      history: chatHistory,
-      question,
-    });
-  } catch (error) {
-    throw toLlmError(error);
-  }
+  const answer = await invokeWithFallback(attempts, {
+    context: formatContext(chunks),
+    history: chatHistory,
+    question,
+  });
   const { answer: text, cited } = splitCitations(answer);
   const finalAnswer = text || NOT_FOUND_ANSWER;
   // When the answer is not in the documents, there is no source to show.

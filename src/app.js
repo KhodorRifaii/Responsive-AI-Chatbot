@@ -26,6 +26,7 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     llmConfigured: Boolean(config.googleApiKey),
     model: config.geminiModel,
+    fallbackModel: config.geminiFallbackModel,
   });
 });
 
