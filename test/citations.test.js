@@ -25,3 +25,9 @@ test('only the last line counts, not the word "sources" in the text', () => {
   assert.equal(answer, 'Our sources: 2 suppliers deliver daily.');
   assert.deepEqual(cited, [1]);
 });
+
+test('a SOURCES list may end the last sentence, but ordinary text about sources stays', () => {
+  assert.deepEqual(splitCitations('18 months. SOURCES: 1, 2'), { answer: '18 months.', cited: [1, 2] });
+  assert.deepEqual(splitCitations('The sources are described in the appendix.'), { answer: 'The sources are described in the appendix.', cited: null });
+  assert.deepEqual(splitCitations('Sources of income: salary.').cited, null);
+});

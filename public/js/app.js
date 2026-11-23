@@ -466,13 +466,38 @@ async function sendQuestion(question) {
   saveHistory();
 
   setLoading(true);
+  // The answer streams into a draft bubble (re-rendered at most once per frame). The log
+  // stays aria-busy, and the draft is swapped for the final answer with its sources at the end,
+  // so screen readers announce the answer once.
+  let draft = null;
+  let draftText = '';
+  let frame = 0;
+  const renderDraft = () => {
+    frame = 0;
+    draft.querySelector('.message-text').innerHTML = renderMarkdown(draftText);
+    scrollToBottom();
+  };
+  const onToken = (text) => {
+    draftText += text;
+    if (!draft) {
+      document.getElementById('typingIndicator')?.remove();
+      draft = appendMessage('assistant', '');
+    }
+    if (!frame) frame = requestAnimationFrame(renderDraft);
+  };
+  const dropDraft = () => {
+    if (frame) cancelAnimationFrame(frame);
+    draft?.remove();
+  };
   try {
-    const { answer, sources = [] } = await askQuestion(question, recentHistory);
+    const { answer, sources = [] } = await askQuestion(question, recentHistory, { onToken });
+    dropDraft();
     setLoading(false);
     appendMessage('assistant', answer, sources);
     history.push({ role: 'assistant', content: answer, sources });
     saveHistory();
   } catch (error) {
+    dropDraft();
     setLoading(false);
     // Failed turns are not kept in history; the question goes back in the box to retry.
     history.pop();

@@ -50,13 +50,17 @@ export function createLlm(model = config.geminiModel) {
 // Fallback when the model does not cite: show chunks clearly related to the question.
 const MIN_SOURCE_SCORE = 0.2;
 const RELATIVE_SOURCE_SCORE = 0.7;
-const SOURCES_LINE = /\n?[ \t]*\**SOURCES:?\**:?[ \t]*([^\n]*)\s*$/i;
+// The last line "SOURCES: 1, 3" / "SOURCES: none" (any case, optional ** and colon). It may also
+// end the last sentence ("… 18 months. SOURCES: 1"), but then it needs the colon. Only numbers,
+// commas or "none" may follow, so a last sentence like "The sources are in the appendix." stays.
+const CITED = '(none|[\\d,; \\t]*)\\.?[ \\t]*\\**';
+const SOURCES_LINE = new RegExp(`(?:(?:^|\\n)[ \\t]*\\**SOURCES\\**[ \\t]*:?\\**[ \\t]*${CITED}|[ \\t]+\\**SOURCES\\**[ \\t]*:\\**[ \\t]*${CITED})\\s*$`, 'i');
 
 /** Split the model output into the answer and the context numbers it cited (null = no SOURCES line). */
 export function splitCitations(output) {
   const match = output.match(SOURCES_LINE);
   if (!match) return { answer: output.trim(), cited: null };
-  const cited = [...match[1].matchAll(/\d+/g)].map((m) => Number(m[0]));
+  const cited = [...(match[1] ?? match[2]).matchAll(/\d+/g)].map((m) => Number(m[0]));
   return { answer: output.slice(0, match.index).trim(), cited };
 }
 
@@ -189,12 +193,21 @@ function describeError(error) {
   return status ? `${status} ${text}` : text;
 }
 
-/** Run one model call with GEMINI_TIMEOUT_SECONDS; a timeout aborts the request. */
+/**
+ * Run one model call with GEMINI_TIMEOUT_SECONDS; a timeout aborts the request. Streams call
+ * touch() for each piece of text, so the limit is the wait for the next piece, not the whole answer.
+ */
 async function withTimeout(call) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), config.geminiTimeoutSeconds * 1000);
+  const ms = config.geminiTimeoutSeconds * 1000;
+  let timer = setTimeout(() => controller.abort(), ms);
+  const touch = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => controller.abort(), ms);
+  };
   try {
-    const result = await call(controller.signal);
+    // @langchain/google-genai ends a stream quietly when aborted, hence the check after the call too.
+    const result = await call(controller.signal, touch);
     if (controller.signal.aborted) throw new LlmTimeoutError();
     return result;
   } catch (error) {
@@ -237,6 +250,94 @@ async function invokeWithFallback(attempts, input) {
   throw toLlmError(firstError);
 }
 
+// Text from a candidate position that could still become the final SOURCES line (see
+// SOURCES_LINE), also while it is incomplete: at a line start the colon is optional, after a
+// sentence it is required. Anything after a newline must be blank (the line must be the last).
+const MAYBE_CITED = '(?:n(?:o(?:n(?:e)?)?)?|[\\d,; \\t]*)\\.?[ \\t]*\\**[ \\t]*';
+const MAYBE_SOURCES_AT_LINE_START = new RegExp(`^\\**sources\\**[ \\t]*:?\\**[ \\t]*${MAYBE_CITED}(?:\\n\\s*)?$`, 'i');
+const MAYBE_SOURCES_IN_LINE = new RegExp(`^\\**sources\\**[ \\t]*(?::\\**[ \\t]*${MAYBE_CITED})?(?:\\n\\s*)?$`, 'i');
+
+/**
+ * Hides the final "SOURCES: …" line while an answer streams. Text from a word that may be
+ * that line (or may still grow into it, like a trailing "So" or "**") is held back until the
+ * next pieces decide; ordinary text that only contains the word "sources" is shown.
+ * push(piece) returns the text that is safe to show now. The final answer is always
+ * recomputed from the full text with splitCitations().
+ */
+export function createSourcesFilter() {
+  let pending = '';
+  let lastShown = '\n'; // last character already shown ("\n" at the start of the answer)
+  let shownLineBlank = true; // the shown part of the current line is only spaces
+  const blank = (text) => /^[ \t]*$/.test(text);
+
+  const atLineStart = (p) => {
+    const newline = pending.lastIndexOf('\n', p - 1);
+    return newline >= 0 ? blank(pending.slice(newline + 1, p)) : shownLineBlank && blank(pending.slice(0, p));
+  };
+
+  const holdsFrom = (p) => {
+    if (!/\s/.test(p === 0 ? lastShown : pending[p - 1])) return false;
+    const rest = pending.slice(p);
+    const word = /^\**([a-z]*)$/i.exec(rest);
+    if (word && 'sources'.startsWith(word[1].toLowerCase())) return true;
+    return (atLineStart(p) ? MAYBE_SOURCES_AT_LINE_START : MAYBE_SOURCES_IN_LINE).test(rest);
+  };
+
+  return {
+    push(piece) {
+      pending += piece;
+      let p = 0;
+      while (p < pending.length && !(/[*s]/i.test(pending[p]) && pending[p - 1] !== '*' && holdsFrom(p))) p += 1;
+      const out = pending.slice(0, p);
+      pending = pending.slice(p);
+      if (out) {
+        const newline = out.lastIndexOf('\n');
+        shownLineBlank = newline >= 0 ? blank(out.slice(newline + 1)) : shownLineBlank && blank(out);
+        lastShown = out.at(-1);
+      }
+      return out;
+    },
+  };
+}
+
+/**
+ * Stream from each model in turn, calling onToken(text) as safe answer text arrives. Falls back
+ * like invokeWithFallback, but only while no text was sent: after the first token an error
+ * ends the answer (the visitor already saw part of it). Resolves to the full model output.
+ */
+async function streamWithFallback(attempts, input, onToken) {
+  let firstError;
+  for (const [index, { name, llm }] of attempts.entries()) {
+    const chain = prompt.pipe(llm).pipe(new StringOutputParser());
+    const filter = createSourcesFilter();
+    let output = '';
+    let sent = false;
+    try {
+      await withTimeout(async (signal, touch) => {
+        const stream = await chain.stream(input, { signal });
+        for await (const piece of stream) {
+          touch();
+          output += piece;
+          const text = filter.push(piece);
+          if (text) {
+            sent = true;
+            onToken(text);
+          }
+        }
+      });
+      if (index > 0) console.warn(`LLM answered with fallback model ${name}.`);
+      return output;
+    } catch (error) {
+      if (sent) throw toLlmError(error);
+      firstError ??= error;
+      const next = attempts[index + 1];
+      if (!next || !isRetryableLlmError(error)) break;
+      console.warn(`LLM fallback: ${name} failed (${describeError(error)}), trying ${next.name}.`);
+    }
+  }
+  throw toLlmError(firstError);
+}
+
 /** Turn provider errors into short messages the user can act on. */
 function toLlmError(error) {
   const status = errorStatus(error);
@@ -264,11 +365,10 @@ function toLlmError(error) {
 }
 
 /**
- * Retrieve relevant chunks and ask the LLM to answer from them only. Tests can pass
- * `llm` (and `fallbackLlm`) instead of the configured Gemini models.
- * @param {{ question: string, history?: Array<{ role: string, content: string }>, llm?: import('@langchain/core/runnables').Runnable, fallbackLlm?: import('@langchain/core/runnables').Runnable, session: object | null }} params
+ * Checks, retrieval and prompt input shared by answerQuestion and streamAnswer.
+ * input is null when nothing was retrieved (the answer is then "not found").
  */
-export async function answerQuestion({ question, history = [], llm, fallbackLlm, session }) {
+async function prepareAnswer({ question, history = [], llm, fallbackLlm, session }) {
   if (!question) {
     throw new HttpError(400, 'EMPTY_QUESTION', 'Type a question first.');
   }
@@ -283,18 +383,37 @@ export async function answerQuestion({ question, history = [], llm, fallbackLlm,
   const chatHistory = toChatHistory(history);
   const results = await search(session, buildSearchQuery(question, chatHistory), config.topK);
   const chunks = results.map(([chunk]) => chunk);
-  if (chunks.length === 0) {
-    return { answer: NOT_FOUND_ANSWER, sources: [] };
-  }
+  const input = chunks.length === 0 ? null : { context: formatContext(chunks), history: chatHistory, question };
+  return { attempts, results, input };
+}
 
-  const answer = await invokeWithFallback(attempts, {
-    context: formatContext(chunks),
-    history: chatHistory,
-    question,
-  });
-  const { answer: text, cited } = splitCitations(answer);
+/** Final answer text and its sources from the full model output. */
+function finishAnswer(question, output, results) {
+  const { answer: text, cited } = splitCitations(output);
   const finalAnswer = text || NOT_FOUND_ANSWER;
   // When the answer is not in the documents, there is no source to show.
   const sources = finalAnswer.includes(NOT_FOUND_ANSWER) ? [] : toSources(pickSourceChunks(results, cited), `${question}\n${finalAnswer}`);
   return { answer: finalAnswer, sources };
+}
+
+/**
+ * Retrieve relevant chunks and ask the LLM to answer from them only. Tests can pass
+ * `llm` (and `fallbackLlm`) instead of the configured Gemini models.
+ * @param {{ question: string, history?: Array<{ role: string, content: string }>, llm?: import('@langchain/core/runnables').Runnable, fallbackLlm?: import('@langchain/core/runnables').Runnable, session: object | null }} params
+ */
+export async function answerQuestion(params) {
+  const { attempts, results, input } = await prepareAnswer(params);
+  if (!input) return { answer: NOT_FOUND_ANSWER, sources: [] };
+  return finishAnswer(params.question, await invokeWithFallback(attempts, input), results);
+}
+
+/**
+ * Like answerQuestion, but calls onToken(text) while the model writes the answer (the
+ * SOURCES line is never sent). Resolves to the same { answer, sources } as answerQuestion.
+ * Errors before the first token are the same as answerQuestion's.
+ */
+export async function streamAnswer({ onToken, ...params }) {
+  const { attempts, results, input } = await prepareAnswer(params);
+  if (!input) return { answer: NOT_FOUND_ANSWER, sources: [] };
+  return finishAnswer(params.question, await streamWithFallback(attempts, input, onToken), results);
 }

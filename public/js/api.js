@@ -95,11 +95,14 @@ export function getDocuments() {
   return request('/api/documents');
 }
 
-export function askQuestion(question, history = []) {
-  return request('/api/chat', {
+/** onToken(text) gets the answer while it is written; resolves to the final { answer, sources }. */
+export function askQuestion(question, history = [], { onToken } = {}) {
+  return streamRequest('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ question, history }),
+  }, (event) => {
+    if (event.type === 'token') onToken?.(event.text);
   });
 }
 
