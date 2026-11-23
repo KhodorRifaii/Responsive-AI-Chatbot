@@ -79,17 +79,21 @@ function renderDocuments(documents) {
     return li;
   }));
   els.docsCount.textContent = String(documents.length);
-  if (documents.length > 0) {
-    document.getElementById('emptyTitle').textContent = 'Ask about your documents';
-    document.getElementById('emptyText').textContent = 'Type a question below. Answers only use what is in your files.';
-  }
-  els.docsEmpty.hidden = documents.length > 0;
+  const hasDocs = documents.length > 0;
+  document.getElementById('emptyTitle').textContent = hasDocs ? 'Ask about your documents' : 'Upload a document to get started';
+  document.getElementById('emptyText').textContent = hasDocs
+    ? 'Type a question below. Answers only use what is in your files.'
+    : 'Add a PDF, Word file, text file or spreadsheet, then ask anything about it.';
+  els.docsEmpty.hidden = hasDocs;
 }
 
 async function refreshDocuments() {
   try {
-    const { documents } = await getDocuments();
+    const { documents, sessionExpired } = await getDocuments();
     renderDocuments(documents);
+    if (sessionExpired && history.length > 0) {
+      expireChat('Your documents were removed after a period without activity (or a server restart), so the old chat was cleared. Upload them again to keep asking.');
+    }
   } catch {
     // The list is informative only; upload errors are shown elsewhere.
   }
@@ -383,12 +387,12 @@ function setLoading(isLoading) {
 }
 
 /** Small centered note in the chat (not part of the conversation history). */
-function appendNotice(text) {
+function appendNotice(text, icon = 'bi-file-earmark-check') {
   els.emptyState.hidden = true;
   const note = document.createElement('p');
   note.className = 'message chat-notice';
   note.setAttribute('role', 'status');
-  note.innerHTML = '<i class="bi bi-file-earmark-check" aria-hidden="true"></i> ';
+  note.innerHTML = `<i class="bi ${icon}" aria-hidden="true"></i> `;
   note.append(text);
   els.messages.append(note);
   scrollToBottom();
@@ -412,13 +416,14 @@ async function sendQuestion(question) {
     // Failed turns are not kept in history; the question goes back in the box to retry.
     history.pop();
     saveHistory();
-    appendMessage('error', error.message);
+    if (error.code === 'SESSION_EXPIRED') expireChat(error.message);
+    else appendMessage('error', error.message);
     if (!els.questionInput.value) {
       els.questionInput.value = question;
       autoGrow();
     }
     if (error.code === 'MISSING_API_KEY') els.setupAlert.hidden = false;
-    if (error.code === 'NO_DOCUMENTS') refreshDocuments(); // e.g. the session expired
+    if (error.code === 'NO_DOCUMENTS' || error.code === 'SESSION_EXPIRED') refreshDocuments();
   } finally {
     setLoading(false);
   }
@@ -440,6 +445,23 @@ function clearChat() {
 }
 
 els.clearChat.addEventListener('click', clearChat);
+
+/**
+ * The server deleted this visitor's documents (30 idle minutes or a restart). The old answers
+ * and their sources no longer match anything, so clear them and explain why.
+ */
+function expireChat(message) {
+  history = [];
+  saveHistory();
+  els.messages.querySelectorAll('.message').forEach((node) => node.remove());
+  setUploadStatus('');
+  appendNotice(message, 'bi-clock-history');
+}
+
+// Coming back to a tab after a long break: check whether the documents are still there.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshDocuments();
+});
 
 function autoGrow() {
   els.questionInput.style.height = 'auto';

@@ -6,7 +6,7 @@ import { HttpError } from '../utils/httpError.js';
 const router = Router();
 
 router.get('/', (req, res) => {
-  res.json({ documents: listDocuments(req.docSession) });
+  res.json({ documents: listDocuments(req.docSession), sessionExpired: req.sessionExpired });
 });
 
 router.post('/', upload.array('files', 10), async (req, res, next) => {

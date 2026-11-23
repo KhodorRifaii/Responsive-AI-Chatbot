@@ -16,11 +16,15 @@ function readSessionId(req) {
  * Finds the visitor's session from an httpOnly cookie. The cookie is not
  * readable by page scripts, and ids are created by the server only: an unknown
  * or malformed id is ignored and a new session is issued when one is needed.
- * Adds req.docSession (or null) and req.ensureDocSession().
+ * Adds req.docSession (or null), req.sessionExpired and req.ensureDocSession().
  */
 export function sessionMiddleware(req, res, next) {
   const id = readSessionId(req);
   req.docSession = UUID.test(id) ? getSession(id) : null;
+  // A well-formed id the server no longer has: the session expired or the server restarted.
+  // Tell the page once (so it can clear the old chat), then drop the stale cookie.
+  req.sessionExpired = UUID.test(id) && !req.docSession;
+  if (req.sessionExpired) res.clearCookie(SESSION_COOKIE, { path: '/' });
   req.ensureDocSession = () => {
     if (!req.docSession) {
       req.docSession = createSession();
