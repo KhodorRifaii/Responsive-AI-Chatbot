@@ -17,6 +17,7 @@ The chatbot covers the following:
 - The document sources (file name, page for PDFs and an excerpt) behind each answer
 - Several documents at once, with a list of everything uploaded
 - Private documents: each visitor only sees and searches their own files
+- Per-visitor rate limits, so one visitor can't use up the shared free Gemini quota
 - Dark and light mode, remembered in your browser
 - Clear chat history button
 - Add new documents at any time (sidebar, paperclip or drag and drop) without restarting the server
@@ -64,6 +65,7 @@ The backend lives in `src/` and the static frontend in `public/`:
 │   ├── app.js               # Express app, routes and error handler
 │   ├── config.js            # Settings from .env
 │   ├── middleware/
+│   │   ├── rateLimit.js     # Per-visitor request limits (in memory)
 │   │   ├── session.js       # Per-visitor session cookie
 │   │   └── upload.js        # multer: size limit and file type whitelist
 │   ├── routes/
@@ -131,6 +133,9 @@ GEMINI_MODEL=gemini-3.5-flash
 | `MAX_SESSIONS` | `100` | Maximum number of visitors with documents at the same time. |
 | `MAX_CHUNKS_PER_SESSION` | `1500` | Maximum text parts per visitor (roughly 1.5 MB of text). |
 | `MAX_TOTAL_CHUNKS` | `5000` | Maximum text parts for all visitors together, to stay within 512 MB of memory. |
+| `RATE_LIMIT_CHAT_PER_MINUTE` | `10` | Questions per visitor (IP address) per minute. `0` turns the limit off. |
+| `RATE_LIMIT_CHAT_PER_HOUR` | `100` | Questions per visitor per hour. |
+| `RATE_LIMIT_UPLOADS_PER_HOUR` | `30` | Upload requests per visitor per hour (each can hold up to 10 files). |
 
 If Google retires the model or it becomes slow, set `GEMINI_MODEL` to another one, for example `gemini-flash-latest`, and restart the server.
 
@@ -166,7 +171,7 @@ Uploaded documents stay in memory only and are private to your browser. The serv
 
 The server identifies each visitor with an httpOnly session cookie (`docchat_sid`), so every call only sees that visitor's documents.
 
-Errors return `{ error, code }` with a matching HTTP status, for example `UNSUPPORTED_FILE`, `EMPTY_FILE`, `EMPTY_QUESTION`, `NO_DOCUMENTS`, `DOCUMENT_TOO_LARGE`, `TOO_MANY_DOCUMENTS`, `SERVER_BUSY` or `MISSING_API_KEY`.
+Errors return `{ error, code }` with a matching HTTP status, for example `UNSUPPORTED_FILE`, `EMPTY_FILE`, `EMPTY_QUESTION`, `NO_DOCUMENTS`, `DOCUMENT_TOO_LARGE`, `TOO_MANY_DOCUMENTS`, `SERVER_BUSY`, `RATE_LIMITED` (with a `Retry-After` header) or `MISSING_API_KEY`.
 
 ## Known limitations
 

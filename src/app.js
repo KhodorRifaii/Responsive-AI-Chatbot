@@ -7,6 +7,7 @@ import { HttpError } from './utils/httpError.js';
 import documentsRouter from './routes/documents.js';
 import chatRouter from './routes/chat.js';
 import { sessionMiddleware } from './middleware/session.js';
+import { createRateLimiter } from './middleware/rateLimit.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -26,6 +27,17 @@ app.get('/api/health', (req, res) => {
     model: config.geminiModel,
   });
 });
+
+// Per-visitor limits on the expensive calls (Gemini answers, embedding uploads).
+const MINUTE = 60 * 1000;
+const HOUR = 60 * MINUTE;
+export const limiters = {
+  chatMinute: createRateLimiter({ max: config.chatPerMinute, windowMs: MINUTE, action: 'questions' }),
+  chatHour: createRateLimiter({ max: config.chatPerHour, windowMs: HOUR, action: 'questions' }),
+  uploads: createRateLimiter({ max: config.uploadsPerHour, windowMs: HOUR, action: 'uploads' }),
+};
+app.post('/api/chat', limiters.chatMinute, limiters.chatHour);
+app.post('/api/documents', limiters.uploads);
 
 app.use('/api', sessionMiddleware);
 app.use('/api/documents', documentsRouter);

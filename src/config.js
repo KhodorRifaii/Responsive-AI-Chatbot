@@ -12,6 +12,12 @@ function readThinkingBudget(value) {
   return Number.isInteger(budget) ? budget : 0;
 }
 
+/** A non-negative whole number from the environment (0 allowed), or the fallback. */
+function readLimit(value, fallback) {
+  const number = Number(value?.trim());
+  return value?.trim() && Number.isInteger(number) && number >= 0 ? number : fallback;
+}
+
 const config = {
   port: Number(process.env.PORT) || 3000,
   googleApiKey: process.env.GOOGLE_API_KEY?.trim() || '',
@@ -28,6 +34,10 @@ const config = {
   maxDocsPerSession: 10,
   maxChunksPerSession: Number(process.env.MAX_CHUNKS_PER_SESSION) || 1500,
   maxTotalChunks: Number(process.env.MAX_TOTAL_CHUNKS) || 5000,
+  // Requests per visitor (IP). Generous for a demo, but one visitor can't use up the shared free quota. 0 = off.
+  chatPerMinute: readLimit(process.env.RATE_LIMIT_CHAT_PER_MINUTE, 10),
+  chatPerHour: readLimit(process.env.RATE_LIMIT_CHAT_PER_HOUR, 100),
+  uploadsPerHour: readLimit(process.env.RATE_LIMIT_UPLOADS_PER_HOUR, 30),
   chunkSize: 1000,
   chunkOverlap: 150,
   topK: 4,
