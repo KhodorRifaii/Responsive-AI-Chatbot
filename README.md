@@ -36,6 +36,7 @@ Everything below is free and open source, except the Gemini API, which has a fre
 | Text splitting | `RecursiveCharacterTextSplitter` (1000 characters, 150 overlap) |
 | File parsing | `pdf-parse` (PDF), `mammoth` (DOCX), `papaparse` (CSV) |
 | Uploads | `multer` (in memory, size limit and file type whitelist) |
+| Rate limits | `express-rate-limit` (in memory, per visitor IP, IPv6 grouped by /64) |
 | Frontend | HTML, Bootstrap 5, Bootstrap Icons, vanilla JavaScript |
 
 ## How it works
@@ -137,6 +138,7 @@ GEMINI_MODEL=gemini-3.5-flash
 | `RATE_LIMIT_CHAT_PER_MINUTE` | `10` | Questions per visitor (IP address) per minute. `0` turns the limit off. |
 | `RATE_LIMIT_CHAT_PER_HOUR` | `100` | Questions per visitor per hour. |
 | `RATE_LIMIT_UPLOADS_PER_HOUR` | `30` | Upload requests per visitor per hour (each can hold up to 10 files). |
+| `TRUST_PROXY` | `1` | Number of proxies in front of the app, so rate limits see each visitor's real IP. `1` fits Render. Use `false` when you run the app with nothing in front of it (for example `npm start` on a public server), so visitors can't fake their IP with an `X-Forwarded-For` header. |
 
 If Google retires the model or it becomes slow, set `GEMINI_MODEL` to another one, for example `gemini-flash-latest`, and restart the server.
 
@@ -155,6 +157,12 @@ npm test
 ```
 
 The tests use Node's built-in test runner, so there is nothing extra to install. They cover the file loaders, private sessions, the memory limits, the rate limits, the SOURCES line and the main API routes. They never call Gemini, but the first run needs the embedding model (downloaded once, like the first upload).
+
+## Deployment
+
+The live demo runs on Render (free plan, 512 MB of memory), behind one proxy. That matches the default `TRUST_PROXY=1`. Add `GOOGLE_API_KEY` as an environment variable in Render, never in the code.
+
+The `Dockerfile` was written for Hugging Face Spaces and is not the live target. It still works for running the app in Docker; set `TRUST_PROXY` to match whatever sits in front of the container.
 
 ## Use the chatbot
 

@@ -13,8 +13,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 
-// Render and similar hosts sit behind a proxy; this makes req.secure (Secure cookies) work.
-app.set('trust proxy', 1);
+// Render sits behind one proxy; this makes req.ip (rate limits) and req.secure (Secure cookies)
+// use the real visitor. Set TRUST_PROXY=false when nothing sits in front of the app.
+app.set('trust proxy', config.trustProxy);
 app.disable('x-powered-by');
 
 app.use(express.json({ limit: '1mb' }));

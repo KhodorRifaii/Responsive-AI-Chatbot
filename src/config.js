@@ -12,6 +12,18 @@ function readThinkingBudget(value) {
   return Number.isInteger(budget) ? budget : 0;
 }
 
+/**
+ * Express "trust proxy": how many proxies sit in front of the app. 1 (default) fits Render.
+ * "false" when the app is reached directly (no proxy), so X-Forwarded-For is ignored.
+ * Also accepts a hop count or a list of trusted addresses ("loopback, 10.0.0.0/8").
+ */
+function readTrustProxy(value) {
+  const text = value?.trim();
+  if (!text) return 1;
+  if (text === 'false') return false;
+  return /^\d+$/.test(text) ? Number(text) : text;
+}
+
 /** A non-negative whole number from the environment (0 allowed), or the fallback. */
 function readLimit(value, fallback) {
   const number = Number(value?.trim());
@@ -20,6 +32,7 @@ function readLimit(value, fallback) {
 
 const config = {
   port: Number(process.env.PORT) || 3000,
+  trustProxy: readTrustProxy(process.env.TRUST_PROXY),
   googleApiKey: process.env.GOOGLE_API_KEY?.trim() || '',
   geminiModel: process.env.GEMINI_MODEL?.trim() || 'gemini-3.5-flash',
   geminiThinkingBudget: readThinkingBudget(process.env.GEMINI_THINKING_BUDGET),
