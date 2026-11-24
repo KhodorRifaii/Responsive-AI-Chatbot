@@ -11,8 +11,8 @@
 {"id": "en-11", "lang": "en", "type": "single", "question": "When does the Lakeview library branch close?", "sources": ["lakeside-library-branches.csv"], "facts": [["21:00", "9 pm", "9 00 pm", "9 p m", "9pm"]]}
 {"id": "ar-01", "lang": "ar", "type": "single", "question": "ما هي رسوم الكشف العام في عيادة النور؟", "sources": ["clinic-guide-ar.txt"], "facts": [["150"]]}
 {"id": "ar-02", "lang": "ar", "type": "single", "question": "قبل كم ساعة يجب إلغاء الموعد في عيادة النور حتى لا تُحتسب رسوم؟", "sources": ["clinic-guide-ar.txt"], "facts": [["24"]]}
-{"id": "ar-03", "lang": "ar", "type": "single", "question": "متى تظهر نتائج التحاليل العادية؟", "sources": ["clinic-guide-ar.txt"], "facts": [["48"]]}
-{"id": "ar-04", "lang": "ar", "type": "single", "question": "ما رقم الطوارئ الذي يجب الاتصال به؟", "sources": ["clinic-guide-ar.txt"], "facts": [["997"]]}
+{"id": "ar-03", "lang": "ar", "type": "single", "question": "متى تظهر نتائج التحاليل العادية في عيادة النور؟", "sources": ["clinic-guide-ar.txt"], "facts": [["48"]]}
+{"id": "ar-04", "lang": "ar", "type": "single", "question": "ما رقم الطوارئ الذي توجه عيادة النور مرضاها للاتصال به؟", "sources": ["clinic-guide-ar.txt"], "facts": [["997"]]}
 {"id": "ar-05", "lang": "ar", "type": "single", "question": "ما هي ساعات دوام عيادة النور يوم السبت؟", "sources": ["clinic-guide-ar.txt"], "facts": [["9"], ["2"]]}
 {"id": "ar-06", "lang": "ar", "type": "single", "question": "كم سنة مدة ضمان الألواح الشمسية لدى شمس الخليج؟", "sources": ["solar-faq-ar.txt"], "facts": [["25"]]}
 {"id": "ar-07", "lang": "ar", "type": "single", "question": "كم يبلغ سعر نظام الطاقة الشمسية المنزلي بقدرة 5 كيلوواط؟", "sources": ["solar-faq-ar.txt"], "facts": [["22000"]]}

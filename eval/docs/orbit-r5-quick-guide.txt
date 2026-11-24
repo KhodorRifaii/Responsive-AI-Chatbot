@@ -1,0 +1,22 @@
+Orbit R5 Wi-Fi 5 Router: Quick Guide
+
+1. About the Orbit R5
+The Orbit R5 is the entry model of the Orbit family. It is a dual-band Wi-Fi 5 router (2.4 GHz and 5 GHz) with a combined maximum speed of 1200 Mbps. It has 1 WAN port and 3 LAN ports, all running at 100 Mbps. It supports WPA2 security. The power adapter is 12 V and 1 A.
+
+2. First setup
+Connect the WAN port to the modem and plug in the power adapter. When the light turns solid green, the router is ready. Open a browser and go to 192.168.1.1. The admin password is printed on the label under the router and should be changed after the first login.
+
+3. What the light means
+Solid green: the router is online.
+Blinking green: the router is starting up.
+Blinking amber: the router is too hot. Move it to a ventilated place and make sure nothing covers the vents.
+Solid red: no connection to the modem. Check the WAN cable.
+
+4. Factory reset
+Hold the reset button for 8 seconds until the light blinks green. The Wi-Fi name and password return to the values on the label.
+
+5. Updates and guest network
+The router installs new firmware automatically at 02:00. The guest network supports up to 4 devices and stays on until you switch it off. There are no parental controls on this model.
+
+6. Warranty
+The Orbit R5 has a warranty of 12 months from the purchase date. Keep the receipt. The warranty does not cover damage caused by overheating in a closed cabinet.
