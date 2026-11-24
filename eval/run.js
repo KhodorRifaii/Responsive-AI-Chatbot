@@ -8,6 +8,7 @@
 //   options: --delay-ms N (pause between Gemini calls, default 4000)  --out FILE
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chanceHitAll, hasFact, latencyStats, normalize, scoreQuestion, summarize } from './score.js';
@@ -86,6 +87,13 @@ function validateQuestions(questions) {
 const questions = loadQuestions();
 validateQuestions(questions);
 
+// Fingerprint of the question file and every document: a retry must match it, or old answers could be scored against a changed set.
+const datasetFingerprint = createHash('sha256')
+  .update(fs.readFileSync(path.join(evalDir, 'questions.jsonl')))
+  .update(JSON.stringify(docFiles.map((f) => [f, docText[f]])))
+  .digest('hex')
+  .slice(0, 16);
+
 // ---- 2. The app's real pipeline ----------------------------------------------------------------
 const { default: config } = await import('../src/config.js');
 if (!retrievalOnly && !config.googleApiKey) {
@@ -102,7 +110,10 @@ const SETTINGS = ['mainModel', 'fallbackModel', 'thinkingBudget', 'embeddingMode
 if (previous) {
   const now = { mainModel: config.geminiModel, fallbackModel: config.geminiFallbackModel, thinkingBudget: config.geminiThinkingBudget, embeddingModel: config.embeddingModel, embeddingDtype: config.embeddingDtype, chunkSize: config.chunkSize, chunkOverlap: config.chunkOverlap, topK: config.topK, mode: 'full' };
   const changed = SETTINGS.filter((key) => JSON.stringify(previous.meta?.[key]) !== JSON.stringify(now[key]));
-  if (changed.length) fail(`--retry-errors needs the same settings as the first run (different: ${changed.join(', ')}). Run the eval again from the start instead.`);
+  if (previous.meta?.datasetFingerprint !== datasetFingerprint) changed.push('questions or documents');
+  const priorIds = (previous.results ?? []).map((r) => r.id).sort().join();
+  if (priorIds !== questions.map((q) => q.id).sort().join()) changed.push('question ids');
+  if (changed.length) fail(`--retry-errors needs the same settings, questions and documents as the first run (different: ${changed.join(', ')}). Run the eval again from the start instead.`);
 }
 
 console.log('Loading documents through the real pipeline (loader, splitter, local embeddings)...');
@@ -160,6 +171,7 @@ const meta = previous ? { ...previous.meta } : {
   chunksByFile,
   delayMs,
   judge: 'none (deterministic checks only)',
+  datasetFingerprint,
 };
 if (previous) meta.retries = [...(previous.meta.retries ?? [])];
 

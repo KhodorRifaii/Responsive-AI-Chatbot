@@ -204,7 +204,7 @@ By question type, answers were correct for 18/19 single-source, 1/2 cross-lingua
 ### Run it
 
 ```bash
-npm run eval                      # real run: about one Gemini call per question, about 3 minutes
+npm run eval                      # real run: one answer attempt per question (retries and the fallback model can add calls), about 3 minutes
 npm run eval -- --retrieval-only  # free: retrieval scores only, no Gemini calls
 npm run eval -- --retry-errors    # ask again only the questions that errored last time
 ```
