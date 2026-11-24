@@ -1,0 +1,28 @@
+Orbit R7 Wi-Fi 6 Router: User Manual
+
+1. What is in the box
+The box contains the Orbit R7 router, a 9 V 2 A power adapter, one 1.5 metre Ethernet cable, a quick start card and a wall-mount template. The wall-mount holes are 80 mm apart.
+
+2. Key specifications
+The Orbit R7 is a dual-band Wi-Fi 6 router (2.4 GHz and 5 GHz) with a combined maximum speed of 3000 Mbps. It has 1 Gigabit WAN port and 4 Gigabit LAN ports. It supports WPA3 and WPA2 security. The operating temperature is 0 to 40 degrees Celsius. The router uses 9 V and 2 A of power.
+
+3. Setting up
+Connect the WAN port to your modem, plug in the power adapter and wait until the light turns solid blue. Open a browser and go to the default address 192.168.8.1. The admin password is printed on the label on the bottom of the router. Change it during the first setup. Place the router in a central, open spot, at least 1 metre away from microwave ovens and cordless phones.
+
+4. What the light means
+Solid blue: the router is online and working normally.
+Blinking amber: the router is powered on and your devices are connected, but there is no internet connection. Check the modem and the WAN cable.
+Solid red: a hardware fault was detected. Contact support, do not keep using the router.
+Pulsing white: the router is installing a firmware update. Do not unplug it.
+
+5. Factory reset
+To restore the factory settings, press and hold the reset button with a paperclip for 12 seconds, until the light flashes white. All your settings, including the Wi-Fi name and password, are erased and the admin password goes back to the one on the label.
+
+6. Firmware updates
+The router checks for new firmware every day and installs it automatically at 03:00 local time. During an update, internet access stops for about 3 minutes. Automatic updates can be switched off in the admin page, but this is not recommended.
+
+7. Guest network and parental controls
+The guest network is off by default. When it is on, up to 8 devices can join it, and it turns itself off after 24 hours. Parental controls support up to 16 profiles, and each profile can have its own internet schedule and blocked categories.
+
+8. Warranty and support
+The Orbit R7 has a warranty of 18 months from the purchase date. The warranty does not cover water damage or damage from using a different power adapter. To make a claim, keep the receipt and the serial number printed on the bottom label.
