@@ -108,6 +108,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   };
 
   if (process.argv.includes('--resummarize')) {
+    if (!previous) {
+      console.error(`--resummarize needs an existing summary for today (${path.relative(root, outFile)}): there is none. Run the candidates first.`);
+      process.exit(1);
+    }
     // No model is run: the stored raw runs hold every retrieved chunk, so the chunk-level score and the summary are recomputed.
     const { loadAndSplit } = await import('../src/services/documentLoader.js');
     const chunkText = await loadChunkTexts(path.join(evalDir, 'docs'), loadAndSplit);
