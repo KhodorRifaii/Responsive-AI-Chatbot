@@ -244,14 +244,16 @@ export function latencyStats(values) {
 
 /**
  * What the app logged while answering one question (console.warn / console.error lines): every line kept
- * (cut to 300 characters), the models that failed, and whether the fallback model answered.
+ * (cut to 300 characters), the models that failed, whether the fallback model answered, and which model did.
  */
-export function analyzeLogs(logs) {
+export function analyzeLogs(logs, mainModel = null) {
   const failedModels = [...new Set(logs.map((l) => /^LLM fallback(?: model)?:? (\S+) failed/.exec(l)?.[1]).filter(Boolean))];
   return {
     logs: logs.map((l) => l.slice(0, 300)),
     failedModels,
     mainFailed: failedModels.length > 0,
     fallbackUsed: logs.some((l) => l.startsWith('LLM answered with fallback model')),
+    // The model that wrote the answer: the fallback named in the log line, otherwise the main model.
+    answeredBy: logs.map((l) => /^LLM answered with fallback model (\S+?)\.?$/.exec(l)?.[1]).find(Boolean) ?? mainModel,
   };
 }

@@ -186,5 +186,7 @@ test('analyzeLogs keeps every line and names the models that failed', () => {
   assert.equal(a.logs[2].length, 300);
   const ok = analyzeLogs(['LLM fallback: m failed (503), trying f.', 'LLM answered with fallback model f.']);
   assert.deepEqual([ok.fallbackUsed, ok.failedModels], [true, ['m']]);
-  assert.deepEqual(analyzeLogs([]), { logs: [], failedModels: [], mainFailed: false, fallbackUsed: false });
+  assert.deepEqual(analyzeLogs([]), { logs: [], failedModels: [], mainFailed: false, fallbackUsed: false, answeredBy: null });
+  assert.equal(analyzeLogs([], 'gemini-main').answeredBy, 'gemini-main');
+  assert.equal(analyzeLogs(['LLM fallback: gemini-3.6-flash failed (429), trying gemini-3.5-flash-lite.', 'LLM answered with fallback model gemini-3.5-flash-lite.'], 'gemini-3.6-flash').answeredBy, 'gemini-3.5-flash-lite');
 });

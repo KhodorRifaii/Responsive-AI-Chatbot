@@ -178,7 +178,7 @@ The tests use Node's built-in test runner, so there is nothing extra to install.
 
 ### Results
 
-Run on 2026-11-24 with `GEMINI_MODEL=gemini-3.6-flash`, `GEMINI_FALLBACK_MODEL=gemini-3.5-flash-lite`, `GEMINI_THINKING_BUDGET=default`, embeddings `Xenova/all-MiniLM-L6-v2`, top-4 chunks. Two questions that hit a rate limit were asked again afterwards with the same settings (`eval/baseline.json` lists them under `meta.retries`). The full run is in `eval/baseline.json`.
+**Mixed models: `gemini-3.5-flash-lite` wrote 26 answers and `gemini-3.6-flash` wrote 2, so this table is not a single-model score. It will be re-run with one model after the model settings are fixed (KHO-24).** Run on 2026-11-24 with `GEMINI_MODEL=gemini-3.6-flash`, `GEMINI_FALLBACK_MODEL=gemini-3.5-flash-lite`, `GEMINI_THINKING_BUDGET=default`, embeddings `Xenova/all-MiniLM-L6-v2`, top-4 chunks. Two questions that hit a rate limit were asked again afterwards with the same settings (`eval/baseline.json` lists them under `meta.retries`). The full run is in `eval/baseline.json`.
 
 | Measure | All | English | Arabic |
 | --- | --- | --- | --- |
@@ -204,12 +204,12 @@ By question type, answers were correct for 18/19 single-source, 1/2 cross-lingua
 ### Run it
 
 ```bash
-npm run eval                      # real run: one answer attempt per question (retries and the fallback model can add calls), about 3 minutes
+GEMINI_FALLBACK_MODEL=none npm run eval   # real run with ONE model: about one answer attempt per question (the app's own retries can add calls), about 4 minutes
 npm run eval -- --retrieval-only  # free: retrieval scores only, no Gemini calls
 npm run eval -- --retry-errors    # ask again only the questions that errored last time
 ```
 
-It uses the models in `.env`. Options: `--delay-ms N` (pause between Gemini calls, default 4000, to stay inside free-tier limits) and `--out FILE`. After 5 errors in a row it stops asking and marks the rest as skipped. Results go to `eval/results/latest.json` (not committed): the settings, the retrieved chunks with their scores, every answer and its checks. Questions that errored are reported separately and never counted as wrong.
+It uses the models in `.env`. Always pass `GEMINI_FALLBACK_MODEL=none` for a score: with a fallback, some answers come from a second model, the runner prints a warning, and each question records which model answered (`answeredBy`). Options: `--delay-ms N` (pause between Gemini calls, default 4000, to stay inside free-tier limits) and `--out FILE`. After 5 errors in a row it stops asking and marks the rest as skipped. Results go to `eval/results/latest.json` (not committed): the settings, the retrieved chunks with their scores, every answer and its checks. Questions that errored are reported separately and never counted as wrong.
 
 ## Deployment
 

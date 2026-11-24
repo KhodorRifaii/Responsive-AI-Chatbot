@@ -212,7 +212,7 @@ for (const [index, q] of questions.entries()) {
 
   if (!retrievalOnly) {
     if (old && !old.error) {
-      Object.assign(run, { answer: old.answer, sources: old.sources, latencyMs: old.latencyMs, fallbackUsed: old.fallbackUsed, mainFailed: old.mainFailed, failedModels: old.failedModels, logs: old.logs });
+      Object.assign(run, { answer: old.answer, sources: old.sources, latencyMs: old.latencyMs, fallbackUsed: old.fallbackUsed, mainFailed: old.mainFailed, failedModels: old.failedModels, logs: old.logs, answeredBy: old.answeredBy });
     } else if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
       run.error = { code: 'SKIPPED', message: `stopped after ${MAX_CONSECUTIVE_ERRORS} errors in a row` };
     } else {
@@ -222,8 +222,9 @@ for (const [index, q] of questions.entries()) {
       const started = performance.now();
       const { value, error, logs } = await captureLogs(() => answerQuestion({ question: q.question, session }));
       run.latencyMs = Math.round(performance.now() - started);
-      Object.assign(run, analyzeLogs(logs));
+      Object.assign(run, analyzeLogs(logs, config.geminiModel));
       if (error) {
+        run.answeredBy = null;
         run.error = { code: error.code ?? error.name ?? 'ERROR', status: error.status ?? null, message: String(error.message ?? error).slice(0, 200) };
         consecutiveErrors += 1;
       } else {
@@ -261,6 +262,13 @@ if (!retrievalOnly) {
   }
   const none = summary.unanswerable;
   console.log(`\nREFUSALS (unanswerable questions): exact "not found" sentence and no sources ${pct(none.refused, none.unansweredCount)}; loosely refused (EN/AR phrases) ${pct(none.softRefused, none.unansweredCount)}`);
+  const byModel = {};
+  for (const r of results) if (r.answeredBy) byModel[r.answeredBy] = (byModel[r.answeredBy] ?? 0) + 1;
+  console.log(`\nAnswered by: ${Object.entries(byModel).map(([model, n]) => `${model} ${n}`).join(', ') || 'nobody'}`);
+  const viaFallback = results.filter((r) => r.fallbackUsed).length;
+  if (viaFallback) {
+    console.log(`\n!!! WARNING: ${viaFallback} of ${results.length} answers came from the FALLBACK model (${meta.fallbackModel}), not ${meta.mainModel}. These results MIX models. For a single-model run use GEMINI_FALLBACK_MODEL=none.`);
+  }
   const times = results.filter((r) => r.latencyMs !== undefined && !r.error).map((r) => r.latencyMs);
   const stats = latencyStats(times);
   const errored = results.filter((r) => r.error);
@@ -293,6 +301,7 @@ if (flagged.length) {
 }
 
 meta.summary = summary;
+meta.answeredBy = Object.fromEntries(results.filter((r) => r.answeredBy).reduce((m, r) => m.set(r.answeredBy, (m.get(r.answeredBy) ?? 0) + 1), new Map()));
 if (previous) meta.retries.push({ date: new Date().toISOString(), ids: retriedIds });
 save();
 console.log(`\nResults written to ${path.relative(root, outFile)}`);
