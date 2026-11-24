@@ -186,6 +186,10 @@ export class LlmTimeoutError extends Error {
 }
 
 const errorStatus = (error) => Number(error?.status ?? error?.response?.status) || 0;
+// Google answers a wrong API key with HTTP 400 (reason API_KEY_INVALID), not 401/403: an auth problem, not a bad setting.
+const isAuthError = (error) => [401, 403].includes(errorStatus(error)) || /api[_ ]?key|API_KEY_INVALID/i.test(String(error?.message ?? ''));
+// A 400 that is about a request setting (model name, thinking setting), as opposed to the key.
+const isConfigError = (error) => errorStatus(error) === 400 && !isAuthError(error);
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 const RETRYABLE_TEXT = /quota|rate.?limit|resource.?exhausted|overloaded|high demand|unavailable|timed? ?out|fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|model.*not found/i;
 
@@ -209,7 +213,7 @@ function describeError(error) {
   const status = errorStatus(error);
   const text = String(error?.message ?? error).split('\n')[0].slice(0, 120);
   // The provider's 400 text ("Request contains an invalid argument.") does not say what was wrong.
-  if (status === 400) return `${status} ${text} [config error: check the model name, GEMINI_THINKING_LEVEL and GEMINI_THINKING_BUDGET]`;
+  if (isConfigError(error)) return `${status} ${text} [config error: check the model name, GEMINI_THINKING_LEVEL and GEMINI_THINKING_BUDGET]`;
   return status ? `${status} ${text}` : text;
 }
 
@@ -281,7 +285,7 @@ async function invokeWithFallback(attempts, input) {
       return answer;
     } catch (error) {
       firstError ??= error;
-      if (errorStatus(error) === 400) configFailure ??= { error, name, setting: settingFor(index) };
+      if (isConfigError(error)) configFailure ??= { error, name, setting: settingFor(index) };
       // The user sees the main model's error, so the fallback's own failure must reach the log.
       if (index > 0) console.warn(`LLM fallback model ${name} failed too (${describeError(error)}).`);
       const next = attempts[index + 1];
@@ -375,7 +379,7 @@ async function streamWithFallback(attempts, input, onToken, clientSignal) {
       // Text was already shown: the answer ends here with the error of the model that was streaming, named by its own setting.
       if (sent) throw toLlmError(error, name, settingFor(index));
       firstError ??= error;
-      if (errorStatus(error) === 400) configFailure ??= { error, name, setting: settingFor(index) };
+      if (isConfigError(error)) configFailure ??= { error, name, setting: settingFor(index) };
       // The user sees the main model's error, so the fallback's own failure must reach the log.
       if (index > 0) console.warn(`LLM fallback model ${name} failed too (${describeError(error)}).`);
       const next = attempts[index + 1];
@@ -397,8 +401,9 @@ function toLlmError(error, model = config.geminiModel, setting = 'GEMINI_MODEL')
   if (error instanceof LlmTimeoutError) {
     return new HttpError(504, 'LLM_TIMEOUT', 'The AI took too long to answer. Please try again.');
   }
-  // Gemini's 400 text ("Request contains an invalid argument.") never names the setting, so any 400 is reported as a settings problem.
-  if (status === 400) {
+  // Gemini's 400 text ("Request contains an invalid argument.") never names the setting, so a 400 that is not about the key
+  // is reported as a settings problem. (Other 400s, such as FAILED_PRECONDITION for an unsupported location, also land here.)
+  if (status === 400 && !isAuthError(error)) {
     return new HttpError(502, 'LLM_CONFIG', `Gemini rejected the request settings for the model "${model}" (400). Check ${setting}, GEMINI_THINKING_LEVEL and GEMINI_THINKING_BUDGET in .env.`);
   }
   if (status === 429 || /quota|rate.?limit|resource.?exhausted/i.test(text)) {

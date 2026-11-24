@@ -98,3 +98,27 @@ test('retryable errors are told apart from the others', () => {
   assert.equal(rag.isRetryableLlmError(error(401)), false);
   assert.equal(rag.isRetryableLlmError(new Error('API key not valid')), false);
 });
+
+// Google answers a wrong API key with HTTP 400 (reason API_KEY_INVALID), not 401/403: it is an auth problem, not a setting.
+const BAD_KEY = 'API key not valid. Please pass a valid API key.';
+
+test('a wrong API key (Google sends 400) is LLM_AUTH, is not retried on the fallback and is not logged as a config error', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const warn = t.mock.method(console, 'warn', () => {});
+  let fallbackCalls = 0;
+  const fallback = RunnableLambda.from(async () => {
+    fallbackCalls += 1;
+    return 'never used';
+  });
+  await assert.rejects(ask(fails(400, BAD_KEY), fallback), { code: 'LLM_AUTH' });
+  assert.equal(fallbackCalls, 0);
+  // Also when the key error comes from the fallback after a busy main model.
+  await assert.rejects(ask(fails(503, 'overloaded'), named(fails(400, BAD_KEY), 'gemini-fallback')), { code: 'LLM_BUSY' });
+  assert.ok(warn.mock.calls.some((call) => /fallback model gemini-fallback failed too \(400 API key not valid/.test(call.arguments[0])));
+  assert.equal(warn.mock.calls.some((call) => /config error/.test(call.arguments[0])), false);
+});
+
+test('a 400 that names API_KEY_INVALID is an auth error too', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  await assert.rejects(ask(fails(400, '[400 Bad Request] API_KEY_INVALID'), answers('never used')), { code: 'LLM_AUTH' });
+});

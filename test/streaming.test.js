@@ -140,6 +140,17 @@ test('a 400 after the first token ends the answer with a config error naming the
   });
 });
 
+test('a wrong API key (HTTP 400) on the stream path is LLM_AUTH, not a config error', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  t.mock.method(console, 'error', () => {});
+  const badKey = (pieces) => RunnableLambda.from(async function* () {
+    for (const piece of pieces) yield piece;
+    throw Object.assign(new Error('API key not valid. Please pass a valid API key.'), { status: 400 });
+  });
+  await assert.rejects(stream(badKey([]), streams('never used')), { code: 'LLM_AUTH' });
+  await assert.rejects(stream(badKey(['18 ']), streams('never used')), { code: 'LLM_AUTH' });
+});
+
 test('a streamed request that fails before any token gets a plain JSON error', async () => {
   // No API key in tests: MISSING_API_KEY happens before the stream starts.
   const upload = new FormData();
