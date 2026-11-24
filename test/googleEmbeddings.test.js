@@ -277,3 +277,22 @@ test('the visitor leaves: an aborted signal stops at once (no retry of the abort
   await assert.rejects(none.embeddings.embedDocuments(['a'], { signal: AbortSignal.abort() }), (error) => error.code === 'CLIENT_GONE');
   assert.equal(none.calls.length, 0);
 });
+
+test('real clock: when the time left in the budget is shorter than the per-try timeout, the last try gets a whole number of ms (AbortSignal.timeout rejects fractions)', async () => {
+  // Real performance.now() and real waiting: the injected-clock tests above only ever see whole numbers.
+  // Try 1 stalls for 400 ms, the wait is 10 ms, try 2 gets what is left of 700 ms (about 290, fractional) and stalls too; then the budget is spent.
+  const stalledBody = (call) => new Response(new ReadableStream({
+    start(controller) {
+      call.signal.addEventListener('abort', () => controller.error(call.signal.reason));
+    },
+  }), { status: 200, headers: { 'content-type': 'application/json' } });
+  const { fetch, calls } = fakeFetch([stalledBody]);
+  const embeddings = new GoogleEmbeddings({ apiKey: KEY, model: V2, profile: profile(V2), fetch, timeoutMs: 400, budgetMs: 700, backoffMs: 10, warn: () => {} });
+  const started = performance.now();
+  await assert.rejects(embeddings.embedQuery('q'), (error) => {
+    assert.ok(error instanceof EmbeddingUnavailableError, `${error.name}: ${error.message}`);
+    return true;
+  });
+  assert.equal(calls.length, 2);
+  assert.ok(performance.now() - started < 1000, 'the call ended inside the budget (plus the scheduler\'s slack)');
+});

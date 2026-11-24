@@ -76,7 +76,7 @@ export class GoogleEmbeddings extends Embeddings {
       if (left <= 0) break;
       this.stats.requests += 1;
       failure = null;
-      const timeout = AbortSignal.timeout(Math.max(1, Math.min(this.timeoutMs, left)));
+      const timeout = AbortSignal.timeout(Math.max(1, Math.floor(Math.min(this.timeoutMs, left))));
       let status = 0;
       let text = '';
       let headers = null;
