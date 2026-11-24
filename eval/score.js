@@ -53,9 +53,21 @@ export function normalize(text) {
   return out;
 }
 
-/** Numbers (with an optional decimal part) and runs of letters. "ب30" gives "ب", "30"; "10:00" gives "10", "00". */
+// A clause ends at punctuation followed by a space (so 1.5 and 192.168.8.1 stay whole), at brackets and at a spaced dash.
+const CLAUSE_BREAK = /[.,;:!?،؛]+(?=\s|$)|[()]|\s[-–—]\s/;
+
+/** Numbers (with an optional decimal part) and runs of letters, each with the number of its clause. */
+function tokenize(text) {
+  const out = [];
+  normalize(text).split(CLAUSE_BREAK).forEach((clause, index) => {
+    for (const t of clause.match(/\d+(?:\.\d+)?|\p{L}+/gu) ?? []) out.push({ t, clause: index });
+  });
+  return out;
+}
+
+/** Numbers (with an optional decimal part) and runs of letters. "ب30" gives "ب", "30"; "10:30" gives "10", "30". */
 export function tokens(text) {
-  return normalize(text).match(/\d+(?:\.\d+)?|\p{L}+/gu) ?? [];
+  return tokenize(text).map((x) => x.t);
 }
 
 // Attached Arabic articles, prepositions and conjunctions that may precede a gold word in an answer.
@@ -73,20 +85,32 @@ function tokenMatches(answerToken, goldToken) {
   return answerToken.endsWith(goldToken) && PREFIXES.has(answerToken.slice(0, answerToken.length - goldToken.length));
 }
 
-// A fact right after one of these words is negated ("not 24 working days"), so it does not count.
-// "t" is what is left of n't after tokenising ("doesn't" gives "doesn", "t").
-const NEGATORS = new Set(['not', 'no', 'never', 'neither', 'nor', 't', 'لا', 'ليس', 'ليست', 'لم', 'لن', 'غير']);
+// Negation is a heuristic, not language understanding. A negator only counts inside the clause of the fact (so "There is
+// no limit: 24 working days" and "No. 24 working days" are not negated), and:
+// - English: as the word right before the fact or the one before that ("not 24 days", "does not get 24 days"; "t" is
+//   what is left of n't), or "not more/less than <fact>";
+// - Arabic: up to four words before the fact, because Arabic negates the whole predicate that follows
+//   ("لا يجب الإلغاء قبل 24 ساعة" is the opposite of "cancel at least 24 hours before").
+const NEGATORS_EN = new Set(['not', 'no', 'never', 'neither', 'nor', 't']);
+const NEGATORS_AR = new Set(['لا', 'ليس', 'ليست', 'لم', 'لن', 'غير', 'ولا', 'فلا', 'ولم', 'ولن', 'وليس', 'وغير']);
+
+function isNegated(words, start) {
+  const clause = words[start].clause;
+  const before = (n) => (start - n >= 0 && words[start - n].clause === clause ? words[start - n].t : undefined);
+  if (NEGATORS_EN.has(before(1)) || NEGATORS_EN.has(before(2))) return true;
+  if (before(1) === 'than' && ['more', 'less'].includes(before(2)) && NEGATORS_EN.has(before(3))) return true;
+  return [1, 2, 3, 4].some((n) => NEGATORS_AR.has(before(n)));
+}
 
 /** True when any alternative appears as a consecutive run of tokens in the text, not negated. */
 export function hasFact(text, alternatives) {
-  const words = tokens(text);
+  const words = tokenize(text);
   return alternatives.some((alternative) => {
     const gold = tokens(alternative);
     if (gold.length === 0) return false;
     for (let start = 0; start + gold.length <= words.length; start += 1) {
-      if (!gold.every((g, i) => tokenMatches(words[start + i], g))) continue;
-      const negated = [words[start - 1], words[start - 2]].some((w) => w !== undefined && NEGATORS.has(w));
-      if (!negated) return true;
+      if (!gold.every((g, i) => tokenMatches(words[start + i].t, g))) continue;
+      if (!isNegated(words, start)) return true;
     }
     return false;
   });

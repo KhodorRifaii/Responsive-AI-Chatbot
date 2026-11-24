@@ -231,3 +231,18 @@ test('natural correct answers still pass: short answers, :00 times, Arabic hour 
   assert.equal(normalize('1:10:00'), '1:10:00');
   assert.equal(normalize('9:00:30'), '9:00:30');
 });
+
+test('hasFact: a negator counts only next to the fact, in the same clause', () => {
+  assert.equal(hasFact('There is no limit: 24 working days.', ['24 working days']), true);
+  assert.equal(hasFact('Not many: 24 working days.', ['24 working days']), true);
+  assert.equal(hasFact('No. 24 working days.', ['24 working days']), true);
+  assert.equal(hasFact('You get 24 working days (not 18).', ['24 working days']), true);
+  assert.equal(hasFact('It is not 24 days.', ['24 days']), false);
+  assert.equal(hasFact('Not more than 24 working days.', ['24 working days']), false);
+  assert.equal(hasFact('It is not less than 24 working days.', ['24 working days']), false);
+  // Arabic negates the whole predicate that follows it, so a negator up to four words before counts.
+  assert.equal(hasFact('لا يجب الإلغاء قبل 24 ساعة', ['24 ساعة']), false);
+  assert.equal(hasFact('لا توجد رسوم إذا ألغيت الموعد قبل 24 ساعة.', ['24 ساعة']), true);
+  assert.equal(hasFact('نعم، يجب الإلغاء قبل 24 ساعة.', ['24 ساعة']), true);
+  assert.equal(hasFact('لا. يجب الإلغاء قبل 24 ساعة.', ['24 ساعة']), true);
+});
