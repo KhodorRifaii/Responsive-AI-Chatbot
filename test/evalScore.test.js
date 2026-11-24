@@ -1,7 +1,7 @@
 // Tests for the eval scorer (eval/score.js). It imports nothing from src/, so no .env, key or model is involved.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalize, tokens, hasFact, findCollisions, isRefusal, isSoftRefusal, chanceHitAll, scoreQuestion, summarizeGroup } from '../eval/score.js';
+import { analyzeLogs, normalize, tokens, hasFact, findCollisions, isRefusal, isSoftRefusal, chanceHitAll, scoreQuestion, summarizeGroup } from '../eval/score.js';
 
 test('normalize: digits, separators and Arabic spellings', () => {
   assert.equal(normalize('٢٢٬٠٠٠ ريال'), '22000 ريال');
@@ -170,4 +170,21 @@ test('scoreQuestion: correctAndCited needs the expected source to be shown', () 
   const q = { id: 'q', sources: ['hr.txt'], facts: [['24 working days']] };
   const r = scoreQuestion(q, run, NOT_FOUND);
   assert.deepEqual([r.correct, r.citedAll, r.correctAndCited], [true, false, false]);
+});
+
+test('analyzeLogs keeps every line and names the models that failed', () => {
+  const logs = [
+    'LLM fallback: gemini-main failed (429 [GoogleGenerativeAI Error]: Error fetching), trying gemini-lite.',
+    'LLM fallback model gemini-lite failed too (400 invalid).',
+    'LLM error: ' + 'x'.repeat(400),
+  ];
+  const a = analyzeLogs(logs);
+  assert.deepEqual(a.failedModels, ['gemini-main', 'gemini-lite']);
+  assert.equal(a.mainFailed, true);
+  assert.equal(a.fallbackUsed, false);
+  assert.equal(a.logs.length, 3);
+  assert.equal(a.logs[2].length, 300);
+  const ok = analyzeLogs(['LLM fallback: m failed (503), trying f.', 'LLM answered with fallback model f.']);
+  assert.deepEqual([ok.fallbackUsed, ok.failedModels], [true, ['m']]);
+  assert.deepEqual(analyzeLogs([]), { logs: [], failedModels: [], mainFailed: false, fallbackUsed: false });
 });

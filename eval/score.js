@@ -241,3 +241,17 @@ export function latencyStats(values) {
   const median = sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
   return { mean: mean(values), median, max: sorted.at(-1) };
 }
+
+/**
+ * What the app logged while answering one question (console.warn / console.error lines): every line kept
+ * (cut to 300 characters), the models that failed, and whether the fallback model answered.
+ */
+export function analyzeLogs(logs) {
+  const failedModels = [...new Set(logs.map((l) => /^LLM fallback(?: model)?:? (\S+) failed/.exec(l)?.[1]).filter(Boolean))];
+  return {
+    logs: logs.map((l) => l.slice(0, 300)),
+    failedModels,
+    mainFailed: failedModels.length > 0,
+    fallbackUsed: logs.some((l) => l.startsWith('LLM answered with fallback model')),
+  };
+}

@@ -11,7 +11,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { chanceHitAll, findCollisions, hasFact, latencyStats, normalize, scoreQuestion, summarize } from './score.js';
+import { analyzeLogs, chanceHitAll, findCollisions, hasFact, latencyStats, normalize, scoreQuestion, summarize } from './score.js';
 
 const evalDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(evalDir, '..');
@@ -212,7 +212,7 @@ for (const [index, q] of questions.entries()) {
 
   if (!retrievalOnly) {
     if (old && !old.error) {
-      Object.assign(run, { answer: old.answer, sources: old.sources, latencyMs: old.latencyMs, fallbackUsed: old.fallbackUsed, mainFailed: old.mainFailed, mainFailure: old.mainFailure });
+      Object.assign(run, { answer: old.answer, sources: old.sources, latencyMs: old.latencyMs, fallbackUsed: old.fallbackUsed, mainFailed: old.mainFailed, failedModels: old.failedModels, logs: old.logs });
     } else if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
       run.error = { code: 'SKIPPED', message: `stopped after ${MAX_CONSECUTIVE_ERRORS} errors in a row` };
     } else {
@@ -222,11 +222,7 @@ for (const [index, q] of questions.entries()) {
       const started = performance.now();
       const { value, error, logs } = await captureLogs(() => answerQuestion({ question: q.question, session }));
       run.latencyMs = Math.round(performance.now() - started);
-      // The app logs "LLM fallback: <main> failed (...)" and "LLM answered with fallback model <name>".
-      const failure = logs.find((l) => l.startsWith('LLM fallback:'));
-      run.mainFailed = Boolean(failure);
-      run.mainFailure = failure?.slice(0, 200) ?? null;
-      run.fallbackUsed = logs.some((l) => l.startsWith('LLM answered with fallback model'));
+      Object.assign(run, analyzeLogs(logs));
       if (error) {
         run.error = { code: error.code ?? error.name ?? 'ERROR', status: error.status ?? null, message: String(error.message ?? error).slice(0, 200) };
         consecutiveErrors += 1;
