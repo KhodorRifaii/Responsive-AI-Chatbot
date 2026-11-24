@@ -8,6 +8,20 @@ import { HttpError } from '../utils/httpError.js';
 
 const MAX_MESSAGE_LENGTH = 2000;
 
+// @google/generative-ai (inside @langchain/google-genai 2.3.7) returns a `response` promise next to
+// every stream, and LangChain never awaits it. When a stream is aborted (our timeout) or the
+// connection drops, that promise rejects with no handler and Node would exit, taking every
+// visitor's documents with it. The same error already reaches streamWithFallback through the
+// stream itself, so this copy is only logged. Any other unhandled rejection still stops the process.
+process.on('unhandledRejection', (reason) => {
+  if (/^GoogleGenerativeAI(Abort)?Error$/.test(reason?.constructor?.name ?? '') && /reading from the stream/.test(reason.message)) {
+    console.warn('Ignored a duplicate Gemini stream error:', reason.message);
+    return;
+  }
+  console.error('Unhandled promise rejection:', reason);
+  process.exit(1);
+});
+
 export const NOT_FOUND_ANSWER = "I couldn't find that in your uploaded documents.";
 
 const SYSTEM_PROMPT = `You are a document assistant. Answer the user's question using ONLY the context below.
