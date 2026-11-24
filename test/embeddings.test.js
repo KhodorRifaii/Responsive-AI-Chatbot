@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { LocalEmbeddings } from '../src/services/embeddings.js';
 import { resolveEmbeddingProfile } from '../src/services/embeddingProfile.js';
+import { EmbeddingConfigError } from '../src/services/embeddingErrors.js';
 
 /** An extractor that records its calls and answers with a fixed vector per call, like the real pipeline's tensor. */
 function fakeExtractor(vector = [3, 4, 0, 0]) {
@@ -57,7 +58,11 @@ test('a vector shorter than EMBEDDING_DIMENSIONS is a clear error that names the
   const { extractor } = fakeExtractor([1, 2]);
   const profile = resolveEmbeddingProfile('someone/unknown-embedder', { EMBEDDING_DIMENSIONS: '8' });
   const embeddings = embedderWith('someone/unknown-embedder', extractor, { profile });
-  await assert.rejects(embeddings.embedQuery('q'), /someone\/unknown-embedder.*only 2/s);
+  await assert.rejects(embeddings.embedQuery('q'), (error) => {
+    assert.ok(error instanceof EmbeddingConfigError, 'a setting that does not fit the model is a config error');
+    assert.match(error.message, /someone\/unknown-embedder.*only 2/s);
+    return true;
+  });
 });
 
 test('a failed load is not cached: the next call tries again', async () => {
@@ -74,4 +79,24 @@ test('a failed load is not cached: the next call tries again', async () => {
   await assert.rejects(embeddings.embedQuery('q'), /offline/);
   assert.deepEqual(await embeddings.embedQuery('q'), [3, 4, 0, 0]);
   assert.equal(attempts, 2);
+});
+
+test('a model id that does not exist on the Hub is a config error naming the model', async () => {
+  const embeddings = new LocalEmbeddings({
+    model: 'Xenova/no-such-model',
+    loadExtractor: async () => {
+      throw Object.assign(new Error('Unauthorized access to file: "https://huggingface.co/Xenova/no-such-model/resolve/main/config.json".'), { name: 'ModelFileNotFoundError' });
+    },
+  });
+  await assert.rejects(embeddings.embedQuery('q'), (error) => {
+    assert.ok(error instanceof EmbeddingConfigError);
+    assert.match(error.message, /Xenova\/no-such-model.*not found/s);
+    return true;
+  });
+});
+
+test('a model without a sentence_embedding output cannot use pooling "model": config error', async () => {
+  const { requireSentenceEmbedding } = await import('../src/services/embeddings.js');
+  assert.throws(() => requireSentenceEmbedding({}, 'onnx-community/x'), EmbeddingConfigError);
+  assert.equal(requireSentenceEmbedding({ sentence_embedding: 'ok' }, 'm'), 'ok');
 });

@@ -4,9 +4,10 @@ import { LocalEmbeddings } from './embeddings.js';
 import { loadAndSplit } from './documentLoader.js';
 import config from '../config.js';
 import { HttpError } from '../utils/httpError.js';
+import { toEmbeddingHttpError } from './embeddingErrors.js';
 
 // One embedding model for everyone; each visitor gets their own vector store.
-const embeddings = new LocalEmbeddings({
+export const embeddings = new LocalEmbeddings({
   model: config.embeddingModel,
   dtype: config.embeddingDtype,
   threads: config.embeddingThreads,
@@ -129,7 +130,7 @@ export async function addDocument(session, file, { onProgress } = {}) {
     // freeSession() already gave back this session's whole reservation if it expired meanwhile.
     if (sessions.get(session.id) === session) totalChunks -= chunks.length;
     console.error('Embedding failed:', error);
-    throw new HttpError(503, 'EMBEDDING_FAILED', 'The embedding model could not be loaded. Check your internet connection (needed once to download it) and try again.');
+    throw toEmbeddingHttpError(error, { model: config.embeddingModel });
   }
 
   // The session may have expired while a long file was being embedded.
@@ -159,7 +160,12 @@ export function hasDocuments(session) {
 
 /** Top-k chunks of this session's documents with their cosine similarity score: [[Document, score], ...] */
 export async function search(session, query, k = config.topK) {
-  return session.store.similaritySearchWithScore(query, k);
+  try {
+    return await session.store.similaritySearchWithScore(query, k);
+  } catch (error) {
+    console.error('Search failed:', error);
+    throw toEmbeddingHttpError(error, { model: config.embeddingModel });
+  }
 }
 
 /** Numbers for tests and logs. */

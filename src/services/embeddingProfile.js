@@ -2,6 +2,7 @@
 // A model that is used without its own prefixes or pooling still runs, but retrieves worse, so
 // models verified against their model cards are listed here; any other model gets the plain
 // defaults (mean pooling, no prefixes) plus a warning, and the EMBEDDING_* settings can override.
+import { EmbeddingConfigError } from './embeddingErrors.js';
 
 /**
  * Verified models (lowercase id). pooling 'model' means the model's own ONNX graph pools and
@@ -78,7 +79,7 @@ export function resolveEmbeddingProfile(model, env = {}) {
  */
 export function truncateAndNormalize(vector, dimensions) {
   if (dimensions === null) return vector;
-  if (vector.length < dimensions) throw new Error(`EMBEDDING_DIMENSIONS asks for ${dimensions} values but the model returned only ${vector.length}.`);
+  if (vector.length < dimensions) throw new EmbeddingConfigError(`EMBEDDING_DIMENSIONS asks for ${dimensions} values but the model returned only ${vector.length}.`);
   const cut = vector.slice(0, dimensions);
   const norm = Math.hypot(...cut);
   return norm === 0 ? cut : cut.map((value) => value / norm);
