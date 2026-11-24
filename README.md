@@ -244,7 +244,7 @@ The embedder decides which parts of your documents Gemini gets to read. The defa
 
 What this shows:
 
-- **Arabic retrieval is fixed by any of the four.** Arabic first-chunk accuracy goes from 0/10 to 10/10, and the first chunk is no longer the same one every time. (In the e5 runs one clinic chunk comes first for 8 of 13 Arabic questions; 5 are questions about that clinic and 3 are near-miss questions about it, so this is the right chunk, not a collapse.)
+- **Arabic retrieval is fixed by any of the four.** Arabic first-chunk accuracy goes from 0/10 to 10/10, and the first chunk is no longer the same one every time. (In the e5 runs one clinic chunk comes first for 8 of 13 Arabic questions; 5 are single-source questions about that clinic, 1 is a two-document question that needs it and 2 are near-miss questions about it, so this is the right chunk, not a collapse.)
 - **The four models are tied.** The first-chunk column differs by one question out of 25 (23 or 24) and the right-chunk column by two (23 to 25), well inside the intervals. The "every expected file" and "right chunk" columns are not a significant gain over MiniLM either: [75-98] overlaps [87-100] and [80-99]. The first-chunk gain (13/25 to 23/25) and the Arabic gain are not noise.
 - **"Hit" means the right file, not the right chunk.** At chunk level Qwen3 is no better than MiniLM (23/25 both) and e5-small, EmbeddingGemma and Qwen3 miss 1 to 2 questions that the file-level column counts as hits. With e5-small `en-02` (probation period) retrieved the right file but not the chunk that holds the answer, and Gemini refused. Judge the models by the right-chunk and first-chunk columns.
 
@@ -280,6 +280,17 @@ One real run with `multilingual-e5-small` (`gemini-3.5-flash-lite`, no fallback,
 
   This is better but not fixed: e5 scores are so close together that its rule still shows 3 or 4 chunks for many questions, and the thresholds were tuned on the same questions they are reported on, so treat them as a starting point for your own documents. When the model cites its sources, none of this applies. For a model that is not in the table, the MiniLM rule is used with a startup warning; set `EMBEDDING_SOURCE_MIN_SCORE` and `EMBEDDING_SOURCE_RELATIVE_SCORE` after looking at its scores (the eval prints the top scores).
 - `EmbeddingGemma` is called through its own `sentence_embedding` output (the ONNX graph pools and projects the vector itself), not through the feature-extraction pipeline, which would return the wrong vectors for it.
+
+### Licences of the models
+
+Checked on the model pages on huggingface.co on 2026-11-24. The ONNX copies that Transformers.js downloads (`Xenova/...`, `onnx-community/...`) are conversions: the e5 and Qwen3 copies have no licence field of their own and name the original model as their base, so the original's licence applies.
+
+| Model | Licence |
+| --- | --- |
+| `Xenova/all-MiniLM-L6-v2` (default) | Apache-2.0 |
+| `multilingual-e5-small` / `-base` (original `intfloat/...`) | MIT |
+| `Qwen3-Embedding-0.6B` (original `Qwen/...`) | Apache-2.0 |
+| `embeddinggemma-300m` | Gemma Terms of Use (licence `gemma`, <https://ai.google.dev/gemma/terms>), with the Gemma Prohibited Use Policy. It is not an open-source licence: read it before using the model in a product |
 
 ### Limits of this comparison
 
