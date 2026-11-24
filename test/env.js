@@ -12,6 +12,11 @@ Object.assign(process.env, {
   EMBEDDING_MODEL: 'Xenova/all-MiniLM-L6-v2',
   EMBEDDING_DTYPE: 'q8',
   EMBEDDING_THREADS: '1',
+  // The default model's own profile: nothing from a developer's .env can change it.
+  EMBEDDING_POOLING: '',
+  EMBEDDING_QUERY_PREFIX: '',
+  EMBEDDING_DOCUMENT_PREFIX: '',
+  EMBEDDING_DIMENSIONS: '',
   MAX_FILE_SIZE_MB: '10',
   SESSION_TTL_MINUTES: '30',
   MAX_SESSIONS: '100',

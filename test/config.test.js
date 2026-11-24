@@ -88,3 +88,38 @@ test('the startup warning for a model without a thinking setting is printed once
   assert.match(out, /No thinking setting for gemini-3\.5-flash; it uses its own default/);
   assert.equal(await inFreshProcess({}, code), '');
 });
+
+// config.embeddingProfile and what config printed (stderr), in a fresh process in an empty folder.
+async function embeddingConfig(settings) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'config-'));
+  try {
+    const configUrl = pathToFileURL(path.join(projectRoot, 'src', 'config.js')).href;
+    const code = `const { default: config } = await import(${JSON.stringify(configUrl)}); console.log(JSON.stringify(config.embeddingProfile));`;
+    const { stdout, stderr } = await run(process.execPath, ['--input-type=module', '-e', code], { cwd: dir, env: { PATH: process.env.PATH, ...settings } });
+    return { profile: JSON.parse(stdout), stderr: stderr.trim() };
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test('with no EMBEDDING_* settings the embedder is the unchanged default and nothing is printed', async () => {
+  const { profile, stderr } = await embeddingConfig({});
+  assert.deepEqual(profile, { pooling: 'mean', normalize: true, queryPrefix: '', documentPrefix: '', dimensions: null, nativeDimensions: 384, known: true, warnings: [] });
+  assert.equal(stderr, '');
+});
+
+test('EMBEDDING_MODEL picks the verified profile; the EMBEDDING_* settings override it', async () => {
+  const e5 = await embeddingConfig({ EMBEDDING_MODEL: 'Xenova/multilingual-e5-small' });
+  assert.equal(e5.profile.queryPrefix, 'query: ');
+  assert.equal(e5.profile.documentPrefix, 'passage: ');
+  assert.equal(e5.stderr, '');
+  const custom = await embeddingConfig({ EMBEDDING_MODEL: 'Xenova/multilingual-e5-small', EMBEDDING_QUERY_PREFIX: 'q: ', EMBEDDING_DIMENSIONS: '128', EMBEDDING_POOLING: 'cls' });
+  assert.deepEqual([custom.profile.queryPrefix, custom.profile.dimensions, custom.profile.pooling], ['q: ', 128, 'cls']);
+});
+
+test('an unknown embedding model prints one warning at startup that names it', async () => {
+  const { profile, stderr } = await embeddingConfig({ EMBEDDING_MODEL: 'someone/unknown-embedder' });
+  assert.equal(profile.known, false);
+  assert.equal(stderr.split('\n').length, 1);
+  assert.match(stderr, /someone\/unknown-embedder/);
+});

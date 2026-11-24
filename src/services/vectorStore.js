@@ -10,6 +10,7 @@ const embeddings = new LocalEmbeddings({
   model: config.embeddingModel,
   dtype: config.embeddingDtype,
   threads: config.embeddingThreads,
+  profile: config.embeddingProfile,
 });
 
 /**

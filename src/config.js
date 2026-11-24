@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { resolveEmbeddingProfile } from './services/embeddingProfile.js';
 
 /**
  * Gemini 2.5 "thinking" token budget (Gemini 3 models use the level below instead). 0 (default)
@@ -60,6 +61,11 @@ function readLimit(value, fallback) {
   return value?.trim() && Number.isInteger(number) && number >= 0 ? number : fallback;
 }
 
+const embeddingModel = process.env.EMBEDDING_MODEL?.trim() || 'Xenova/all-MiniLM-L6-v2';
+// How the embedding model is called (pooling, prefixes, size); problems with the EMBEDDING_* settings are logged once, here.
+const embeddingProfile = resolveEmbeddingProfile(embeddingModel, process.env);
+for (const warning of embeddingProfile.warnings) console.warn(warning);
+
 const geminiModel = process.env.GEMINI_MODEL?.trim() || 'gemini-3.5-flash-lite';
 
 const config = {
@@ -72,7 +78,8 @@ const config = {
   geminiTimeoutSeconds: readTimeoutSeconds(process.env.GEMINI_TIMEOUT_SECONDS, 30),
   geminiThinkingBudget: readThinkingBudget(process.env.GEMINI_THINKING_BUDGET),
   geminiThinkingLevel: readThinkingLevel(process.env.GEMINI_THINKING_LEVEL),
-  embeddingModel: process.env.EMBEDDING_MODEL?.trim() || 'Xenova/all-MiniLM-L6-v2',
+  embeddingModel,
+  embeddingProfile,
   // q8 (quantized) and 1 thread keep memory low enough for 512 MB hosts.
   embeddingDtype: process.env.EMBEDDING_DTYPE?.trim() || 'q8',
   embeddingThreads: Number(process.env.EMBEDDING_THREADS) || 1,
