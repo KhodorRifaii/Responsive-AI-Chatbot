@@ -170,30 +170,31 @@ The tests use Node's built-in test runner, so there is nothing extra to install.
 
 ## Evaluation
 
-`npm run eval` measures answer quality with numbers. It loads 8 fixed documents through the app's real pipeline (loader, splitter, local embeddings, vector store), asks 28 questions with the real prompt and Gemini models, and checks retrieval, answers and refusals. It calls the services directly, so the HTTP rate limits are not involved.
+`npm run eval` measures answer quality with numbers. It loads 8 fixed documents through the app's real pipeline (loader, splitter, local embeddings, vector store), asks 33 questions with the real prompt and Gemini models, and checks retrieval, answers and refusals. It calls `answerQuestion` (the plain JSON path) directly, not `streamAnswer` and not the HTTP routes, so streaming and the rate limits are not part of it.
 
 - **Documents** (`eval/docs/`): 5 documents that hold the facts (English HR policy, router manual, library branch table as CSV, Arabic clinic guide, Arabic solar FAQ) and 3 look-alike distractors (a second router with different numbers, a second Arabic clinic, a fleet safety handbook). The companies are invented, so the model cannot know the facts. Together they make 18 chunks.
-- **Questions** (`eval/questions.jsonl`): 28 lines, each with the expected source file(s) and the key facts (with accepted spellings). 17 English and 11 Arabic; 19 single-source, 2 cross-lingual (English question on an Arabic document and the reverse), 4 that need two documents, and 3 that the documents cannot answer.
-- **Scoring is deterministic, with no LLM judge.** A fact counts when its words appear as whole tokens in the answer (so `18` never matches `180`); digits, thousands separators and Arabic spellings are normalized first (`eval/score.js`, tested in `test/evalScore.test.js`). A refusal counts only when the answer is the app's exact "I couldn't find that..." sentence and no sources are shown.
+- **Questions** (`eval/questions.jsonl`): 33 lines, each with the expected source file(s) and the key facts (phrases with their unit, such as `24 working days`, with accepted spellings). 20 English and 13 Arabic; 19 single-source, 2 cross-lingual (English question on an Arabic document and the reverse), 4 that need two documents, and 8 that the documents cannot answer. Five of those eight are near-misses (`none-04` to `none-08`): the R5 guide says solid green but the R7 manual has no green light, there is no Orbit R9, there is no study leave, the battery warranty is not stated, and the dental fee is not in the clinic's guide. The first 28 questions were run against Gemini; the five near-misses were added afterwards and have not been run yet.
+- **Scoring is deterministic, with no LLM judge.** A fact counts when its words appear as whole tokens in the answer (so `18` never matches `180`) and are not negated ("not 24 working days" does not count). Before comparing, the text is normalized: digits, thousands separators (`45,000`, `45 000`, `45.000`), times (`9:00 p.m.` = `9 pm`), `$40`, number words (`twelve` = `12`), Arabic spellings and hour words, curly quotes and markdown (`eval/score.js`, tested in `test/evalScore.test.js`). Gold facts are checked against the text of their source files when the eval starts, and the runner warns when a gold phrase also appears in a document that is not an expected source. A refusal counts only when the whole answer is the app's "I couldn't find that..." sentence and no sources are shown. Retrieval is deterministic (same documents, same embedder, same numbers every run); the answers are one sample from the model.
 
 ### Results
 
 **Mixed models: `gemini-3.5-flash-lite` wrote 26 answers and `gemini-3.6-flash` wrote 2, so this table is not a single-model score. It will be re-run with one model after the model settings are fixed (KHO-24).** Run on 2026-11-24 with `GEMINI_MODEL=gemini-3.6-flash`, `GEMINI_FALLBACK_MODEL=gemini-3.5-flash-lite`, `GEMINI_THINKING_BUDGET=default`, embeddings `Xenova/all-MiniLM-L6-v2`, top-4 chunks. Two questions that hit a rate limit were asked again afterwards with the same settings (`eval/baseline.json` lists them under `meta.retries`). The full run is in `eval/baseline.json`.
 
-| Measure | All | English | Arabic |
+| Measure (95% interval in brackets) | All | English | Arabic |
 | --- | --- | --- | --- |
 | Answerable questions | 25 | 15 | 10 |
-| Retrieval: every expected file in the top 4 chunks (random picking: 43%) | 23/25 (92%) | 13/15 (87%) | 10/10 (100%) |
-| Retrieval: first chunk is from an expected file (random picking: 16%) | 13/25 (52%) | 13/15 (87%) | 0/10 (0%) |
-| Answer correct (every key fact present) | 22/25 (88%) | 12/15 (80%) | 10/10 (100%) |
-| Expected sources shown with the answer | 22/25 (88%) | 12/15 (80%) | 10/10 (100%) |
-| Unanswerable questions refused correctly | 3/3 | 2/2 | 1/1 |
+| Retrieval: every expected file in the top 4 chunks (random picking: 43%) | 23/25 (92%) [75-98] | 13/15 (87%) [62-96] | 10/10 (100%) [72-100] |
+| Retrieval: first chunk is from an expected file (random picking: 16%) | 13/25 (52%) [33-70] | 13/15 (87%) [62-96] | 0/10 (0%) [0-28] |
+| Answer correct (every key fact present) | 22/25 (88%) [70-96] | 12/15 (80%) [55-93] | 10/10 (100%) [72-100] |
+| Answer correct and every expected source shown (stricter) | 22/25 (88%) [70-96] | 12/15 (80%) [55-93] | 10/10 (100%) [72-100] |
+| Unanswerable questions refused correctly (the first 3 only) | 3/3 [44-100] | 2/2 | 1/1 |
 
 By question type, answers were correct for 18/19 single-source, 1/2 cross-lingual and 3/4 two-document questions. Two answerable questions were wrongly refused. Answer time per question: median 2.0s, mean 5.4s, longest 34s.
 
 ### What the numbers mean
 
-- **It is a small set.** With 28 questions, one question is about 4 points, and this is one run; Gemini answers can vary between runs. Treat the table as a baseline to compare against, not as a precise score.
+- **It is a small set.** With 25 answerable questions, one question is about 4 points, and the intervals above are wide (an 88% score could be anywhere from 70% to 96%). Retrieval is the same on every run; the answers are one sample, and Gemini answers can vary between runs. Treat the table as a baseline to compare against, not as a precise score.
+- **The scores were recomputed offline.** The table uses the final scorer (phrase facts, negation check, normalization) on the answers stored in `eval/baseline.json`; the old scorer gave the same 22/25. `answeredBy` in the baseline was derived afterwards from the recorded fallback flag, and failure reasons (`logs`) exist only for the two re-asked questions.
 - **Which model answered.** The main model, `gemini-3.6-flash`, answered 2 of the 28 questions. For the other 26 it failed first and the fallback `gemini-3.5-flash-lite` answered. The runner recorded the reason only for two of them (a 429 rate-limit error); the first two questions each waited the full 30-second timeout. So these are mostly `gemini-3.5-flash-lite` numbers.
 - **These settings were passed on the command line.** With the values in `.env.example` the run could not finish: `gemini-3.5-flash` answered "high demand" (503) after about 35 seconds, and `gemini-3.5-flash-lite` rejected `GEMINI_THINKING_BUDGET=0` with a 400 error (the Gemini 3 models are documented with `thinking_level`, not a token budget). The shell override does not change `.env` or any code.
 - **Arabic retrieval does not work yet; the Arabic answers only look good.** The embedding model is trained on English. For 11 of 11 Arabic questions the same chunk (`shifa-center-guide-ar.txt`, part 2) came first, and the right chunk was never first. The answers were still correct because this set has only 6 Arabic chunks, so the top 4 almost always contains the right one. With more Arabic documents this will fail. An English question about an Arabic document was refused (retrieval found nothing from it).
@@ -204,12 +205,12 @@ By question type, answers were correct for 18/19 single-source, 1/2 cross-lingua
 ### Run it
 
 ```bash
-GEMINI_FALLBACK_MODEL=none npm run eval   # real run with ONE model: about one answer attempt per question (the app's own retries can add calls), about 4 minutes
+GEMINI_FALLBACK_MODEL=none npm run eval   # real run with ONE model: about one answer attempt per question (the app's own retries can add calls), about 5 minutes
 npm run eval -- --retrieval-only  # free: retrieval scores only, no Gemini calls
 npm run eval -- --retry-errors    # ask again only the questions that errored last time
 ```
 
-It uses the models in `.env`. Always pass `GEMINI_FALLBACK_MODEL=none` for a score: with a fallback, some answers come from a second model, the runner prints a warning, and each question records which model answered (`answeredBy`). Options: `--delay-ms N` (pause between Gemini calls, default 4000, to stay inside free-tier limits) and `--out FILE`. After 5 errors in a row it stops asking and marks the rest as skipped. Results go to `eval/results/latest.json` (not committed): the settings, the retrieved chunks with their scores, every answer and its checks. Questions that errored are reported separately and never counted as wrong.
+It uses the models in `.env`. Unknown options are rejected (a typo never starts a paid run). Always pass `GEMINI_FALLBACK_MODEL=none` for a score: with a fallback, some answers come from a second model, the runner prints a warning, and each question records which model answered (`answeredBy`). Options: `--delay-ms N` (pause between Gemini calls, default 4000, to stay inside free-tier limits) and `--out FILE`. After 5 errors in a row it stops asking and marks the rest as skipped. Results go to `eval/results/latest.json` (a full run) or `eval/results/retrieval.json` (retrieval-only), not committed: the settings, the retrieved chunks with their scores, every answer, its checks and every line the app logged for it. An existing full-run file is moved to `latest.<date>.json` before a new run overwrites it. `--retry-errors` also resumes a run that stopped half way, as long as the models, settings, questions and documents are unchanged; a relative `--out` is resolved from the folder you run the command in. Questions that errored are reported separately and never counted as wrong.
 
 ## Deployment
 
