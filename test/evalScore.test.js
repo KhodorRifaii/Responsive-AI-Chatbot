@@ -1,7 +1,7 @@
 // Tests for the eval scorer (eval/score.js). It imports nothing from src/, so no .env, key or model is involved.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalize, tokens, hasFact, isRefusal, isSoftRefusal, chanceHitAll, scoreQuestion, summarizeGroup } from '../eval/score.js';
+import { normalize, tokens, hasFact, findCollisions, isRefusal, isSoftRefusal, chanceHitAll, scoreQuestion, summarizeGroup } from '../eval/score.js';
 
 test('normalize: digits, separators and Arabic spellings', () => {
   assert.equal(normalize('٢٢٬٠٠٠ ريال'), '22000 ريال');
@@ -145,4 +145,29 @@ test('normalize: Arabic hours written as words, and refusals with curly quotes o
   assert.equal(isRefusal('I couldn’t find that in your uploaded documents.', sentence), true);
   assert.equal(isRefusal(`**${sentence}**`, sentence), true);
   assert.equal(isRefusal('`' + sentence + '`', sentence), true);
+});
+
+test('hasFact: a negated fact does not count', () => {
+  assert.equal(hasFact('Employees get not 24 working days.', ['24 working days']), false);
+  assert.equal(hasFact('It is not 24 days but 30.', ['24 days']), false);
+  assert.equal(hasFact('Staff does not get 24 working days.', ['24 working days']), false);
+  assert.equal(hasFact("Staff doesn't get 24 working days.", ['24 working days']), false);
+  assert.equal(hasFact('ليس 24 يوما', ['24 يوما']), false);
+  assert.equal(hasFact('No, they get 24 working days.', ['24 working days']), true);
+  assert.equal(hasFact('There is no internet connection.', ['no internet']), true);
+  assert.equal(hasFact('24 working days, not 18', ['24 working days']), true);
+});
+
+test('findCollisions: alternatives shared with a document that is not an expected source', () => {
+  const docs = { 'hr.txt': 'Annual leave: 24 working days.', 'fleet.txt': 'Safety training takes 24 hours.', 'other.txt': 'Leave is 24 working days here too.' };
+  const q = { sources: ['hr.txt'], facts: [['24 working days'], ['24 hours']] };
+  assert.deepEqual(findCollisions(q, docs), [{ alternative: '24 working days', file: 'other.txt' }, { alternative: '24 hours', file: 'fleet.txt' }]);
+  assert.deepEqual(findCollisions({ ...q, shared: ['24 working days', '24 hours'] }, docs), []);
+});
+
+test('scoreQuestion: correctAndCited needs the expected source to be shown', () => {
+  const run = { retrieved: [{ source: 'hr.txt', score: 0.6 }], answer: '24 working days.', sources: [{ source: 'fleet.txt' }] };
+  const q = { id: 'q', sources: ['hr.txt'], facts: [['24 working days']] };
+  const r = scoreQuestion(q, run, NOT_FOUND);
+  assert.deepEqual([r.correct, r.citedAll, r.correctAndCited], [true, false, false]);
 });

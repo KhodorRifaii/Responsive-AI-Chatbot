@@ -36,6 +36,7 @@
         "chanceTop1": 0.1577777777777778,
         "citedAll": 0.88,
         "correct": 0.88,
+        "correctAndCited": 0.88,
         "factRecall": 0.9,
         "falseRefusals": 2,
         "answeredCount": 25,
@@ -56,6 +57,7 @@
         "chanceTop1": 0.17777777777777776,
         "citedAll": 0.8,
         "correct": 0.8,
+        "correctAndCited": 0.8,
         "factRecall": 0.8333333333333334,
         "falseRefusals": 2,
         "answeredCount": 15,
@@ -76,6 +78,7 @@
         "chanceTop1": 0.12777777777777782,
         "citedAll": 1,
         "correct": 1,
+        "correctAndCited": 1,
         "factRecall": 1,
         "falseRefusals": 0,
         "answeredCount": 10,
@@ -96,6 +99,7 @@
         "chanceTop1": 0.1345029239766082,
         "citedAll": 0.9473684210526315,
         "correct": 0.9473684210526315,
+        "correctAndCited": 0.9473684210526315,
         "factRecall": 0.9473684210526315,
         "falseRefusals": 1,
         "answeredCount": 19,
@@ -116,6 +120,7 @@
         "chanceTop1": 0.1388888888888889,
         "citedAll": 0.5,
         "correct": 0.5,
+        "correctAndCited": 0.5,
         "factRecall": 0.5,
         "falseRefusals": 1,
         "answeredCount": 2,
@@ -136,6 +141,7 @@
         "chanceTop1": 0.2777777777777778,
         "citedAll": 0.75,
         "correct": 0.75,
+        "correctAndCited": 0.75,
         "factRecall": 0.875,
         "falseRefusals": 0,
         "answeredCount": 4,
@@ -156,6 +162,7 @@
         "chanceTop1": null,
         "citedAll": null,
         "correct": null,
+        "correctAndCited": null,
         "factRecall": null,
         "falseRefusals": 0,
         "answeredCount": 0,
@@ -237,7 +244,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -299,7 +307,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -361,7 +370,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -423,7 +433,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -480,7 +491,8 @@
           false
         ],
         "factRecall": 0,
-        "correct": false
+        "correct": false,
+        "correctAndCited": false
       },
       "retried": true
     },
@@ -543,7 +555,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -605,7 +618,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -667,7 +681,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -729,7 +744,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -796,7 +812,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -858,7 +875,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -917,10 +935,12 @@
         "softRefused": false,
         "citedAll": true,
         "factsFound": [
+          true,
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -983,7 +1003,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       },
       "retried": true
     },
@@ -1043,10 +1064,12 @@
         "softRefused": false,
         "citedAll": true,
         "factsFound": [
+          true,
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -1108,7 +1131,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -1168,10 +1192,12 @@
         "citedAll": true,
         "factsFound": [
           true,
+          true,
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -1233,7 +1259,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -1295,7 +1322,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -1357,7 +1385,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -1413,7 +1442,8 @@
           false
         ],
         "factRecall": 0,
-        "correct": false
+        "correct": false,
+        "correctAndCited": false
       }
     },
     {
@@ -1475,7 +1505,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -1544,7 +1575,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -1608,7 +1640,8 @@
           false
         ],
         "factRecall": 0.5,
-        "correct": false
+        "correct": false,
+        "correctAndCited": false
       }
     },
     {
@@ -1677,7 +1710,8 @@
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {
@@ -1743,10 +1777,12 @@
         "citedAll": true,
         "factsFound": [
           true,
+          true,
           true
         ],
         "factRecall": 1,
-        "correct": true
+        "correct": true,
+        "correctAndCited": true
       }
     },
     {

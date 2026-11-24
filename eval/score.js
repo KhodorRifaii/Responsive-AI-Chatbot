@@ -64,17 +64,41 @@ function tokenMatches(answerToken, goldToken) {
   return answerToken.endsWith(goldToken) && PREFIXES.has(answerToken.slice(0, answerToken.length - goldToken.length));
 }
 
-/** True when any alternative appears as a consecutive run of tokens in the text. */
+// A fact right after one of these words is negated ("not 24 working days"), so it does not count.
+// "t" is what is left of n't after tokenising ("doesn't" gives "doesn", "t").
+const NEGATORS = new Set(['not', 'no', 'never', 'neither', 'nor', 't', 'لا', 'ليس', 'ليست', 'لم', 'لن', 'غير']);
+
+/** True when any alternative appears as a consecutive run of tokens in the text, not negated. */
 export function hasFact(text, alternatives) {
   const words = tokens(text);
   return alternatives.some((alternative) => {
     const gold = tokens(alternative);
     if (gold.length === 0) return false;
     for (let start = 0; start + gold.length <= words.length; start += 1) {
-      if (gold.every((g, i) => tokenMatches(words[start + i], g))) return true;
+      if (!gold.every((g, i) => tokenMatches(words[start + i], g))) continue;
+      const negated = [words[start - 1], words[start - 2]].some((w) => w !== undefined && NEGATORS.has(w));
+      if (!negated) return true;
     }
     return false;
   });
+}
+
+/**
+ * Gold alternatives that also appear in a document that is NOT an expected source: an answer taken from
+ * that document could pass. Alternatives listed in question.shared are known and accepted.
+ * docText: { file: text }.
+ */
+export function findCollisions(question, docText) {
+  const found = [];
+  for (const alternatives of question.facts) {
+    for (const alternative of alternatives) {
+      if (question.shared?.includes(alternative)) continue;
+      for (const [file, text] of Object.entries(docText)) {
+        if (!question.sources.includes(file) && hasFact(text, [alternative])) found.push({ alternative, file });
+      }
+    }
+  }
+  return found;
 }
 
 // "Not found" phrases in English and Arabic (after normalize), to see refusals that are not the app's exact sentence.
@@ -153,6 +177,8 @@ export function scoreQuestion(question, run, notFoundAnswer) {
     record.factsFound = question.facts.map((alternatives) => hasFact(run.answer, alternatives));
     record.factRecall = record.factsFound.filter(Boolean).length / question.facts.length;
     record.correct = !record.refused && record.factsFound.every(Boolean);
+    // Stricter: also showed every expected source, so the facts came from the right documents.
+    record.correctAndCited = record.correct && record.citedAll;
   } else {
     // A correct refusal: the app's exact sentence and no source shown.
     record.refusedCorrectly = record.refused && cited.length === 0;
@@ -180,6 +206,7 @@ export function summarizeGroup(records) {
     chanceTop1: mean(answerable.map((r) => r.chanceTop1).filter((c) => c !== null)),
     citedAll: share(answered, (r) => r.citedAll),
     correct: share(answered, (r) => r.correct),
+    correctAndCited: share(answered, (r) => r.correctAndCited),
     factRecall: mean(answered.map((r) => r.factRecall)),
     falseRefusals: answered.filter((r) => r.refused).length,
     answeredCount: answered.length,

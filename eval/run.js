@@ -11,7 +11,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { chanceHitAll, hasFact, latencyStats, normalize, scoreQuestion, summarize } from './score.js';
+import { chanceHitAll, findCollisions, hasFact, latencyStats, normalize, scoreQuestion, summarize } from './score.js';
 
 const evalDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(evalDir, '..');
@@ -38,6 +38,15 @@ if (!Number.isFinite(delayMs) || delayMs < 0) fail('--delay-ms must be a number 
 const docsDir = path.join(evalDir, 'docs');
 const docFiles = fs.readdirSync(docsDir).filter((f) => !f.startsWith('.')).sort();
 const docText = Object.fromEntries(docFiles.map((f) => [f, fs.readFileSync(path.join(docsDir, f), 'utf8')]));
+// The app reads files with its own loaders (a CSV row becomes "Row 1: Branch: Central; ..."), so gold facts are
+// checked against that parsed text, not the raw file. Loaded below, after the app's config is imported.
+const { default: config } = await import('../src/config.js');
+const { loadAndSplit } = await import('../src/services/documentLoader.js');
+const parsedText = {};
+for (const name of docFiles) {
+  const chunks = await loadAndSplit({ originalname: name, buffer: Buffer.from(docText[name], 'utf8') }, name);
+  parsedText[name] = chunks.map((c) => c.pageContent).join('\n');
+}
 
 function loadQuestions() {
   const lines = fs.readFileSync(path.join(evalDir, 'questions.jsonl'), 'utf8').split('\n').filter((l) => l.trim());
@@ -73,15 +82,18 @@ function validateQuestions(questions) {
     if (q.sources.length < (q.type === 'multi' ? 2 : 1)) problems.push(`${where}: too few sources for type ${q.type}`);
     if (q.facts.length === 0) problems.push(`${where}: answerable questions need at least one fact`);
     // Every gold fact must appear in its source text (catches typos in the gold set).
-    const sourceText = q.sources.map((s) => docText[s] ?? '').join('\n');
+    const sourceText = q.sources.map((s) => parsedText[s] ?? '').join('\n');
     for (const alternatives of q.facts) {
       if (!Array.isArray(alternatives) || alternatives.length === 0) problems.push(`${where}: a fact needs a list of alternatives`);
       else if (!hasFact(sourceText, alternatives)) problems.push(`${where}: no alternative of ${JSON.stringify(alternatives)} is found in its sources`);
     }
   }
+  // Warn (not fail) when a gold alternative also appears in a document that is not an expected source.
+  const warnings = questions.flatMap((q) => (Array.isArray(q.sources) && Array.isArray(q.facts) ? findCollisions(q, parsedText).map((c) => `${q.id}: "${c.alternative}" also appears in ${c.file}`) : []));
+  for (const warning of warnings) console.warn(`eval: warning: ${warning}`);
   if (problems.length) fail(`dataset problems:\n  - ${problems.join('\n  - ')}`);
   const count = (keep) => questions.filter(keep).length;
-  console.log(`Dataset: ${questions.length} questions (en ${count((q) => q.lang === 'en')}, ar ${count((q) => q.lang === 'ar')}; single ${count((q) => q.type === 'single')}, cross-lingual ${count((q) => q.type === 'cross-lingual')}, multi ${count((q) => q.type === 'multi')}, unanswerable ${count((q) => q.type === 'unanswerable')}), ${docFiles.length} documents. Gold facts found in their sources: OK.`);
+  console.log(`Dataset: ${questions.length} questions (en ${count((q) => q.lang === 'en')}, ar ${count((q) => q.lang === 'ar')}; single ${count((q) => q.type === 'single')}, cross-lingual ${count((q) => q.type === 'cross-lingual')}, multi ${count((q) => q.type === 'multi')}, unanswerable ${count((q) => q.type === 'unanswerable')}), ${docFiles.length} documents. Gold facts found in their sources: OK. Alternatives shared with other documents: ${warnings.length}.`);
 }
 
 const questions = loadQuestions();
@@ -95,7 +107,6 @@ const datasetFingerprint = createHash('sha256')
   .slice(0, 16);
 
 // ---- 2. The app's real pipeline ----------------------------------------------------------------
-const { default: config } = await import('../src/config.js');
 if (!retrievalOnly && !config.googleApiKey) {
   fail('GOOGLE_API_KEY is missing. Add it to .env (free key: https://aistudio.google.com/app/apikey), or run with --retrieval-only.');
 }
