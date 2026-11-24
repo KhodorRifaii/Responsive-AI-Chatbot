@@ -208,8 +208,13 @@ export function isRetryableLlmError(error) {
 function describeError(error) {
   const status = errorStatus(error);
   const text = String(error?.message ?? error).split('\n')[0].slice(0, 120);
+  // The provider's 400 text ("Request contains an invalid argument.") does not say what was wrong.
+  if (status === 400) return `${status} ${text} [config error: check the model name, GEMINI_THINKING_LEVEL and GEMINI_THINKING_BUDGET]`;
   return status ? `${status} ${text}` : text;
 }
+
+/** A 400 is a request/setting error, not a passing problem; the error to report is kept (see invokeWithFallback). */
+const settingFor = (index) => (index === 0 ? 'GEMINI_MODEL' : 'GEMINI_FALLBACK_MODEL');
 
 /** The visitor closed the page or the connection: stop, and do not try the fallback. */
 export class ClientGoneError extends Error {
@@ -260,10 +265,14 @@ function modelAttempts(llm, fallbackLlm) {
 /**
  * Ask each model in turn. Move to the next one only for errors another model may not have
  * (quota, overload, timeout, retired model); otherwise, or when all fail, report the main
- * model's error, because GEMINI_MODEL is the setting the user can fix.
+ * model's error, because GEMINI_MODEL is the setting the user can fix. A 400 is never retried on
+ * the fallback and is reported (as LLM_CONFIG, naming that model) even when the other model failed
+ * first for a passing reason: a rejected setting is what the operator can fix, and a busy main
+ * model must not hide a fallback that cannot work.
  */
 async function invokeWithFallback(attempts, input) {
   let firstError;
+  let configFailure;
   for (const [index, { name, llm }] of attempts.entries()) {
     const chain = prompt.pipe(llm).pipe(new StringOutputParser());
     try {
@@ -272,6 +281,7 @@ async function invokeWithFallback(attempts, input) {
       return answer;
     } catch (error) {
       firstError ??= error;
+      if (errorStatus(error) === 400) configFailure ??= { error, name, setting: settingFor(index) };
       // The user sees the main model's error, so the fallback's own failure must reach the log.
       if (index > 0) console.warn(`LLM fallback model ${name} failed too (${describeError(error)}).`);
       const next = attempts[index + 1];
@@ -279,7 +289,7 @@ async function invokeWithFallback(attempts, input) {
       console.warn(`LLM fallback: ${name} failed (${describeError(error)}), trying ${next.name}.`);
     }
   }
-  throw toLlmError(firstError);
+  throw configFailure ? toLlmError(configFailure.error, configFailure.name, configFailure.setting) : toLlmError(firstError, attempts[0].name);
 }
 
 // Text from a candidate position that could still become the final SOURCES line (see
@@ -339,6 +349,7 @@ export function createSourcesFilter() {
  */
 async function streamWithFallback(attempts, input, onToken, clientSignal) {
   let firstError;
+  let configFailure;
   for (const [index, { name, llm }] of attempts.entries()) {
     const chain = prompt.pipe(llm).pipe(new StringOutputParser());
     const filter = createSourcesFilter();
@@ -361,8 +372,9 @@ async function streamWithFallback(attempts, input, onToken, clientSignal) {
       return output;
     } catch (error) {
       if (error instanceof ClientGoneError) throw error;
-      if (sent) throw toLlmError(error);
+      if (sent) throw toLlmError(error, name, settingFor(index));
       firstError ??= error;
+      if (errorStatus(error) === 400) configFailure ??= { error, name, setting: settingFor(index) };
       // The user sees the main model's error, so the fallback's own failure must reach the log.
       if (index > 0) console.warn(`LLM fallback model ${name} failed too (${describeError(error)}).`);
       const next = attempts[index + 1];
@@ -370,16 +382,23 @@ async function streamWithFallback(attempts, input, onToken, clientSignal) {
       console.warn(`LLM fallback: ${name} failed (${describeError(error)}), trying ${next.name}.`);
     }
   }
-  throw toLlmError(firstError);
+  throw configFailure ? toLlmError(configFailure.error, configFailure.name, configFailure.setting) : toLlmError(firstError, attempts[0].name);
 }
 
-/** Turn provider errors into short messages the user can act on. */
-function toLlmError(error) {
+/**
+ * Turn provider errors into short messages the user can act on. `model` and `setting` name the
+ * model that failed and the .env setting that chooses it.
+ */
+function toLlmError(error, model = config.geminiModel, setting = 'GEMINI_MODEL') {
   const status = errorStatus(error);
   const text = String(error?.message ?? '');
   console.error('LLM error:', text);
   if (error instanceof LlmTimeoutError) {
     return new HttpError(504, 'LLM_TIMEOUT', 'The AI took too long to answer. Please try again.');
+  }
+  // Gemini's 400 text ("Request contains an invalid argument.") never names the setting, so any 400 is reported as a settings problem.
+  if (status === 400) {
+    return new HttpError(502, 'LLM_CONFIG', `Gemini rejected the request settings for the model "${model}" (400). Check ${setting}, GEMINI_THINKING_LEVEL and GEMINI_THINKING_BUDGET in .env.`);
   }
   if (status === 429 || /quota|rate.?limit|resource.?exhausted/i.test(text)) {
     return new HttpError(429, 'LLM_RATE_LIMIT', 'The free Gemini limit was reached. Wait a minute and try again.');
@@ -390,11 +409,8 @@ function toLlmError(error) {
   if (status === 401 || status === 403 || /api.?key/i.test(text)) {
     return new HttpError(502, 'LLM_AUTH', 'Gemini rejected the API key. Check GOOGLE_API_KEY in your .env file.');
   }
-  if (status === 400 && /thinking/i.test(text)) {
-    return new HttpError(502, 'LLM_THINKING', `The model "${config.geminiModel}" does not accept GEMINI_THINKING_BUDGET=${config.geminiThinkingBudget}. Set GEMINI_THINKING_BUDGET=default in .env.`);
-  }
   if (status === 404 || /not found/i.test(text)) {
-    return new HttpError(502, 'LLM_MODEL', `The model "${config.geminiModel}" is not available. Set GEMINI_MODEL in .env to a current model.`);
+    return new HttpError(502, 'LLM_MODEL', `The model "${model}" is not available. Set ${setting} in .env to a current model.`);
   }
   return new HttpError(502, 'LLM_ERROR', 'The AI service could not answer right now. Please try again.');
 }

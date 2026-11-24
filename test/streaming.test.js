@@ -107,6 +107,22 @@ test('when the visitor leaves, the model request is aborted and no fallback is t
   assert.equal(fallbackCalls, 0);
 });
 
+test('a 400 from the fallback model is reported as a config error on the stream path too', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  t.mock.method(console, 'error', () => {});
+  const bad = Object.assign(failsAtOnce(400), { model: 'gemini-fallback' });
+  await assert.rejects(stream(failsAtOnce(503), bad), (error) => {
+    assert.equal(error.code, 'LLM_CONFIG');
+    assert.match(error.message, /"gemini-fallback"/);
+    return true;
+  });
+  // A 400 from the main model is not retried on the fallback.
+  const fallback = RunnableLambda.from(async function* () {
+    throw new Error('the fallback must not be called');
+  });
+  await assert.rejects(stream(failsAtOnce(400), fallback), { code: 'LLM_CONFIG' });
+});
+
 test('a streamed request that fails before any token gets a plain JSON error', async () => {
   // No API key in tests: MISSING_API_KEY happens before the stream starts.
   const upload = new FormData();

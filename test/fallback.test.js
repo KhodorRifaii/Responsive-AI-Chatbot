@@ -19,6 +19,8 @@ const fails = (status, message) => RunnableLambda.from(async () => {
   throw Object.assign(new Error(message), { status });
 });
 const hangs = () => RunnableLambda.from(() => new Promise(() => {}));
+// Models report their name in logs and errors (the real ChatGoogleGenerativeAI has `model`).
+const named = (llm, model) => Object.assign(llm, { model });
 
 const ask = (llm, fallbackLlm) => rag.answerQuestion({ question: 'How long is the warranty?', session, llm, fallbackLlm });
 
@@ -34,22 +36,51 @@ test('the fallback model answers when the main model times out', async () => {
   assert.equal(result.answer, '18 months.');
 });
 
-test('no fallback for a bad request or a rejected key', async () => {
+test('no fallback for a bad request or a rejected key', async (t) => {
   let fallbackCalls = 0;
   const fallback = RunnableLambda.from(async () => {
     fallbackCalls += 1;
     return 'never used';
   });
-  await assert.rejects(ask(fails(400, 'Invalid argument'), fallback), { code: 'LLM_ERROR' });
+  t.mock.method(console, 'error', () => {});
+  await assert.rejects(ask(fails(400, 'Request contains an invalid argument.'), fallback), { code: 'LLM_CONFIG' });
   await assert.rejects(ask(fails(403, 'API key not valid'), fallback), { code: 'LLM_AUTH' });
   assert.equal(fallbackCalls, 0);
+});
+
+test('a 400 from the main model names the model and its setting, and is not hidden by the fallback', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  await assert.rejects(ask(named(fails(400, 'Request contains an invalid argument.'), 'gemini-x'), answers('never used')), (error) => {
+    assert.equal(error.code, 'LLM_CONFIG');
+    assert.match(error.message, /"gemini-x"/);
+    assert.match(error.message, /GEMINI_MODEL/);
+    assert.match(error.message, /GEMINI_THINKING_LEVEL/);
+    return true;
+  });
+});
+
+test('a 400 from the fallback model is logged with a config hint and reported as a config error, also after a transient main failure', async (t) => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  t.mock.method(console, 'error', () => {});
+  // The provider's real message for a thinking setting the model rejects has no "thinking" in it.
+  const bad = () => named(fails(400, 'Request contains an invalid argument.'), 'gemini-fallback');
+  for (const main of [fails(503, 'overloaded'), fails(429, 'quota exceeded'), hangs()]) {
+    warn.mock.resetCalls();
+    await assert.rejects(ask(main, bad()), (error) => {
+      assert.equal(error.code, 'LLM_CONFIG');
+      assert.match(error.message, /"gemini-fallback"/);
+      assert.match(error.message, /GEMINI_FALLBACK_MODEL/);
+      return true;
+    });
+    assert.ok(warn.mock.calls.some((call) => /fallback model gemini-fallback failed too \(400 Request contains an invalid argument\..*config error.*GEMINI_THINKING_LEVEL/.test(call.arguments[0])));
+  }
 });
 
 test('the fallback model\'s own failure is logged', async (t) => {
   const warn = t.mock.method(console, 'warn', () => {});
   t.mock.method(console, 'error', () => {});
-  await assert.rejects(ask(fails(503, 'overloaded'), fails(400, 'Thinking budget is not supported')), { code: 'LLM_BUSY' });
-  assert.ok(warn.mock.calls.some((call) => /fallback model .* failed too \(400 Thinking budget/.test(call.arguments[0])));
+  await assert.rejects(ask(fails(503, 'overloaded'), fails(500, 'Internal error')), { code: 'LLM_BUSY' });
+  assert.ok(warn.mock.calls.some((call) => /fallback model .* failed too \(500 Internal error/.test(call.arguments[0])));
 });
 
 test('when both models fail, the main model\'s error is reported', async () => {
