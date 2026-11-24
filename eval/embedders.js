@@ -100,6 +100,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     date,
     note: 'Retrieval-only eval (eval/run.js --retrieval-only) per model, each in its own process, q8, 1 thread, top-4. Timings and memory are from this machine (not Render).',
     machine: { platform: os.platform(), arch: os.arch(), cpu: os.cpus()[0]?.model, cores: os.cpus().length, node: process.version, transformers: JSON.parse(fs.readFileSync(path.join(root, 'node_modules', '@huggingface', 'transformers', 'package.json'), 'utf8')).version },
+    // Hand-recorded measurements of the real server and of one answer run; a re-run of this script keeps them.
+    ...(previous?.serverCheck ? { serverCheck: previous.serverCheck } : {}),
+    ...(previous?.answerEval ? { answerEval: previous.answerEval } : {}),
     models: CANDIDATES.map((c) => models.get(c.label)).filter(Boolean),
   };
   fs.writeFileSync(outFile, `${JSON.stringify(out, null, 2)}\n`);

@@ -139,7 +139,12 @@ GEMINI_MODEL=gemini-3.5-flash-lite
 | `GEMINI_TIMEOUT_SECONDS` | `30` | Seconds each model gets to answer (its own retries included) before the fallback is tried. |
 | `GEMINI_THINKING_LEVEL` | `minimal` | How much Gemini 3 models think before answering: `minimal`, `low`, `medium` or `high`. Less thinking saves free quota. `default` uses the model's own setting. `gemini-3.8-flash` has no `minimal` and gets `low` instead. |
 | `GEMINI_THINKING_BUDGET` | `0` | Thinking tokens per answer for Gemini 2.5 models only. `0` turns thinking off; `default` uses the model's own setting. |
-| `EMBEDDING_MODEL` | `Xenova/all-MiniLM-L6-v2` | Local embedding model from the Hugging Face Hub. |
+| `EMBEDDING_MODEL` | `Xenova/all-MiniLM-L6-v2` | Local embedding model from the Hugging Face Hub. The models in [Choosing an embedder](#choosing-an-embedder) already have the right prefixes and pooling built in. |
+| `EMBEDDING_DTYPE` | `q8` | Model precision: `q8` (quantized, smallest) or `fp32`. |
+| `EMBEDDING_THREADS` | `1` | CPU threads for embeddings. |
+| `EMBEDDING_QUERY_PREFIX`, `EMBEDDING_DOCUMENT_PREFIX` | from the model's profile | Text put before each question and before each document part. For a model that is not in the list, copy them from its model card (for example `"query: "` and `"passage: "` for E5). Put values with spaces in quotes; `\n` is a newline. Set but empty means no prefix. |
+| `EMBEDDING_POOLING` | from the model's profile | `mean`, `cls` or `last_token`. Any other value is ignored with a warning. |
+| `EMBEDDING_DIMENSIONS` | (full vector) | Keep only the first N values of each vector, then scale it back to length 1. Only for models trained for it (EmbeddingGemma, Qwen3-Embedding). |
 | `PORT` | `3000` | Server port. |
 | `MAX_FILE_SIZE_MB` | `10` | Maximum size of each uploaded file. |
 | `SESSION_TTL_MINUTES` | `30` | Minutes without activity before a visitor's documents are deleted. |
@@ -218,6 +223,58 @@ npm run eval -- --retry-errors    # ask again only the questions that errored la
 It uses the models in `.env`. Unknown options are rejected (a typo never starts a paid run). Always pass `GEMINI_FALLBACK_MODEL=none` for a score: with a fallback, some answers come from a second model, the runner prints a warning, and each question records which model answered (`answeredBy`). Options: `--delay-ms N` (pause between Gemini calls, default 4000, to stay inside free-tier limits) and `--out FILE`. After 5 errors in a row it stops asking and marks the rest as skipped. Results go to `eval/results/latest.json` (a full run) or `eval/results/retrieval.json` (retrieval-only), not committed: the settings, the retrieved chunks with their scores, every answer, its checks and every line the app logged for it. An existing full-run file is moved to `latest.<date>.json` before a new run overwrites it. `--retry-errors` also resumes a run that stopped half way, as long as the models, settings, questions and documents are unchanged (it refuses a file where every question already has an answer, so `eval/baseline.json` cannot be rewritten by a retry; it also refuses a file once the models, settings or question file have changed); a relative `--out` is resolved from the folder you run the command in. Questions that errored are reported separately and never counted as wrong.
 
 **Testing the runner offline.** `EVAL_FAKE_LLM=<module>` (full runs only) swaps Gemini for the `{ llm, fallbackLlm }` that the module exports, so `test/evalRun.test.js` can check the stop after 5 errors, `--retry-errors`, and the warning for fallback answers without a key or a single Gemini call. Results made this way carry `fakeLlm: true` in their metadata, a retry refuses to mix them with real ones, and they must never be published.
+
+## Choosing an embedder
+
+The embedder decides which parts of your documents Gemini gets to read. The default, `Xenova/all-MiniLM-L6-v2`, is English-only: in the evaluation above the same Arabic chunk came first for 13 of 13 Arabic questions. This section compares four multilingual models that run in Transformers.js with the baseline. Measured on 2026-11-24 with `node eval/embedders.js`: each model in its own process, `q8`, one thread, top-4, the same 8 documents and 25 answerable questions, no Gemini calls. The numbers are in `eval/results/embedders-2026-11-24.json`.
+
+**Short answer: none of the four fits Render's 512 MB, so the default stays MiniLM.** The smallest one, `multilingual-e5-small`, fixes Arabic retrieval but needs about 860 MB in the real server (MiniLM: 431 MB in the same test). It is the one to use on a host with at least 1 GB of RAM.
+
+### Retrieval (95% interval in brackets)
+
+| Model | Every expected file in the top 4 | First chunk is from an expected file | English first chunk | Arabic first chunk | Arabic: different chunks first |
+| --- | --- | --- | --- | --- | --- |
+| MiniLM (default) | 23/25 [75-98] | 13/25 [33-70] | 13/15 | 0/10 [0-28] | 1 (the same one 13 of 13 times) |
+| `multilingual-e5-small` | 25/25 [87-100] | 23/25 [75-98] | 13/15 | 10/10 [72-100] | 4 |
+| `multilingual-e5-base` | 25/25 [87-100] | 24/25 [80-99] | 14/15 | 10/10 [72-100] | 4 |
+| `embeddinggemma-300m` | 25/25 [87-100] | 23/25 [75-98] | 13/15 | 10/10 [72-100] | 4 |
+| `Qwen3-Embedding-0.6B` | 25/25 [87-100] | 24/25 [80-99] | 14/15 | 10/10 [72-100] | 5 |
+
+What this shows:
+
+- **Arabic retrieval is fixed by any of the four.** Arabic first-chunk accuracy goes from 0/10 to 10/10, and the first chunk is no longer the same one every time. (In the e5 runs one clinic chunk comes first for 8 of 13 Arabic questions; 5 are questions about that clinic and 3 are near-miss questions about it, so this is the right chunk, not a collapse.)
+- **The four models are tied.** They differ by one question out of 25 (23 or 24), well inside the intervals. The "every expected file" column is also not a significant gain: [75-98] and [87-100] overlap. The first-chunk gain (13/25 to 23/25) and the Arabic gain are not noise.
+- **"Hit" means the right file, not the right chunk.** With e5-small `en-02` (probation period) retrieved the right file but not the chunk that holds the answer, and Gemini refused.
+
+### Cost
+
+| Model | Download | Load (cached) | Embed 18 chunks | Search (query embedded) | Peak memory, eval process | Real server after uploads |
+| --- | --- | --- | --- | --- | --- | --- |
+| MiniLM (default) | 23 MB | 0.05 s | 0.4 s | 2 ms | 394 MB | 431 MB |
+| `multilingual-e5-small` | 129 MB | 0.25 s | 0.5 s | 3 ms | **785 MB** | **861 MB** |
+| `multilingual-e5-base` | 282 MB | 0.3 s | 1.1 s | 7 ms | **1,169 MB** | not run |
+| `embeddinggemma-300m` | 316 MB | 0.5 s | 1.5 s | 68 ms | **1,737 MB** | not run |
+| `Qwen3-Embedding-0.6B` | 596 MB | 0.5 s | 9.3 s | 83 ms | **1,977 MB** | not run |
+
+Bold means above the 450 MB line that this project treats as "near the limit" on a 512 MB host. Peak memory is the whole `eval/run.js` process (`process.resourceUsage().maxRSS`, with the app's libraries loaded), so compare models with each other, not with 512 MB directly. The last column boots `npm start` with the model, uploads the 8 documents in three separate sessions and reads the process memory with `ps`; it is one sample per model. Times are from one Apple M5 laptop, one run per model; Render's CPU will give other numbers. Two full runs gave peak memory within 25 MB of each other.
+
+Why the memory is so high: the multilingual models have a vocabulary of 250,000 to 262,000 tokens. The quantized file is small (118 MB for e5-small), but onnxruntime expands the embedding table when it loads the model. That takes about 480 MB of native memory for e5-small, plus about 190 MB of JavaScript heap for its tokenizer. MiniLM uses 177 MB in total after loading. The `fp16` and `q4f16` files of e5-small were worse: about 1,090 and 990 MB after embedding, against 740 MB for `q8`. Turning off the onnxruntime memory arena or its graph optimisation changed the memory after loading by less than 30 MB. So `q8` is already the lightest option. `bge-m3` was not run: its quantized file alone is 570 MB.
+
+### Effect on answers (one run)
+
+One real run with `multilingual-e5-small` (`gemini-3.5-flash-lite`, no fallback, 33 questions): 24/25 answerable questions correct, against 22/25 with MiniLM. Three earlier failures are fixed (`en-05`, `x-01`, `multi-02`) and one is new (`en-02`, the chunk problem above). The refusals were correct for 8/8 questions by hand, but only 6/8 use the exact "I couldn't find that" sentence: for `none-07` and `none-08` Gemini refused in Arabic. With 25 questions and one sample, 22/25 [70-96] and 24/25 [80-99] overlap, so treat this as a direction, not a result.
+
+### If you switch
+
+- Set `EMBEDDING_MODEL=Xenova/multilingual-e5-small` and restart. The prefixes (`query: ` for questions, `passage: ` for document parts) and pooling are applied for you; nothing is stored on disk, so there is nothing to re-index. An unlisted model gets mean pooling and no prefixes, with a warning at startup.
+- The sources shown when Gemini cites none (`MIN_SOURCE_SCORE` 0.2 and `RELATIVE_SOURCE_SCORE` 0.7 in `src/services/ragChain.js`) were tuned for MiniLM scores. E5 scores are squeezed into a narrow band (the best chunk scores 0.87 on average for answerable questions and 0.85 for unanswerable ones), so the rule keeps all 4 chunks for 33 of 33 questions (MiniLM: 4 of 33, 2 chunks on average). EmbeddingGemma and Qwen3 spread their scores more (2.4 and 3.6 chunks on average). If you move to E5, change that rule first.
+- `EmbeddingGemma` is called through its own `sentence_embedding` output (the ONNX graph pools and projects the vector itself), not through the feature-extraction pipeline, which would return the wrong vectors for it.
+
+### Limits of this comparison
+
+18 chunks and 25 answerable questions are a small test: with so little text, retrieval is easier than for real uploads, and the intervals are wide. File-level hits are generous (see `en-02`). The timings come from one machine and one run. Memory on Render was not measured. Nothing was fine-tuned or published.
+
+Run it: `node eval/embedders.js` (all models, downloads them once, about 5 minutes) or `node eval/embedders.js --only e5-small`. The raw runs go to `eval/results/embedders-raw/` and are not committed.
 
 ## Deployment
 
