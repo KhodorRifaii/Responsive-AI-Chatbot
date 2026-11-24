@@ -20,7 +20,12 @@
       "afterUploadsMb": 861
     },
     "flagLineMb": 450,
-    "renderFreePlanMb": 512
+    "renderFreePlanMb": 512,
+    "google-embedding-2": {
+      "idleMb": 187,
+      "afterUploadsMb": 228,
+      "method": "EMBEDDING_PROVIDER=google, EMBEDDING_MODEL=gemini-embedding-2, real npm start on 2026-11-24: RSS read with ps after boot (idle), then after ONE request with the 8 eval documents (one session, not three as for the local models) and one Arabic chat question on the English HR policy (answered correctly with its source). Throwaway script, not in the repo. Different method from the local models' sample, so compare roughly."
+    }
   },
   "answerEval": {
     "note": "ONE real answer run with the only candidate that is close to usable (multilingual-e5-small): gemini-3.5-flash-lite, no fallback, thinking minimal, 33 questions, one sample. Full results: eval/results/latest-e5-small.json (not committed).",
@@ -49,7 +54,26 @@
         "none-08"
       ]
     },
-    "caution": "25 answerable questions, one sample: 22/25 [70-96] and 24/25 [80-99] overlap; this is not a significant difference."
+    "caution": "25 answerable questions, one sample: 22/25 [70-96] and 24/25 [80-99] overlap; this is not a significant difference.",
+    "google-embedding-2": {
+      "note": "ONE real answer run, gemini-embedding-2 (768 values): gemini-3.5-flash-lite, GEMINI_FALLBACK_MODEL=none, --delay-ms 5000, 33 questions, one sample, code at commit 3bbcf6c. Full results: eval/results/latest-google.json (not committed).",
+      "answerableCorrect": "24/25",
+      "failed": [
+        "en-06: expected file retrieved, but not the chunk with the reset time (hit counts files, not chunks); Gemini refused"
+      ],
+      "refusalExactSentence": "8/8",
+      "answeredBy": {
+        "gemini-3.5-flash-lite": 33
+      },
+      "medianLatencyMs": 1511,
+      "embeddingApiCalls": 74,
+      "embeddingApiRetries": 0,
+      "embeddingApiStatuses": {
+        "200": 74
+      },
+      "callsExplained": "8 uploads + 33 questions embedded to score retrieval + 33 questions embedded again to answer",
+      "caution": "22/25 [70-96] (MiniLM), 24/25 [80-99] (e5-small and gemini-embedding-2) overlap; one sample, not a significant difference."
+    }
   },
   "models": [
     {
