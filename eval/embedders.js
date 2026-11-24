@@ -1,0 +1,106 @@
+// Compares embedding models on the retrieval eval, each in its own process (so memory is its own):
+//   node eval/embedders.js                       all candidates
+//   node eval/embedders.js --only e5-small,gemma some of them (labels below)
+// For each model: (1) download it (a first process, so downloading is not part of the timings), (2) run
+// `eval/run.js --retrieval-only` with that model (free: no Gemini call). Writes the raw runs to
+// eval/results/embedders-raw/ (not committed) and the summary to eval/results/embedders-<date>.json (committed).
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { summarizeRun } from './embedderSummary.js';
+
+const evalDir = path.dirname(fileURLToPath(import.meta.url));
+const root = path.join(evalDir, '..');
+
+// q8 (quantized) and one thread for all of them, as the app runs on Render. embeddinggemma has no fp16; q8 is what the card allows.
+export const CANDIDATES = [
+  { label: 'minilm-baseline', model: 'Xenova/all-MiniLM-L6-v2', dtype: 'q8' },
+  { label: 'e5-small', model: 'Xenova/multilingual-e5-small', dtype: 'q8' },
+  { label: 'e5-base', model: 'Xenova/multilingual-e5-base', dtype: 'q8' },
+  { label: 'embeddinggemma-300m', model: 'onnx-community/embeddinggemma-300m-ONNX', dtype: 'q8' },
+  { label: 'qwen3-embedding-0.6b', model: 'onnx-community/Qwen3-Embedding-0.6B-ONNX', dtype: 'q8' },
+];
+
+/**
+ * The environment for one candidate. .env is not read (DOTENV_CONFIG_PATH points at an empty file) and any EMBEDDING_*
+ * variable of the caller is dropped, so the profile is the model's own and nothing from a developer's setup leaks in.
+ */
+function envFor({ model, dtype }) {
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('EMBEDDING_')));
+  return { ...env, DOTENV_CONFIG_PATH: os.devNull, EMBEDDING_MODEL: model, EMBEDDING_DTYPE: dtype, EMBEDDING_THREADS: '1' };
+}
+
+/** Bytes of the files the app downloaded for this model (the cache may hold other precisions from earlier runs). */
+export function downloadedBytes(model, dtype) {
+  const suffix = dtype === 'fp32' ? 'model' : { q8: 'model_quantized', fp16: 'model_fp16', q4: 'model_q4', q4f16: 'model_q4f16' }[dtype];
+  const dir = path.join(root, '.cache', 'models', model);
+  let total = 0;
+  const walk = (folder) => {
+    for (const entry of fs.readdirSync(folder, { withFileTypes: true })) {
+      const file = path.join(folder, entry.name);
+      if (entry.isDirectory()) walk(file);
+      else if (!folder.endsWith(`${path.sep}onnx`) || entry.name.startsWith(`${suffix}.onnx`)) total += fs.statSync(file).size;
+    }
+  };
+  walk(dir);
+  return total;
+}
+
+function run(args, env) {
+  const result = spawnSync(process.execPath, args, { cwd: root, env, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  return { ok: result.status === 0, output: `${result.stdout}\n${result.stderr}`.trim() };
+}
+
+function only() {
+  const index = process.argv.indexOf('--only');
+  if (index === -1) return CANDIDATES;
+  const wanted = (process.argv[index + 1] ?? '').split(',');
+  const unknown = wanted.filter((label) => !CANDIDATES.some((c) => c.label === label));
+  if (unknown.length) throw new Error(`unknown candidate ${unknown.join(', ')}. Labels: ${CANDIDATES.map((c) => c.label).join(', ')}`);
+  return CANDIDATES.filter((c) => wanted.includes(c.label));
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const date = new Date().toISOString().slice(0, 10);
+  const rawDir = path.join(evalDir, 'results', 'embedders-raw');
+  fs.mkdirSync(rawDir, { recursive: true });
+  const outFile = path.join(evalDir, 'results', `embedders-${date}.json`);
+  // Models of an earlier, partial invocation stay in the summary unless they are measured again.
+  const previous = fs.existsSync(outFile) ? JSON.parse(fs.readFileSync(outFile, 'utf8')) : null;
+  const models = new Map((previous?.models ?? []).map((m) => [m.label, m]));
+
+  for (const candidate of only()) {
+    console.log(`\n=== ${candidate.label}: ${candidate.model} (${candidate.dtype}) ===`);
+    const env = envFor(candidate);
+    const prefetchCode = "const { default: config } = await import('./src/config.js'); const { LocalEmbeddings } = await import('./src/services/embeddings.js'); await new LocalEmbeddings({ model: config.embeddingModel, dtype: config.embeddingDtype, threads: 1, profile: config.embeddingProfile }).embedQuery('download');";
+    const fetched = run(['--input-type=module', '-e', prefetchCode], env);
+    if (!fetched.ok) {
+      console.log(`download/load FAILED:\n${fetched.output.split('\n').slice(-6).join('\n')}`);
+      models.set(candidate.label, { ...candidate, status: 'failed', error: fetched.output.split('\n').slice(-3).join(' | ').slice(0, 400) });
+      continue;
+    }
+    const rawFile = path.join(rawDir, `${candidate.label}.json`);
+    const evaluated = run([path.join('eval', 'run.js'), '--retrieval-only', '--out', rawFile], env);
+    if (!evaluated.ok) {
+      console.log(`eval FAILED:\n${evaluated.output.split('\n').slice(-6).join('\n')}`);
+      models.set(candidate.label, { ...candidate, status: 'failed', error: evaluated.output.split('\n').slice(-3).join(' | ').slice(0, 400) });
+      continue;
+    }
+    const summary = summarizeRun(JSON.parse(fs.readFileSync(rawFile, 'utf8')));
+    const bytes = downloadedBytes(candidate.model, candidate.dtype);
+    models.set(candidate.label, { ...candidate, status: 'ok', downloadMb: Math.round(bytes / 1024 / 1024), ...summary });
+    const { all, ar } = summary.retrieval;
+    console.log(`all: hit-all ${all.hitAll.k}/${all.n}, top-1 ${all.top1.k}/${all.n} | ar top-1 ${ar.top1.k}/${ar.n}, ${summary.top1Spread.ar.distinctChunks} chunks first (most frequent ${summary.top1Spread.ar.mostFrequent} x${summary.top1Spread.ar.times}) | peak RSS ${summary.performance.peakRssMb} MB${summary.nearLimit ? ' (FLAGGED)' : ''} | download ${Math.round(bytes / 1024 / 1024)} MB`);
+  }
+
+  const out = {
+    date,
+    note: 'Retrieval-only eval (eval/run.js --retrieval-only) per model, each in its own process, q8, 1 thread, top-4. Timings and memory are from this machine (not Render).',
+    machine: { platform: os.platform(), arch: os.arch(), cpu: os.cpus()[0]?.model, cores: os.cpus().length, node: process.version, transformers: JSON.parse(fs.readFileSync(path.join(root, 'node_modules', '@huggingface', 'transformers', 'package.json'), 'utf8')).version },
+    models: CANDIDATES.map((c) => models.get(c.label)).filter(Boolean),
+  };
+  fs.writeFileSync(outFile, `${JSON.stringify(out, null, 2)}\n`);
+  console.log(`\nSummary written to ${path.relative(root, outFile)}`);
+}

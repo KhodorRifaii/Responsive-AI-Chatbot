@@ -4,4 +4,5 @@ uploads/
 .cache/
 .DS_Store
 npm-debug.log*
-eval/results/
+eval/results/*
+!eval/results/embedders-*.json
