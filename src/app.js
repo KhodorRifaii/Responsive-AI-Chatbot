@@ -31,6 +31,8 @@ app.get('/api/health', (req, res) => {
     llmConfigured: Boolean(config.googleApiKey),
     model: config.geminiModel,
     fallbackModel: config.geminiFallbackModel,
+    // 'google' = the text of uploaded documents is sent to Google for embedding, so the page shows a notice.
+    embeddingProvider: config.embeddingProvider,
   });
 });
 

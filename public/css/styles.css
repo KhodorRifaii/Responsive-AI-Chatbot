@@ -253,6 +253,20 @@ body {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
 
+/* Notice under the dropzone when the documents are sent to Google (EMBEDDING_PROVIDER=google): small, muted, readable in both themes. */
+.upload-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.6rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--dc-muted);
+}
+.upload-notice .bi { flex: none; margin-top: 0.1rem; }
+.upload-notice-chat { margin: 0; padding: 0.5rem 1rem 0; }
+.upload-notice[hidden] { display: none; }
+
 /* Upload status */
 .upload-status {
   margin: 0.75rem 0 0;

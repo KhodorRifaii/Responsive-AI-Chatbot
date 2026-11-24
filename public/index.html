@@ -35,6 +35,7 @@
             <span class="fw-semibold">Choose files or drop them here</span>
             <small class="text-body-secondary">PDF, DOCX, TXT or CSV</small>
           </label>
+          <p class="upload-notice" id="providerNotice" hidden><i class="bi bi-info-circle" aria-hidden="true"></i><span>Your documents are processed by Google to answer questions.</span></p>
           <p class="upload-status" id="uploadStatus" role="status" hidden></p>
         </section>
 
@@ -84,6 +85,8 @@
       </div>
 
       <p class="composer-error" id="questionError" role="alert" hidden></p>
+      <!-- The same notice for small screens, where the sidebar with the upload area is closed and the paperclip below is the way to upload. -->
+      <p class="upload-notice upload-notice-chat d-lg-none" id="providerNoticeChat" hidden><i class="bi bi-info-circle" aria-hidden="true"></i><span>Your documents are processed by Google to answer questions.</span></p>
       <form class="composer" id="chatForm" novalidate>
         <label for="fileInput" class="btn btn-icon composer-attach" title="Add documents" tabindex="0" role="button" aria-label="Add documents">
           <i class="bi bi-paperclip"></i>

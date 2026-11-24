@@ -373,7 +373,7 @@ The key is only sent in the `x-goog-api-key` header. It is in no URL, log line, 
 
 ### Trade-offs
 
-- **Privacy: the text of every uploaded document goes to Google.** With the local models only the question and (at answer time) up to four retrieved parts leave your server. With `EMBEDDING_PROVIDER=google` every part of every uploaded document is sent to Google when it is uploaded, before anyone asks anything. [Google's terms](https://aistudio.google.com/docs/terms) say that on the unpaid (free) tier, submitted content is used to improve its products and human reviewers may read it. They advise against sending confidential or personal information. Paid services do not train on it. In the EEA, Switzerland and the UK, the paid terms apply to every service. The page does not tell visitors this today (it does not mention Gemini either), so add a notice before you switch a public site.
+- **Privacy: the text of every uploaded document goes to Google.** With the local models only the question and (at answer time) up to four retrieved parts leave your server. With `EMBEDDING_PROVIDER=google` every part of every uploaded document is sent to Google when it is uploaded, before anyone asks anything. [Google's terms](https://aistudio.google.com/docs/terms) say that on the unpaid (free) tier, submitted content is used to improve its products and human reviewers may read it. They advise against sending confidential or personal information. Paid services do not train on it. In the EEA, Switzerland and the UK, the paid terms apply to every service. With `EMBEDDING_PROVIDER=google` the page shows the notice "Your documents are processed by Google to answer questions." under the upload area (and above the message box on small screens) automatically: it learns the provider from `GET /api/health` (`embeddingProvider`), and nothing is shown with the local provider.
 - **Network on every question and upload.** Each question takes about half a second longer, and nothing works when Google is unreachable. The local embedder needs the network once, to download the model.
 - **Quota shared with the answers**, as above.
 - **Not reproducible forever.** Hosted models can be retired (`text-embedding-004` and `embedding-001` already were): a retirement means re-embedding, which here happens by itself on the next upload because nothing is stored.
@@ -401,7 +401,7 @@ Uploaded documents stay in memory only and are private to your browser. The serv
 
 | Method | Path | Body | Response |
 | --- | --- | --- | --- |
-| `GET` | `/api/health` | | `{ status, llmConfigured, model, fallbackModel }` |
+| `GET` | `/api/health` | | `{ status, llmConfigured, model, fallbackModel, embeddingProvider }` (`embeddingProvider` is `local` or `google`) |
 | `GET` | `/api/documents` | | `{ documents: [{ id, name, size, chunks, uploadedAt }], sessionExpired }` |
 | `POST` | `/api/documents` | `multipart/form-data`, field `files` | `{ documents, errors, sessionExpired }`, or a progress stream (below) |
 | `POST` | `/api/chat` | `{ question, history: [{ role, content }] }` | `{ answer, sources: [{ source, page, chunk, excerpt }] }`, or an answer stream (below) |
