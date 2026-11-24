@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from './args.js';
+import { retryProblems } from './retry.js';
 import { analyzeLogs, chanceHitAll, findCollisions, hasFact, latencyStats, normalize, scoreQuestion, summarize } from './score.js';
 
 const evalDir = path.dirname(fileURLToPath(import.meta.url));
@@ -116,15 +117,12 @@ const { answerQuestion, NOT_FOUND_ANSWER } = await import('../src/services/ragCh
 const previous = retryErrors && fs.existsSync(outFile) ? JSON.parse(fs.readFileSync(outFile, 'utf8')) : null;
 if (retryErrors && !previous) fail(`--retry-errors needs a previous results file (${path.relative(root, outFile)}).`);
 const previousById = new Map((previous?.results ?? []).map((r) => [r.id, r]));
-// A retry may only complete the same run: same models, settings and documents, or the file would mix two runs.
-const SETTINGS = ['mainModel', 'fallbackModel', 'thinkingBudget', 'embeddingModel', 'embeddingDtype', 'chunkSize', 'chunkOverlap', 'topK', 'mode'];
+// A retry may only complete the same run (see retry.js). A file from a run that stopped half way is fine:
+// questions missing from it are asked.
 if (previous) {
-  const now = { mainModel: config.geminiModel, fallbackModel: config.geminiFallbackModel, thinkingBudget: config.geminiThinkingBudget, embeddingModel: config.embeddingModel, embeddingDtype: config.embeddingDtype, chunkSize: config.chunkSize, chunkOverlap: config.chunkOverlap, topK: config.topK, mode: 'full' };
-  const changed = SETTINGS.filter((key) => JSON.stringify(previous.meta?.[key]) !== JSON.stringify(now[key]));
-  if (previous.meta?.datasetFingerprint !== datasetFingerprint) changed.push('questions or documents');
-  const priorIds = (previous.results ?? []).map((r) => r.id).sort().join();
-  if (priorIds !== questions.map((q) => q.id).sort().join()) changed.push('question ids');
-  if (changed.length) fail(`--retry-errors needs the same settings, questions and documents as the first run (different: ${changed.join(', ')}). Run the eval again from the start instead.`);
+  const settings = { mainModel: config.geminiModel, fallbackModel: config.geminiFallbackModel, thinkingBudget: config.geminiThinkingBudget, embeddingModel: config.embeddingModel, embeddingDtype: config.embeddingDtype, chunkSize: config.chunkSize, chunkOverlap: config.chunkOverlap, topK: config.topK, mode: 'full' };
+  const problems = retryProblems(previous, { settings, fingerprint: datasetFingerprint, questionIds: questions.map((q) => q.id) });
+  if (problems.length) fail(`--retry-errors cannot complete that file (${problems.join('; ')}). Run the eval again from the start instead.`);
 }
 
 console.log('Loading documents through the real pipeline (loader, splitter, local embeddings)...');
@@ -238,7 +236,10 @@ for (const [index, q] of questions.entries()) {
     } else {
       if (llmCalls > 0 && delayMs > 0) await sleep(delayMs);
       llmCalls += 1;
-      if (old) retriedIds.push(q.id);
+      if (previous) {
+        retriedIds.push(q.id);
+        run.retried = true;
+      }
       const started = performance.now();
       const { value, error, logs } = await captureLogs(() => answerQuestion({ question: q.question, session }));
       run.latencyMs = Math.round(performance.now() - started);
