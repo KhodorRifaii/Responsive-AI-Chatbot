@@ -25,8 +25,10 @@ const ALLOWED_LEVELS = {
  * @param {{ level: string | null, budget: number | null }} settings
  */
 export function thinkingConfigFor(model, { level, budget }) {
-  if (/^gemini-2\.5-/.test(model)) return budget === null ? undefined : { thinkingBudget: budget };
-  const allowed = ALLOWED_LEVELS[model];
+  // The API accepts "models/gemini-..." and any letter case; both mean the same model.
+  const id = model.replace(/^models\//i, '').toLowerCase();
+  if (/^gemini-2\.5-/.test(id)) return budget === null ? undefined : { thinkingBudget: budget };
+  const allowed = ALLOWED_LEVELS[id];
   if (!allowed || level === null) return undefined;
   if (allowed.includes(level)) return { thinkingLevel: level };
   // Highest accepted level at or below the request, otherwise the lowest accepted one.

@@ -45,3 +45,9 @@ test('the old bug: a Gemini 3 model never receives thinkingBudget', () => {
     assert.equal(JSON.stringify(thinkingConfigFor(model, { level: 'minimal', budget: 0 }) ?? {}).includes('thinkingBudget'), false, model);
   }
 });
+
+test('"models/" prefix and letter case do not change the result', () => {
+  assert.deepEqual(level('models/gemini-3.5-flash-lite', 'low'), { thinkingLevel: 'low' });
+  assert.deepEqual(level('Gemini-3.8-Flash', 'minimal'), { thinkingLevel: 'low' });
+  assert.deepEqual(thinkingConfigFor('models/gemini-2.5-flash', { level: 'low', budget: 0 }), { thinkingBudget: 0 });
+});
