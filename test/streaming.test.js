@@ -123,6 +123,23 @@ test('a 400 from the fallback model is reported as a config error on the stream 
   await assert.rejects(stream(failsAtOnce(400), fallback), { code: 'LLM_CONFIG' });
 });
 
+test('a 400 after the first token ends the answer with a config error naming the model that was streaming', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  t.mock.method(console, 'error', () => {});
+  const named = (llm, model) => Object.assign(llm, { model });
+  await assert.rejects(stream(named(failsAfter(['18 '], 400), 'gemini-main'), streams('never used')), (error) => {
+    assert.equal(error.code, 'LLM_CONFIG');
+    assert.match(error.message, /"gemini-main".*GEMINI_MODEL/);
+    return true;
+  });
+  // The main model failed for a passing reason first; the fallback then streamed a token and was rejected with a 400.
+  await assert.rejects(stream(failsAtOnce(503), named(failsAfter(['18 '], 400), 'gemini-fallback')), (error) => {
+    assert.equal(error.code, 'LLM_CONFIG');
+    assert.match(error.message, /"gemini-fallback".*GEMINI_FALLBACK_MODEL/);
+    return true;
+  });
+});
+
 test('a streamed request that fails before any token gets a plain JSON error', async () => {
   // No API key in tests: MISSING_API_KEY happens before the stream starts.
   const upload = new FormData();

@@ -40,6 +40,7 @@ export function normalize(text) {
     .replace(/\b([ap])\.\s?m\b\.?/g, '$1m')
     .replace(/(\d{1,2})\.(\d{2})(?=\s?[ap]m\b)/g, '$1:$2')
     // A full hour ("9:00", "21:00") equals the bare hour, with or without am/pm. Not part of 1:10:00 or 9:00:30.
+    // Deliberately in any context: no gold fact is a ratio like 12:00, and "9:00" is how models write most hours.
     .replace(/(?<![\d:.])(\d{1,2}):00(?!\d|:\d)/g, '$1')
     .replace(/\b(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)[ -](one|two|three|four|five|six|seven|eight|nine)\b/g, (_, t, u) => String(TENS[t] + UNITS[u]))
     .replace(/\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen)\b/g, (w) => String(UNITS[w]))

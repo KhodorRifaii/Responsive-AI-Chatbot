@@ -372,6 +372,7 @@ async function streamWithFallback(attempts, input, onToken, clientSignal) {
       return output;
     } catch (error) {
       if (error instanceof ClientGoneError) throw error;
+      // Text was already shown: the answer ends here with the error of the model that was streaming, named by its own setting.
       if (sent) throw toLlmError(error, name, settingFor(index));
       firstError ??= error;
       if (errorStatus(error) === 400) configFailure ??= { error, name, setting: settingFor(index) };
