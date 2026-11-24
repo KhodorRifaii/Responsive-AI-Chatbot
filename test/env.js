@@ -9,9 +9,18 @@ Object.assign(process.env, {
   GEMINI_TIMEOUT_SECONDS: '0.2',
   GEMINI_THINKING_BUDGET: '0',
   GEMINI_THINKING_LEVEL: 'minimal',
+  // The local default embedder, whatever the developer's shell or .env says (the hosted provider is tested with its own fakes).
+  EMBEDDING_PROVIDER: 'local',
   EMBEDDING_MODEL: 'Xenova/all-MiniLM-L6-v2',
   EMBEDDING_DTYPE: 'q8',
   EMBEDDING_THREADS: '1',
+  // The default model's own profile: nothing from a developer's .env can change it.
+  EMBEDDING_POOLING: '',
+  EMBEDDING_QUERY_PREFIX: '',
+  EMBEDDING_DOCUMENT_PREFIX: '',
+  EMBEDDING_DIMENSIONS: '',
+  EMBEDDING_SOURCE_MIN_SCORE: '',
+  EMBEDDING_SOURCE_RELATIVE_SCORE: '',
   MAX_FILE_SIZE_MB: '10',
   SESSION_TTL_MINUTES: '30',
   MAX_SESSIONS: '100',

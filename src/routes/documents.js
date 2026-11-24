@@ -29,14 +29,21 @@ router.post('/', upload.array('files', 10), async (req, res, next) => {
     if (stream) startNdjson(res);
     const added = [];
     const errors = [];
+    // The visitor closed the page: stop embedding (the hosted embedder would spend the shared quota for nobody).
+    const gone = new AbortController();
+    res.on('close', () => {
+      if (!res.writableEnded) gone.abort();
+    });
     for (const [index, file] of files.entries()) {
+      if (gone.signal.aborted) return;
       const onProgress = stream
         ? (progress) => writeEvent(res, { type: 'progress', file: index + 1, files: files.length, name: file.originalname, ...progress })
         : undefined;
       try {
-        added.push(await addDocument(session, file, { onProgress }));
+        added.push(await addDocument(session, file, { onProgress, signal: gone.signal }));
       } catch (error) {
         if (!(error instanceof HttpError)) throw error;
+        if (error.code === 'CLIENT_GONE') return;
         errors.push({ name: file.originalname, error: error.message, code: error.code });
         // The session expired during this upload: its documents are gone, so stop here.
         if (error.code === 'SESSION_EXPIRED') break;

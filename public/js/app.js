@@ -14,6 +14,8 @@ const els = {
   sendButton: document.getElementById('sendButton'),
   questionError: document.getElementById('questionError'),
   setupAlert: document.getElementById('setupAlert'),
+  providerNotice: document.getElementById('providerNotice'),
+  providerNoticeChat: document.getElementById('providerNoticeChat'),
   docsList: document.getElementById('docsList'),
   docsCount: document.getElementById('docsCount'),
   docsEmpty: document.getElementById('docsEmpty'),
@@ -590,7 +592,11 @@ els.questionInput.addEventListener('input', () => {
 renderHistory();
 refreshDocuments();
 
-// Warn early when the server has no Gemini key.
+// Warn early when the server has no Gemini key, and tell visitors when their documents go to Google for embedding.
 getHealth()
-  .then(({ llmConfigured }) => { els.setupAlert.hidden = llmConfigured; })
+  .then(({ llmConfigured, embeddingProvider }) => {
+    els.setupAlert.hidden = llmConfigured;
+    els.providerNotice.hidden = embeddingProvider !== 'google';
+    els.providerNoticeChat.hidden = embeddingProvider !== 'google';
+  })
   .catch(() => {});

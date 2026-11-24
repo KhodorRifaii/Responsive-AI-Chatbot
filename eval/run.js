@@ -16,6 +16,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from './args.js';
 import { retryProblems } from './retry.js';
 import { validateQuestions } from './validate.js';
+import { loadChunkTexts } from './chunks.js';
 import { wilson, analyzeLogs, chanceHitAll, latencyStats, scoreQuestion, summarize } from './score.js';
 
 const evalDir = path.dirname(fileURLToPath(import.meta.url));
@@ -52,6 +53,9 @@ for (const name of docFiles) {
   const chunks = await loadAndSplit({ originalname: name, buffer: Buffer.from(docText[name], 'utf8') }, name);
   parsedText[name] = chunks.map((c) => c.pageContent).join('\n');
 }
+
+// The text of each chunk, to check that a retrieved chunk really holds the gold facts (not only the right file).
+const chunkText = await loadChunkTexts(docsDir, loadAndSplit);
 
 function loadQuestions() {
   const lines = fs.readFileSync(path.join(evalDir, 'questions.jsonl'), 'utf8').split('\n').filter((l) => l.trim());
@@ -100,7 +104,7 @@ if (!retrievalOnly && process.env.EVAL_FAKE_LLM) {
 if (!retrievalOnly && !fake && !config.googleApiKey) {
   fail('GOOGLE_API_KEY is missing. Add it to .env (free key: https://aistudio.google.com/app/apikey), or run with --retrieval-only.');
 }
-const { createSession, addDocument, search } = await import('../src/services/vectorStore.js');
+const { createSession, addDocument, search, embeddings } = await import('../src/services/vectorStore.js');
 const { answerQuestion, NOT_FOUND_ANSWER } = await import('../src/services/ragChain.js');
 
 // What the app sends to each model as its thinking setting (null = the model's own default). Saved in the results and
@@ -112,25 +116,46 @@ const thinking = {
 };
 const describeThinking = (t) => `${t.main ? JSON.stringify(t.main) : 'model default'}${t.fallback ? ` (fallback ${JSON.stringify(t.fallback)})` : ''}`;
 
+// How the embedder was called (pooling, prefixes, size): saved in the results and compared by a retry.
+const { provider, pooling, normalize, queryPrefix, documentPrefix, taskTypes, dimensions, sourceMinScore, sourceRelativeScore } = config.embeddingProfile;
+const embeddingProfile = { provider, pooling, normalize, queryPrefix, documentPrefix, taskTypes, dimensions, sourceMinScore, sourceRelativeScore };
+
 const previous = retryErrors && fs.existsSync(outFile) ? JSON.parse(fs.readFileSync(outFile, 'utf8')) : null;
 if (retryErrors && !previous) fail(`--retry-errors needs a previous results file (${path.relative(root, outFile)}).`);
 const previousById = new Map((previous?.results ?? []).map((r) => [r.id, r]));
 // A retry may only complete the same run (see retry.js). A file from a run that stopped half way is fine:
 // questions missing from it are asked.
 if (previous) {
-  const settings = { mainModel: config.geminiModel, fallbackModel: config.geminiFallbackModel, thinking, fakeLlm: Boolean(fake), embeddingModel: config.embeddingModel, embeddingDtype: config.embeddingDtype, chunkSize: config.chunkSize, chunkOverlap: config.chunkOverlap, topK: config.topK, mode: 'full' };
+  const settings = { mainModel: config.geminiModel, fallbackModel: config.geminiFallbackModel, thinking, fakeLlm: Boolean(fake), embeddingModel: config.embeddingModel, embeddingDtype: config.embeddingDtype, embeddingProfile, chunkSize: config.chunkSize, chunkOverlap: config.chunkOverlap, topK: config.topK, mode: 'full' };
   const problems = retryProblems(previous, { settings, fingerprint: datasetFingerprint, questionIds: questions.map((q) => q.id) });
   if (problems.length) fail(`--retry-errors cannot complete that file (${problems.join('; ')}). Run the eval again from the start instead.`);
 }
 
 console.log('Loading documents through the real pipeline (loader, splitter, local embeddings)...');
 const session = createSession();
+// Speed and memory of the embedder, for choosing one (see README "Choosing an embedder"). Heap = the highest value sampled.
+const MB = 1024 * 1024;
+let maxHeapMb = 0;
+const sampleHeap = () => {
+  maxHeapMb = Math.max(maxHeapMb, process.memoryUsage().heapUsed / MB);
+};
+// Searching the still empty store embeds one query, so this call loads the model (download excluded when it is cached).
+// A hosted embedder has nothing to load: the warm-up would only spend one API call, so it is skipped (load time 0).
+let tick = performance.now();
+if (config.embeddingProvider !== 'google') await search(session, 'warm-up', 1);
+const modelLoadMs = config.embeddingProvider === 'google' ? 0 : performance.now() - tick;
+sampleHeap();
 const chunksByFile = {};
+tick = performance.now();
 for (const name of docFiles) {
   const buffer = Buffer.from(docText[name], 'utf8');
   const info = await addDocument(session, { originalname: name, buffer, size: buffer.length });
   chunksByFile[name] = info.chunks;
+  sampleHeap();
 }
+const docsEmbedMs = performance.now() - tick;
+const vectorSize = session.store.memoryVectors[0]?.embedding.length ?? null;
+const searchMs = [];
 console.log(`Chunks: ${Object.entries(chunksByFile).map(([f, n]) => `${f} ${n}`).join(', ')} (total ${Object.values(chunksByFile).reduce((a, b) => a + b, 0)})`);
 
 // ---- 3. Ask every question ---------------------------------------------------------------------
@@ -173,6 +198,7 @@ const meta = previous ? { ...previous.meta } : {
   fakeLlm: Boolean(fake),
   embeddingModel: config.embeddingModel,
   embeddingDtype: config.embeddingDtype,
+  embeddingProfile,
   chunkSize: config.chunkSize,
   chunkOverlap: config.chunkOverlap,
   topK: config.topK,
@@ -216,7 +242,10 @@ function save() {
 }
 
 for (const [index, q] of questions.entries()) {
+  tick = performance.now();
   const retrievedPairs = await search(session, q.question, config.topK);
+  searchMs.push(performance.now() - tick);
+  sampleHeap();
   const retrieved = retrievedPairs.map(([chunk, score]) => ({ source: chunk.metadata.source, chunk: chunk.metadata.chunk, score: Number(score.toFixed(4)) }));
   const totalChunks = Object.values(chunksByFile).reduce((a, b) => a + b, 0);
   const run = {
@@ -254,7 +283,7 @@ for (const [index, q] of questions.entries()) {
       }
     }
   }
-  const record = scoreQuestion(q, run, NOT_FOUND_ANSWER);
+  const record = scoreQuestion(q, run, NOT_FOUND_ANSWER, chunkText);
   records.push(record);
   results.push({ id: q.id, lang: q.lang, type: q.type, question: q.question, expectedSources: q.sources, ...run, score: record });
   save();
@@ -271,12 +300,12 @@ const pct = (share, n) => {
 };
 const num = (value, digits = 2) => (value === null ? 'n/a' : value.toFixed(digits));
 
-console.log(`\nModels: main ${meta.mainModel}, fallback ${meta.fallbackModel ?? 'none'} | thinking ${describeThinking(meta.thinking)} | embeddings ${meta.embeddingModel} (${meta.embeddingDtype}) | top-${meta.topK}, chunks ${meta.chunkSize}/${meta.chunkOverlap}`);
-console.log('\nRETRIEVAL (answerable questions; hit = expected file(s) among the top-k chunks)');
-console.log(`${'slice'.padEnd(14)}${'n'.padStart(3)}  ${'all expected files in top-k'.padEnd(38)}${'any expected file'.padEnd(32)}${'top-1 is expected'.padEnd(32)}random: top-k / top-1`);
+console.log(`\nModels: main ${meta.mainModel}, fallback ${meta.fallbackModel ?? 'none'} | thinking ${describeThinking(meta.thinking)} | embeddings ${meta.embeddingProfile.provider === 'google' ? 'Google ' : ''}${meta.embeddingModel}${meta.embeddingProfile.provider === 'google' ? '' : ` (${meta.embeddingDtype})`} | top-${meta.topK}, chunks ${meta.chunkSize}/${meta.chunkOverlap}`);
+console.log('\nRETRIEVAL (answerable questions; hit = expected file(s) among the top-k chunks; right chunk = every gold fact is in a retrieved chunk of an expected file)');
+console.log(`${'slice'.padEnd(14)}${'n'.padStart(3)}  ${'all expected files in top-k'.padEnd(38)}${'any expected file'.padEnd(32)}${'top-1 is expected'.padEnd(32)}${'right chunk in top-k'.padEnd(32)}random: top-k / top-1`);
 for (const [name, g] of Object.entries(summary)) {
   if (g.answerable === 0) continue;
-  console.log(`${name.padEnd(14)}${String(g.answerable).padStart(3)}  ${pct(g.retrievalAll, g.answerable).padEnd(38)}${pct(g.retrievalAny, g.answerable).padEnd(32)}${pct(g.retrievalTop1, g.answerable).padEnd(32)}${Math.round(g.chance * 100)}% / ${Math.round(g.chanceTop1 * 100)}%`);
+  console.log(`${name.padEnd(14)}${String(g.answerable).padStart(3)}  ${pct(g.retrievalAll, g.answerable).padEnd(38)}${pct(g.retrievalAny, g.answerable).padEnd(32)}${pct(g.retrievalTop1, g.answerable).padEnd(32)}${pct(g.retrievalChunk, g.answerable).padEnd(32)}${Math.round(g.chance * 100)}% / ${Math.round(g.chanceTop1 * 100)}%`);
 }
 if (!retrievalOnly) {
   console.log('\nANSWERS (answerable questions that got an answer; correct = every gold fact present, not negated, not a refusal)');
@@ -325,6 +354,23 @@ if (flagged.length) {
   }
 }
 
+const sortedSearch = [...searchMs].sort((a, b) => a - b);
+// maxRSS is in kilobytes (Node docs): the peak memory of this whole process, model loading included.
+const performanceStats = {
+  modelLoadMs: Math.round(modelLoadMs),
+  docsEmbedMs: Math.round(docsEmbedMs),
+  chunks: Object.values(chunksByFile).reduce((a, b) => a + b, 0),
+  searchMsMean: Math.round(searchMs.reduce((a, b) => a + b, 0) / searchMs.length),
+  searchMsMedian: Math.round(sortedSearch[Math.floor(sortedSearch.length / 2)]),
+  peakRssMb: Math.round(process.resourceUsage().maxRSS / 1024),
+  maxHeapMb: Math.round(maxHeapMb),
+  vectorSize,
+  // Hosted embedder only: real HTTP calls to the embedding API during this whole run (corpus, warm-up and every question), retries included.
+  ...(embeddings.stats ? { apiCalls: embeddings.stats.requests, apiRetries: embeddings.stats.retries, apiStatuses: embeddings.stats.byStatus } : {}),
+};
+console.log(`\nEmbedder speed and memory: model load ${performanceStats.modelLoadMs} ms, ${performanceStats.chunks} chunks embedded in ${performanceStats.docsEmbedMs} ms, search (query embedding included) mean ${performanceStats.searchMsMean} ms / median ${performanceStats.searchMsMedian} ms, peak memory (RSS) ${performanceStats.peakRssMb} MB, highest JS heap sampled ${performanceStats.maxHeapMb} MB, vector size ${performanceStats.vectorSize}${embeddings.stats ? `, embedding API calls ${performanceStats.apiCalls} (${performanceStats.apiRetries} retries, statuses ${JSON.stringify(performanceStats.apiStatuses)})` : ''}`);
+// A retry keeps the first run's metadata (and so its performance): the retry only re-asks a few questions and re-embeds the corpus, so its timings would not describe the run.
+if (!previous) meta.performance = performanceStats;
 meta.summary = summary;
 meta.answeredBy = Object.fromEntries(results.filter((r) => r.answeredBy).reduce((m, r) => m.set(r.answeredBy, (m.get(r.answeredBy) ?? 0) + 1), new Map()));
 if (previous) meta.retries.push({ date: new Date().toISOString(), ids: retriedIds });

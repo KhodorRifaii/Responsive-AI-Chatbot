@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
-import { wilson, analyzeLogs, normalize, tokens, hasFact, findCollisions, isRefusal, isSoftRefusal, chanceHitAll, scoreQuestion, summarizeGroup } from '../eval/score.js';
+import { wilson, analyzeLogs, normalize, tokens, hasFact, findCollisions, isRefusal, isSoftRefusal, chanceHitAll, scoreQuestion, summarizeGroup, chunkHit } from '../eval/score.js';
 
 test('normalize: digits, separators and Arabic spellings', () => {
   assert.equal(normalize('٢٢٬٠٠٠ ريال'), '22000 ريال');
@@ -267,4 +267,49 @@ test('scoreQuestion: the conditional answer from the review passes ar-02', () =>
   const q = goldFor('ar-02');
   assert.equal(scoreQuestion(q, { retrieved: [], answer: 'تُحتسب رسوم إذا لم تلغ قبل 24 ساعة', sources: [] }, NOT_FOUND).correct, true);
   assert.equal(scoreQuestion(q, { retrieved: [], answer: 'لا يجب الإلغاء قبل 24 ساعة', sources: [] }, NOT_FOUND).correct, false);
+});
+
+// ---- chunk-level retrieval: the gold facts are in a retrieved chunk of an expected source ----
+const chunkTexts = {
+  'hr.txt#1': 'Annual leave is 24 working days per year.',
+  'hr.txt#2': 'The probation period is 90 days.',
+  'other.txt#1': 'Annual leave is 24 working days per year (a look-alike document).',
+};
+const textOf = (source, chunk) => chunkTexts[`${source}#${chunk}`];
+const leaveQuestion = { id: 'q', sources: ['hr.txt'], facts: [['24 working days', '24 days']] };
+
+test('chunkHit: the retrieved chunk of the expected file holds the fact', () => {
+  assert.equal(chunkHit(leaveQuestion, [{ source: 'hr.txt', chunk: 1 }], textOf), true);
+});
+
+test('chunkHit: the right file but the wrong chunk is a miss (the file-level hit would count it)', () => {
+  const retrieved = [{ source: 'hr.txt', chunk: 2 }];
+  assert.equal(chunkHit(leaveQuestion, retrieved, textOf), false);
+  const record = scoreQuestion(leaveQuestion, { retrieved }, NOT_FOUND, textOf);
+  assert.equal(record.retrievalAll, true);
+  assert.equal(record.retrievalChunk, false);
+});
+
+test('chunkHit: a look-alike file holding the same words does not count, only expected sources do', () => {
+  assert.equal(chunkHit(leaveQuestion, [{ source: 'other.txt', chunk: 1 }], textOf), false);
+});
+
+test('chunkHit: every fact needs a chunk; facts may be in different expected files', () => {
+  const two = { id: 'm', sources: ['hr.txt', 'other.txt'], facts: [['90 days'], ['look-alike document']] };
+  assert.equal(chunkHit(two, [{ source: 'hr.txt', chunk: 2 }], textOf), false);
+  assert.equal(chunkHit(two, [{ source: 'hr.txt', chunk: 2 }, { source: 'other.txt', chunk: 1 }], textOf), true);
+});
+
+test('scoreQuestion: without a chunk-text lookup there is no chunk field; unanswerable questions never get one', () => {
+  assert.equal('retrievalChunk' in scoreQuestion(leaveQuestion, { retrieved: [{ source: 'hr.txt', chunk: 1 }] }, NOT_FOUND), false);
+  const none = { id: 'n', sources: [], facts: [] };
+  assert.equal('retrievalChunk' in scoreQuestion(none, { retrieved: [] }, NOT_FOUND, textOf), false);
+});
+
+test('summarizeGroup: share of answerable questions with the right chunk (null when the run did not compute it)', () => {
+  const records = [
+    { answerable: true, retrievalChunk: true }, { answerable: true, retrievalChunk: false }, { answerable: true, retrievalChunk: true }, { answerable: false },
+  ];
+  assert.equal(summarizeGroup(records).retrievalChunk, 2 / 3);
+  assert.equal(summarizeGroup([{ answerable: true, retrievalAll: true }]).retrievalChunk, null);
 });

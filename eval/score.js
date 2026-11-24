@@ -189,12 +189,25 @@ export function chanceHitAll(expectedFiles, chunksByFile, k) {
 const unique = (list) => [...new Set(list)];
 
 /**
+ * Chunk-level retrieval: every gold fact is in the text of a retrieved chunk that comes from an expected source.
+ * The file-level hit only asks for the right file, so it also counts a retrieved chunk that lacks the answer.
+ * chunkText(source, chunkNumber) gives the text of a chunk (undefined = unknown, never matches).
+ */
+export function chunkHit(question, retrieved, chunkText) {
+  const texts = retrieved
+    .filter((r) => question.sources.includes(r.source))
+    .map((r) => chunkText(r.source, r.chunk))
+    .filter((text) => typeof text === 'string');
+  return question.facts.every((alternatives) => texts.some((text) => hasFact(text, alternatives)));
+}
+
+/**
  * Score one question. run = { retrieved: [{ source, score }], answer, sources: [{ source }], error }.
  * Answerable questions get retrieval, citation and answer scores; unanswerable ones a refusal score.
  * A run with an error has no answer scores (it is reported as errored, not as wrong); a run with no
- * answer at all (retrieval-only) gets the retrieval fields only.
+ * answer at all (retrieval-only) gets the retrieval fields only. With chunkText, answerable questions also get retrievalChunk.
  */
-export function scoreQuestion(question, run, notFoundAnswer) {
+export function scoreQuestion(question, run, notFoundAnswer, chunkText = null) {
   const answerable = question.sources.length > 0;
   const files = unique((run.retrieved ?? []).map((r) => r.source));
   const record = { id: question.id, answerable, topScore: run.retrieved?.[0]?.score ?? null };
@@ -202,6 +215,7 @@ export function scoreQuestion(question, run, notFoundAnswer) {
     record.retrievalAll = question.sources.every((s) => files.includes(s));
     record.retrievalAny = question.sources.some((s) => files.includes(s));
     record.retrievalTop1 = question.sources.includes(run.retrieved?.[0]?.source);
+    if (chunkText) record.retrievalChunk = chunkHit(question, run.retrieved ?? [], chunkText);
     record.chance = run.chance ?? null;
     record.chanceTop1 = run.chanceTop1 ?? null;
   }
@@ -242,6 +256,8 @@ export function summarizeGroup(records) {
     retrievalAll: share(answerable, (r) => r.retrievalAll),
     retrievalAny: share(answerable, (r) => r.retrievalAny),
     retrievalTop1: share(answerable, (r) => r.retrievalTop1),
+    // Only when the run computed it (results scored before the metric existed have none).
+    retrievalChunk: answerable.some((r) => r.retrievalChunk !== undefined) ? share(answerable, (r) => r.retrievalChunk === true) : null,
     chance: mean(answerable.map((r) => r.chance).filter((c) => c !== null)),
     chanceTop1: mean(answerable.map((r) => r.chanceTop1).filter((c) => c !== null)),
     citedAll: share(answered, (r) => r.citedAll),

@@ -81,6 +81,10 @@ The backend lives in `src/` and the static frontend in `public/`:
 │   ├── services/
 │   │   ├── documentLoader.js  # Parse PDF, DOCX, TXT, CSV and split into chunks
 │   │   ├── embeddings.js      # Local Transformers.js embeddings for LangChain
+│   │   ├── googleEmbeddings.js # Hosted Google embeddings (EMBEDDING_PROVIDER=google): batches, retries, errors
+│   │   ├── embeddingFactory.js # Picks the embedder by EMBEDDING_PROVIDER (the local model code loads only when used)
+│   │   ├── embeddingProfile.js # Prefixes, pooling, size and source-filter thresholds per embedding model
+│   │   ├── embeddingErrors.js  # Embedding errors and their user messages (EMBEDDING_CONFIG, _AUTH, _RATE_LIMIT, _FAILED)
 │   │   ├── vectorStore.js     # One MemoryVectorStore per session, limits and expiry
 │   │   └── ragChain.js        # Prompt, retrieval, Gemini call (fallback, streaming) and sources
 │   └── utils/
@@ -139,7 +143,14 @@ GEMINI_MODEL=gemini-3.5-flash-lite
 | `GEMINI_TIMEOUT_SECONDS` | `30` | Seconds each model gets to answer (its own retries included) before the fallback is tried. |
 | `GEMINI_THINKING_LEVEL` | `minimal` | How much Gemini 3 models think before answering: `minimal`, `low`, `medium` or `high`. Less thinking saves free quota. `default` uses the model's own setting. `gemini-3.8-flash` has no `minimal` and gets `low` instead. |
 | `GEMINI_THINKING_BUDGET` | `0` | Thinking tokens per answer for Gemini 2.5 models only. `0` turns thinking off; `default` uses the model's own setting. |
-| `EMBEDDING_MODEL` | `Xenova/all-MiniLM-L6-v2` | Local embedding model from the Hugging Face Hub. |
+| `EMBEDDING_PROVIDER` | `local` | Where the embeddings are computed: `local` (a model in this process, no key) or `google` (Google's embeddings API with `GOOGLE_API_KEY`; see [Hosted embeddings (Google)](#hosted-embeddings-google), it sends your document text to Google). Anything else is ignored with a warning and `local` is used. |
+| `EMBEDDING_MODEL` | `Xenova/all-MiniLM-L6-v2` (`gemini-embedding-2` with the `google` provider) | Embedding model: from the Hugging Face Hub for `local`, a Gemini embedding model for `google`. The models in [Choosing an embedder](#choosing-an-embedder) already have the right prefixes and pooling built in. If you set the provider, set or remove this line too: a local model id with the `google` provider is a startup warning and an `EMBEDDING_CONFIG` error on upload. |
+| `EMBEDDING_DTYPE` | `q8` | Local models only: model precision, `q8` (quantized, smallest) or `fp32`. |
+| `EMBEDDING_THREADS` | `1` | Local models only: CPU threads for embeddings. |
+| `EMBEDDING_QUERY_PREFIX`, `EMBEDDING_DOCUMENT_PREFIX` | from the model's profile | Text put before each question and before each document part. For a model that is not in the list, copy them from its model card (for example `"query: "` and `"passage: "` for E5). Put values with spaces in quotes; `\n` is a newline. Set but empty means no prefix. |
+| `EMBEDDING_POOLING` | from the model's profile | Local models only: `mean`, `cls` or `last_token`. Any other value is ignored with a warning. |
+| `EMBEDDING_SOURCE_MIN_SCORE`, `EMBEDDING_SOURCE_RELATIVE_SCORE` | from the model's profile | The sources shown when Gemini cites none are the chunks scoring at least `max(MIN, RELATIVE x the best score)`. The listed models have their own values (MiniLM `0.2` / `0.7`); another model gets those until you set them (see [Choosing an embedder](#choosing-an-embedder)). |
+| `EMBEDDING_DIMENSIONS` | (full vector; `768` for the Google models) | Keep only the first N values of each vector, then scale it back to length 1. Only for models trained for it (EmbeddingGemma, Qwen3-Embedding). The app cannot check this for a model that is not in the list: cutting the vector of any other model can lower retrieval quality, so measure with `node eval/run.js --retrieval-only` first. For the Google models it is the size Google returns (128 to 3072). |
 | `PORT` | `3000` | Server port. |
 | `MAX_FILE_SIZE_MB` | `10` | Maximum size of each uploaded file. |
 | `SESSION_TTL_MINUTES` | `30` | Minutes without activity before a visitor's documents are deleted. |
@@ -219,6 +230,154 @@ It uses the models in `.env`. Unknown options are rejected (a typo never starts 
 
 **Testing the runner offline.** `EVAL_FAKE_LLM=<module>` (full runs only) swaps Gemini for the `{ llm, fallbackLlm }` that the module exports, so `test/evalRun.test.js` can check the stop after 5 errors, `--retry-errors`, and the warning for fallback answers without a key or a single Gemini call. Results made this way carry `fakeLlm: true` in their metadata, a retry refuses to mix them with real ones, and they must never be published.
 
+## Choosing an embedder
+
+The embedder decides which parts of your documents Gemini gets to read. The default, `Xenova/all-MiniLM-L6-v2`, is English-only: in the evaluation above the same Arabic chunk came first for 13 of 13 Arabic questions. This section compares four multilingual models that run in Transformers.js with the baseline. Measured on 2026-11-24 with `node eval/embedders.js`: each model in its own process, `q8`, one thread, top-4, the same 8 documents and 25 answerable questions, no Gemini calls. The numbers are in `eval/results/embedders-2026-11-24.json`.
+
+**Short answer: none of the four fits Render's 512 MB, so the default stays MiniLM.** The smallest one, `multilingual-e5-small`, fixes Arabic retrieval but needs about 860 MB in the real server (MiniLM: 431 MB in the same test). It is the one to use on a host with at least 1 GB of RAM.
+
+### Retrieval (95% interval in brackets)
+
+| Model | Every expected file in the top 4 | Right chunk in the top 4 | First chunk is from an expected file | English first chunk | Arabic first chunk | Arabic: different chunks first |
+| --- | --- | --- | --- | --- | --- | --- |
+| MiniLM (default) | 23/25 [75-98] | 23/25 [75-98] | 13/25 [33-70] | 13/15 | 0/10 [0-28] | 1 (the same one 13 of 13 times) |
+| `multilingual-e5-small` | 25/25 [87-100] | 24/25 [80-99] | 23/25 [75-98] | 13/15 | 10/10 [72-100] | 4 |
+| `multilingual-e5-base` | 25/25 [87-100] | 25/25 [87-100] | 24/25 [80-99] | 14/15 | 10/10 [72-100] | 4 |
+| `embeddinggemma-300m` | 25/25 [87-100] | 24/25 [80-99] | 23/25 [75-98] | 13/15 | 10/10 [72-100] | 4 |
+| `Qwen3-Embedding-0.6B` | 25/25 [87-100] | 23/25 [75-98] | 24/25 [80-99] | 14/15 | 10/10 [72-100] | 5 |
+
+"Right chunk" is the strict version of the first column: every gold fact of the question is in the text of a retrieved chunk that comes from an expected file (the file-level hit only asks for the right file).
+
+What this shows:
+
+- **Arabic retrieval is fixed by any of the four.** Arabic first-chunk accuracy goes from 0/10 to 10/10, and the first chunk is no longer the same one every time. (In the e5 runs one clinic chunk comes first for 8 of 13 Arabic questions; 5 are single-source questions about that clinic, 1 is a two-document question that needs it and 2 are near-miss questions about it, so this is the right chunk, not a collapse.)
+- **The four models are tied.** The first-chunk column differs by one question out of 25 (23 or 24) and the right-chunk column by two (23 to 25), well inside the intervals. The "every expected file" and "right chunk" columns are not a significant gain over MiniLM either: [75-98] overlaps [87-100] and [80-99]. The first-chunk gain (13/25 to 23/25) and the Arabic gain are not noise.
+- **"Hit" means the right file, not the right chunk.** At chunk level Qwen3 is no better than MiniLM (23/25 both) and e5-small, EmbeddingGemma and Qwen3 miss 1 to 2 questions that the file-level column counts as hits. With e5-small `en-02` (probation period) retrieved the right file but not the chunk that holds the answer, and Gemini refused. Judge the models by the right-chunk and first-chunk columns.
+
+### Cost
+
+| Model | Download | Load (cached) | Embed 18 chunks | Search (query embedded) | Peak memory, eval process | Real server after uploads |
+| --- | --- | --- | --- | --- | --- | --- |
+| MiniLM (default) | 23 MB | 0.05 s | 0.4 s | 2 ms | 397 MB | 431 MB |
+| `multilingual-e5-small` | 129 MB | 0.25 s | 0.5 s | 3 ms | **786 MB** | **861 MB** |
+| `multilingual-e5-base` | 282 MB | 0.3 s | 1.1 s | 7 ms | **1,169 MB** | not run |
+| `embeddinggemma-300m` | 316 MB | 0.5 s | 1.5 s | 68 ms | **1,737 MB** | not run |
+| `Qwen3-Embedding-0.6B` | 596 MB | 0.5 s | 9.3 s | 83 ms | **1,977 MB** | not run |
+
+Bold means above the 450 MB line that this project treats as "near the limit" on a 512 MB host. Peak memory is the whole `eval/run.js` process (`process.resourceUsage().maxRSS`, with the app's libraries loaded), so compare models with each other, not with 512 MB directly. The last column boots `npm start` with the model, uploads the 8 documents in three separate sessions and reads the process memory with `ps`; it is one sample per model. Times are from one Apple M5 laptop, one run per model; Render's CPU will give other numbers. Two full runs gave peak memory within 25 MB of each other.
+
+Why the memory is so high: the multilingual models have a vocabulary of 250,000 to 262,000 tokens. The quantized file is small (118 MB for e5-small), but onnxruntime expands the embedding table when it loads the model. That takes about 480 MB of native memory for e5-small, plus about 190 MB of JavaScript heap for its tokenizer. MiniLM uses 177 MB in total after loading. The `fp16` and `q4f16` files of e5-small were worse: about 1,090 and 990 MB after embedding, against 740 MB for `q8`. Turning off the onnxruntime memory arena or its graph optimisation changed the memory after loading by less than 30 MB. So `q8` is already the lightest option. `bge-m3` was not run: its quantized file alone is 570 MB.
+
+### Effect on answers (one run)
+
+One real run with `multilingual-e5-small` (`gemini-3.5-flash-lite`, no fallback, 33 questions): 24/25 answerable questions correct, against 22/25 with MiniLM. Three earlier failures are fixed (`en-05`, `x-01`, `multi-02`) and one is new (`en-02`, the chunk problem above). The refusals were correct for 8/8 questions by hand, but only 6/8 use the exact "I couldn't find that" sentence: for `none-07` and `none-08` Gemini refused in Arabic. With 25 questions and one sample, 22/25 [70-96] and 24/25 [80-99] overlap, so treat this as a direction, not a result.
+
+### If you switch
+
+- Set `EMBEDDING_MODEL=Xenova/multilingual-e5-small` and restart. The prefixes (`query: ` for questions, `passage: ` for document parts) and pooling are applied for you; nothing is stored on disk, so there is nothing to re-index. An unlisted model gets mean pooling and no prefixes, with a warning at startup.
+- The sources shown when Gemini cites none are the chunks that score at least `max(sourceMinScore, sourceRelativeScore x best score)`. These two thresholds belong to the model's profile (`src/services/embeddingProfile.js`), because scores differ a lot between models: MiniLM's are spread over 0 to 0.7, e5's sit between 0.7 and 0.9. MiniLM keeps its original 0.2 / 0.7, so the default behaves exactly as before. With that rule e5 showed all 4 chunks for 33 of 33 questions. The other models now have their own rule, calibrated in-sample on the same 25 answerable questions they are measured on, so read it as a starting point and not as a proven setting (best F1 between the chunks shown and the chunks of the expected files, minimum fixed at 0.2, relative score on a 0.05 grid; for e5 0.92 because 0.90 and 0.94 are within 0.03):
+
+  | Model | Relative score | F1 with MiniLM's 0.7 | F1 with its own | Chunks shown on average (33 questions) |
+  | --- | --- | --- | --- | --- |
+  | `multilingual-e5-small` | 0.92 | 0.73 | 0.80 | 3.3 (was 4.0) |
+  | `multilingual-e5-base` | 0.92 | 0.74 | 0.83 | 3.3 (was 4.0) |
+  | `embeddinggemma-300m` | 0.55 | 0.79 | 0.87 | 3.2 (was 2.4) |
+  | `Qwen3-Embedding-0.6B` | 0.8 | 0.78 | 0.79 | 2.8 (was 3.6) |
+
+  This is better but not fixed: e5 scores are so close together that its rule still shows 3 or 4 chunks for many questions. The F1 values above are in-sample (tuned and measured on the same 25 questions), so they overstate how well the rule will work on other documents. When the model cites its sources, none of this applies. For a model that is not in the table, the MiniLM rule is used with a startup warning; set `EMBEDDING_SOURCE_MIN_SCORE` and `EMBEDDING_SOURCE_RELATIVE_SCORE` after looking at its scores (the eval prints the top scores).
+- `EmbeddingGemma` is called through its own `sentence_embedding` output (the ONNX graph pools and projects the vector itself), not through the feature-extraction pipeline, which would return the wrong vectors for it.
+
+### Licences of the models
+
+Checked on the model pages on huggingface.co on 2026-11-24. The ONNX copies that Transformers.js downloads (`Xenova/...`, `onnx-community/...`) are conversions: the e5 and Qwen3 copies have no licence field of their own and name the original model as their base, so the original's licence applies.
+
+| Model | Licence |
+| --- | --- |
+| `Xenova/all-MiniLM-L6-v2` (default) | Apache-2.0 |
+| `multilingual-e5-small` / `-base` (original `intfloat/...`) | MIT |
+| `Qwen3-Embedding-0.6B` (original `Qwen/...`) | Apache-2.0 |
+| `embeddinggemma-300m` | Gemma Terms of Use (licence `gemma`, <https://ai.google.dev/gemma/terms>), with the Gemma Prohibited Use Policy. It is not an open-source licence: read it before using the model in a product |
+
+### Limits of this comparison
+
+18 chunks and 25 answerable questions are a small test: with so little text, retrieval is easier than for real uploads, and the intervals are wide. File-level hits are generous (see `en-02`). The timings come from one machine and one run. Memory on Render was not measured. Nothing was fine-tuned or published.
+
+Run it: `node eval/embedders.js` (all models, downloads them once, about 5 minutes) or `node eval/embedders.js --only e5-small`. The raw runs go to `eval/results/embedders-raw/` and are not committed.
+
+## Hosted embeddings (Google)
+
+The local embedders in [Choosing an embedder](#choosing-an-embedder) fix Arabic retrieval but need 790 MB or more, and Render's free plan has 512 MB. The other way to get a multilingual embedder is to not run one: send the text to Google's embeddings API. Set this in `.env` and restart:
+
+```env
+EMBEDDING_PROVIDER=google
+EMBEDDING_MODEL=gemini-embedding-2     # or gemini-embedding-001; leave the line out for gemini-embedding-2
+```
+
+It uses the same `GOOGLE_API_KEY` as the answers, adds no dependency (a small `fetch` client in `src/services/googleEmbeddings.js`) and never loads the local model code, so the server stays small. The default is still `local` (MiniLM), so nothing changes until you set it. Vectors are stored at 768 values (`EMBEDDING_DIMENSIONS`, 128 to 3072 allowed): the API returns 3072 by default, which would take about 123 MB of JavaScript numbers for 5,000 chunks against about 31 MB at 768. Nothing is stored on disk, so there is nothing to re-index when you switch, but vectors of two different models can never be mixed.
+
+How each model is called (from the [Gemini embeddings docs](https://aistudio.google.com/docs/embeddings), read on 2026-11-24):
+
+| | `gemini-embedding-2` (default, recommended by Google) | `gemini-embedding-001` |
+| --- | --- | --- |
+| Task (question vs document part) | Text prefix: `task: search result \| query: ` and `title: none \| text: `. It takes no `taskType`. | `taskType` `RETRIEVAL_QUERY` / `RETRIEVAL_DOCUMENT`, no prefix |
+| Input limit | 8,192 tokens | 2,048 tokens |
+| Vector size | 3072 by default, `outputDimensionality` 128 to 3072 | the same |
+| Reduced vectors are normalised by Google | yes | no: the app scales every vector to length 1 itself |
+| Status | stable, no shutdown announced | not before 2028-05-14 |
+
+The two models make vectors that cannot be compared with each other or with any local model.
+
+### Measured
+
+Same 8 documents (18 chunks), 25 answerable questions and top 4 as above. Command: `node eval/embedders.js --only google-embedding-2` (and `-001`), one run each on 2026-11-24. The laptop was in Saudi Arabia, so every time includes the network round trip. Intervals are 95% Wilson.
+
+| | MiniLM (default, local) | `multilingual-e5-small` (local) | `gemini-embedding-2` | `gemini-embedding-001` |
+| --- | --- | --- | --- | --- |
+| Every expected file in the top 4 | 23/25 [75-98] | 25/25 [87-100] | 25/25 [87-100] | 25/25 [87-100] |
+| Right chunk in the top 4 | 23/25 [75-98] | 24/25 [80-99] | 24/25 [80-99] | 24/25 [80-99] |
+| First chunk is from an expected file | 13/25 [33-70] | 23/25 [75-98] | 23/25 [75-98] | 25/25 [87-100] |
+| English questions, first chunk | 13/15 [62-96] | 13/15 [62-96] | 13/15 [62-96] | 15/15 [80-100] |
+| Arabic questions, first chunk | 0/10 [0-28] | 10/10 [72-100] | 10/10 [72-100] | 10/10 [72-100] |
+| Embedding the 18 chunks (8 uploads) | 0.4 s | 0.5 s | 5.8 s | 4.7 s |
+| One question embedded (mean / median) | 2 ms | 3 ms | 525 / 507 ms | 393 / 388 ms |
+| Peak memory, `eval/run.js` process | 397 MB | 786 MB | 241 MB | 240 MB |
+| Memory of the real server (`npm start`) | 431 MB after uploads | 861 MB after uploads | 187 MB idle, 228 MB after uploads and a question | not run |
+| API calls in the run | none | none | 41 | 41 |
+
+What this shows:
+
+- **Arabic works, at a quarter of the memory.** Both Google models match e5-small on Arabic (first chunk right for 10 of 10), and the process stays near 240 MB instead of 786 MB. The real server held 228 MB after the 8 uploads and an Arabic question about the English HR policy. The answer was correct and showed its source.
+- **No quality difference between the models at this size.** `gemini-embedding-001` has the best first-chunk result (25/25), two questions more than `gemini-embedding-2` (23/25). The intervals [87-100] and [75-98] overlap, and every multilingual option has the same right-chunk count (24/25). Try both on your own documents. Google recommends `2`.
+- **It is slower.** Every question needs one network call (about 0.4 to 0.5 s here) before Gemini is asked. An upload makes one call per 16 parts, so a 40-part file is 3 calls. The 41 calls were 8 uploads (one call each, because every document has under 16 parts) and 33 questions.
+- Source filter: both models have their own thresholds (`0.2` / `0.85`), calibrated in-sample on these 25 questions like the others (F1 0.87 and 0.86 against 0.79 and 0.77 with MiniLM's rule), so a starting point only. The scores of these models are close together (0.5 to 0.82), so the same caveat as for e5 applies.
+
+### Effect on answers (one run)
+
+One real run with `gemini-embedding-2` (`gemini-3.5-flash-lite`, no fallback, 33 questions, `--delay-ms 5000`): 24/25 answerable questions correct [80-99], against 22/25 [70-96] with MiniLM and 24/25 with e5-small. The one failure is `en-06` (reset button of the Orbit R7): the right file was retrieved but not the part that holds the answer, and Gemini refused. All 8 unanswerable questions were refused with the exact "I couldn't find that" sentence and no source (e5-small: 6 of 8 exact). With 25 questions and one sample the intervals overlap, so this is a direction, not a result. The run made 74 embedding calls (8 uploads, plus 33 questions embedded twice: once to score retrieval and once to answer) and no errors or retries.
+
+### Quota and cost
+
+- **Free tier:** both models are free of charge on the free tier. Google does not publish per-model limits (requests, tokens per minute, requests per day) in its docs. AI Studio shows them for your project. Limits are per project, so **embeddings and the chat answers share one quota**. Every question now costs two calls (one embedding, one answer) and an upload costs one call per 16 parts. About 200 embedding calls in an afternoon (three retrieval runs, one of them repeated, one answer run and a few smoke calls) hit no 429. That is one sample from one project on one day, not a limit: your quota can be lower or change.
+- **Paid:** $0.20 (`gemini-embedding-2`) or $0.15 (`gemini-embedding-001`) per million input tokens, half that for the batch API (which this app does not use). A 1,000-character part is roughly 250 to 400 tokens (my estimate, not measured), so 1,000 parts cost a few cents.
+- **When Google answers 429 or 5xx**, the app retries up to 3 times with a growing wait. It follows `Retry-After`, capped at 5 s. Every call, waits included, ends within 20 s. After that the visitor sees `EMBEDDING_RATE_LIMIT` ("wait a minute and try again") or `EMBEDDING_FAILED`, and an upload that fails half way adds nothing: no part of the document is kept and the space it reserved is given back. A visitor who closes the page during an upload stops the remaining calls.
+
+| Code | Meaning | What to do |
+| --- | --- | --- |
+| `EMBEDDING_AUTH` | Google rejected the key (it answers a wrong key with HTTP 400 `API_KEY_INVALID`, not 401) | Check `GOOGLE_API_KEY` |
+| `EMBEDDING_RATE_LIMIT` | Out of quota after the retries | Wait, or look at your limits in AI Studio |
+| `EMBEDDING_CONFIG` | Google rejected a setting (unknown model, a size outside 128 to 3072, ...) | Check `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL` and `EMBEDDING_DIMENSIONS` |
+| `EMBEDDING_FAILED` | Google could not be reached or was busy after the retries | Try again |
+| `MISSING_API_KEY` | No `GOOGLE_API_KEY` (the server also warns at startup) | Add it |
+
+The key is only sent in the `x-goog-api-key` header. It is in no URL, log line, error or message. Text that Google sends back is scrubbed of key-like strings before the app keeps it.
+
+### Trade-offs
+
+- **Privacy: the text of every uploaded document goes to Google.** With the local models only the question and (at answer time) up to four retrieved parts leave your server. With `EMBEDDING_PROVIDER=google` every part of every uploaded document is sent to Google when it is uploaded, before anyone asks anything. [Google's terms](https://aistudio.google.com/docs/terms) say that on the unpaid (free) tier, submitted content is used to improve its products and human reviewers may read it. They advise against sending confidential or personal information. Paid services do not train on it. In the EEA, Switzerland and the UK, the paid terms apply to every service. With `EMBEDDING_PROVIDER=google` the page shows the notice "Your documents are processed by Google to answer questions." under the upload area (and above the message box on small screens) automatically: it learns the provider from `GET /api/health` (`embeddingProvider`), and nothing is shown with the local provider.
+- **Network on every question and upload.** Each question takes about half a second longer, and nothing works when Google is unreachable. The local embedder needs the network once, to download the model.
+- **Quota shared with the answers**, as above.
+- **Not reproducible forever.** Hosted models can be retired (`text-embedding-004` and `embedding-001` already were): a retirement means re-embedding, which here happens by itself on the next upload because nothing is stored.
+
 ## Deployment
 
 The live demo runs on Render (free plan, 512 MB of memory), behind one proxy. That matches the default `TRUST_PROXY=1`. Add `GOOGLE_API_KEY` as an environment variable in Render, never in the code.
@@ -236,13 +395,13 @@ Follow these steps once the server is running:
 5. Ask follow-up questions; the chatbot remembers the conversation until you close the tab.
 6. Use the trash button to clear the conversation, and the moon or sun button to switch between dark and light mode.
 
-Uploaded documents stay in memory only and are private to your browser. The server never saves them to disk. Closing the browser ends your access to them, and the server deletes them after 30 minutes without activity or when it restarts. When that happens, the page clears the old conversation and shows a note asking you to upload your files again. Each visitor can keep up to 10 documents.
+Uploaded documents stay in memory only and are private to your browser. The server never saves them to disk. The text of your questions and the parts of your documents that answer them are sent to Google's Gemini to write the answer; with `EMBEDDING_PROVIDER=google` the text of every uploaded document is also sent to Google for embedding (see [Hosted embeddings (Google)](#hosted-embeddings-google)). Closing the browser ends your access to them, and the server deletes them after 30 minutes without activity or when it restarts. When that happens, the page clears the old conversation and shows a note asking you to upload your files again. Each visitor can keep up to 10 documents.
 
 ## API
 
 | Method | Path | Body | Response |
 | --- | --- | --- | --- |
-| `GET` | `/api/health` | | `{ status, llmConfigured, model, fallbackModel }` |
+| `GET` | `/api/health` | | `{ status, llmConfigured, model, fallbackModel, embeddingProvider }` (`embeddingProvider` is `local` or `google`) |
 | `GET` | `/api/documents` | | `{ documents: [{ id, name, size, chunks, uploadedAt }], sessionExpired }` |
 | `POST` | `/api/documents` | `multipart/form-data`, field `files` | `{ documents, errors, sessionExpired }`, or a progress stream (below) |
 | `POST` | `/api/chat` | `{ question, history: [{ role, content }] }` | `{ answer, sources: [{ source, page, chunk, excerpt }] }`, or an answer stream (below) |

@@ -1,16 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { MemoryVectorStore } from '@langchain/classic/vectorstores/memory';
-import { LocalEmbeddings } from './embeddings.js';
+import { createEmbeddings } from './embeddingFactory.js';
 import { loadAndSplit } from './documentLoader.js';
 import config from '../config.js';
 import { HttpError } from '../utils/httpError.js';
+import { toEmbeddingHttpError } from './embeddingErrors.js';
 
-// One embedding model for everyone; each visitor gets their own vector store.
-const embeddings = new LocalEmbeddings({
-  model: config.embeddingModel,
-  dtype: config.embeddingDtype,
-  threads: config.embeddingThreads,
-});
+// One embedding model for everyone (local, or Google's when EMBEDDING_PROVIDER=google); each visitor gets their own vector store.
+export const embeddings = await createEmbeddings(config);
+const embeddingContext = { model: config.embeddingModel, provider: config.embeddingProvider };
 
 /**
  * Sessions by id. Each holds its own documents and vector store, so visitors
@@ -86,8 +84,9 @@ function progressReporter(onProgress) {
 /**
  * Parse, split and embed one file into the session's store.
  * onProgress({ stage: 'reading' | 'embedding', done, total }) reports how far it got.
+ * signal: the visitor left; no further embedding call is made and the reserved space is given back (CLIENT_GONE).
  */
-export async function addDocument(session, file, { onProgress } = {}) {
+export async function addDocument(session, file, { onProgress, signal } = {}) {
   if (session.documents.size >= config.maxDocsPerSession) {
     throw new HttpError(409, 'TOO_MANY_DOCUMENTS', `You can have up to ${config.maxDocsPerSession} documents at a time. Your documents are cleared after ${config.sessionTtlMinutes} minutes without activity.`);
   }
@@ -119,7 +118,8 @@ export async function addDocument(session, file, { onProgress } = {}) {
     const vectors = [];
     report({ stage: 'embedding', done: 0, total: texts.length }, true);
     for (let i = 0; i < texts.length; i += EMBED_STEP) {
-      vectors.push(...await embeddings.embedDocuments(texts.slice(i, i + EMBED_STEP)));
+      if (signal?.aborted) throw new HttpError(499, 'CLIENT_GONE', 'The upload was cancelled.');
+      vectors.push(...await embeddings.embedDocuments(texts.slice(i, i + EMBED_STEP), { signal }));
       report({ stage: 'embedding', done: vectors.length, total: texts.length }, vectors.length === texts.length);
     }
     await session.store.addVectors(vectors, chunks);
@@ -127,8 +127,8 @@ export async function addDocument(session, file, { onProgress } = {}) {
     session.chunks -= chunks.length;
     // freeSession() already gave back this session's whole reservation if it expired meanwhile.
     if (sessions.get(session.id) === session) totalChunks -= chunks.length;
-    console.error('Embedding failed:', error);
-    throw new HttpError(503, 'EMBEDDING_FAILED', 'The embedding model could not be loaded. Check your internet connection (needed once to download it) and try again.');
+    if (error?.code !== 'CLIENT_GONE') console.error('Embedding failed:', error);
+    throw toEmbeddingHttpError(error, embeddingContext);
   }
 
   // The session may have expired while a long file was being embedded.
@@ -158,7 +158,12 @@ export function hasDocuments(session) {
 
 /** Top-k chunks of this session's documents with their cosine similarity score: [[Document, score], ...] */
 export async function search(session, query, k = config.topK) {
-  return session.store.similaritySearchWithScore(query, k);
+  try {
+    return await session.store.similaritySearchWithScore(query, k);
+  } catch (error) {
+    console.error('Search failed:', error);
+    throw toEmbeddingHttpError(error, embeddingContext);
+  }
 }
 
 /** Numbers for tests and logs. */
