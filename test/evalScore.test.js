@@ -1,7 +1,7 @@
 // Tests for the eval scorer (eval/score.js). It imports nothing from src/, so no .env, key or model is involved.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { analyzeLogs, normalize, tokens, hasFact, findCollisions, isRefusal, isSoftRefusal, chanceHitAll, scoreQuestion, summarizeGroup } from '../eval/score.js';
+import { wilson, analyzeLogs, normalize, tokens, hasFact, findCollisions, isRefusal, isSoftRefusal, chanceHitAll, scoreQuestion, summarizeGroup } from '../eval/score.js';
 
 test('normalize: digits, separators and Arabic spellings', () => {
   assert.equal(normalize('٢٢٬٠٠٠ ريال'), '22000 ريال');
@@ -189,4 +189,16 @@ test('analyzeLogs keeps every line and names the models that failed', () => {
   assert.deepEqual(analyzeLogs([]), { logs: [], failedModels: [], mainFailed: false, fallbackUsed: false, answeredBy: null });
   assert.equal(analyzeLogs([], 'gemini-main').answeredBy, 'gemini-main');
   assert.equal(analyzeLogs(['LLM fallback: gemini-3.6-flash failed (429), trying gemini-3.5-flash-lite.', 'LLM answered with fallback model gemini-3.5-flash-lite.'], 'gemini-3.6-flash').answeredBy, 'gemini-3.5-flash-lite');
+});
+
+test('wilson: 95% interval', () => {
+  const [lo, hi] = wilson(22, 25);
+  assert.ok(Math.abs(lo - 0.7004) < 0.001 && Math.abs(hi - 0.9583) < 0.001, `${lo} ${hi}`);
+  const [lo0, hi0] = wilson(0, 10);
+  assert.equal(lo0, 0);
+  assert.ok(Math.abs(hi0 - 0.2775) < 0.002, String(hi0));
+  const [lo1, hi1] = wilson(10, 10);
+  assert.equal(hi1, 1);
+  assert.ok(Math.abs(lo1 - 0.7225) < 0.002, String(lo1));
+  assert.equal(wilson(0, 0), null);
 });

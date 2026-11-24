@@ -13,7 +13,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from './args.js';
 import { retryProblems } from './retry.js';
-import { analyzeLogs, chanceHitAll, findCollisions, hasFact, latencyStats, normalize, scoreQuestion, summarize } from './score.js';
+import { wilson, analyzeLogs, chanceHitAll, findCollisions, hasFact, latencyStats, normalize, scoreQuestion, summarize } from './score.js';
 
 const evalDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(evalDir, '..');
@@ -264,22 +264,27 @@ for (const [index, q] of questions.entries()) {
 
 // ---- 4. Summary --------------------------------------------------------------------------------
 const summary = summarize(questions, records);
-const pct = (share, n) => (share === null || n === 0 ? '  n/a' : `${String(Math.round(share * 100)).padStart(3)}% (${Math.round(share * n)}/${n})`);
+// "88% (22/25) [70-96]": share, count and the 95% Wilson interval (percent).
+const pct = (share, n) => {
+  if (share === null || n === 0) return '  n/a';
+  const [low, high] = wilson(Math.round(share * n), n);
+  return `${String(Math.round(share * 100)).padStart(3)}% (${Math.round(share * n)}/${n}) [${Math.round(low * 100)}-${Math.round(high * 100)}]`;
+};
 const num = (value, digits = 2) => (value === null ? 'n/a' : value.toFixed(digits));
 
 console.log(`\nModels: main ${meta.mainModel}, fallback ${meta.fallbackModel ?? 'none'} | thinking budget ${meta.thinkingBudget ?? 'default'} | embeddings ${meta.embeddingModel} (${meta.embeddingDtype}) | top-${meta.topK}, chunks ${meta.chunkSize}/${meta.chunkOverlap}`);
 console.log('\nRETRIEVAL (answerable questions; hit = expected file(s) among the top-k chunks)');
-console.log(`${'slice'.padEnd(14)}${'n'.padStart(3)}  ${'all expected files in top-k'.padEnd(28)}${'any expected file'.padEnd(22)}${'top-1 is expected'.padEnd(22)}random: top-k / top-1`);
+console.log(`${'slice'.padEnd(14)}${'n'.padStart(3)}  ${'all expected files in top-k'.padEnd(38)}${'any expected file'.padEnd(32)}${'top-1 is expected'.padEnd(32)}random: top-k / top-1`);
 for (const [name, g] of Object.entries(summary)) {
   if (g.answerable === 0) continue;
-  console.log(`${name.padEnd(14)}${String(g.answerable).padStart(3)}  ${pct(g.retrievalAll, g.answerable).padEnd(28)}${pct(g.retrievalAny, g.answerable).padEnd(22)}${pct(g.retrievalTop1, g.answerable).padEnd(22)}${Math.round(g.chance * 100)}% / ${Math.round(g.chanceTop1 * 100)}%`);
+  console.log(`${name.padEnd(14)}${String(g.answerable).padStart(3)}  ${pct(g.retrievalAll, g.answerable).padEnd(38)}${pct(g.retrievalAny, g.answerable).padEnd(32)}${pct(g.retrievalTop1, g.answerable).padEnd(32)}${Math.round(g.chance * 100)}% / ${Math.round(g.chanceTop1 * 100)}%`);
 }
 if (!retrievalOnly) {
-  console.log('\nANSWERS (answerable questions that got an answer; correct = every gold fact present and not a refusal)');
-  console.log(`${'slice'.padEnd(14)}${'n'.padStart(3)}  ${'correct'.padEnd(18)}${'mean fact recall'.padEnd(18)}${'sources cited'.padEnd(18)}false refusals`);
+  console.log('\nANSWERS (answerable questions that got an answer; correct = every gold fact present, not negated, not a refusal)');
+  console.log(`${'slice'.padEnd(14)}${'n'.padStart(3)}  ${'correct (facts)'.padEnd(32)}${'correct + sources shown'.padEnd(32)}${'mean fact recall'.padEnd(18)}false refusals`);
   for (const [name, g] of Object.entries(summary)) {
     if (g.answeredCount === 0) continue;
-    console.log(`${name.padEnd(14)}${String(g.answeredCount).padStart(3)}  ${pct(g.correct, g.answeredCount).padEnd(18)}${`${Math.round(g.factRecall * 100)}%`.padEnd(18)}${pct(g.citedAll, g.answeredCount).padEnd(18)}${g.falseRefusals}`);
+    console.log(`${name.padEnd(14)}${String(g.answeredCount).padStart(3)}  ${pct(g.correct, g.answeredCount).padEnd(32)}${pct(g.correctAndCited, g.answeredCount).padEnd(32)}${`${Math.round(g.factRecall * 100)}%`.padEnd(18)}${g.falseRefusals}`);
   }
   const none = summary.unanswerable;
   console.log(`\nREFUSALS (unanswerable questions): exact "not found" sentence and no sources ${pct(none.refused, none.unansweredCount)}; loosely refused (EN/AR phrases) ${pct(none.softRefused, none.unansweredCount)}`);

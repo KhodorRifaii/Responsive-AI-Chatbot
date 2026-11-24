@@ -26,3 +26,8 @@
 {"id": "none-01", "lang": "en", "type": "unanswerable", "question": "Does Northwind offer dental insurance to its employees?", "sources": [], "facts": []}
 {"id": "none-02", "lang": "en", "type": "unanswerable", "question": "Who is the current president of France?", "sources": [], "facts": []}
 {"id": "none-03", "lang": "ar", "type": "unanswerable", "question": "هل تقبل عيادة النور الدفع بالتقسيط؟", "sources": [], "facts": []}
+{"id": "none-04", "lang": "en", "type": "unanswerable", "question": "What does it mean when the Orbit R7 light is solid green?", "sources": [], "facts": [], "nearMiss": "the Orbit R5 guide says solid green = online; the R7 manual has no green light"}
+{"id": "none-05", "lang": "en", "type": "unanswerable", "question": "How many LAN ports does the Orbit R9 have?", "sources": [], "facts": [], "nearMiss": "the R7 and R5 port counts are in the documents; there is no R9"}
+{"id": "none-06", "lang": "en", "type": "unanswerable", "question": "How many days of study leave can a Northwind employee take per year?", "sources": [], "facts": [], "nearMiss": "annual, sick and parental leave are described; study leave is not"}
+{"id": "none-07", "lang": "ar", "type": "unanswerable", "question": "كم سنة مدة ضمان البطارية الاختيارية من شمس الخليج؟", "sources": [], "facts": [], "nearMiss": "the battery price is given, its warranty is not (panels 25 years, inverter 10 years are)"}
+{"id": "none-08", "lang": "ar", "type": "unanswerable", "question": "كم رسوم الكشف عند طبيب الأسنان في عيادة النور؟", "sources": [], "facts": [], "nearMiss": "a dental clinic exists only in the other (Shifa) guide, with no fee; clinic Al-Noor lists general and specialist fees"}

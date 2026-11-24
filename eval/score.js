@@ -257,3 +257,13 @@ export function analyzeLogs(logs, mainModel = null) {
     answeredBy: logs.map((l) => /^LLM answered with fallback model (\S+?)\.?$/.exec(l)?.[1]).find(Boolean) ?? mainModel,
   };
 }
+
+/** 95% Wilson score interval for k successes out of n, as [low, high] shares; null when n is 0. */
+export function wilson(k, n, z = 1.96) {
+  if (!n) return null;
+  const p = k / n;
+  const denominator = 1 + (z * z) / n;
+  const center = (p + (z * z) / (2 * n)) / denominator;
+  const margin = (z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n))) / denominator;
+  return [Math.max(0, center - margin), Math.min(1, center + margin)];
+}
