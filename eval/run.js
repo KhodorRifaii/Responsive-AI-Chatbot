@@ -11,28 +11,28 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { parseArgs } from './args.js';
 import { analyzeLogs, chanceHitAll, findCollisions, hasFact, latencyStats, normalize, scoreQuestion, summarize } from './score.js';
 
 const evalDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(evalDir, '..');
-// The app reads .env from the working directory, so always work from the project root.
-process.chdir(root);
-
-const args = process.argv.slice(2);
-const flag = (name) => args.includes(name);
-const option = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
-const retrievalOnly = flag('--retrieval-only');
-const retryErrors = flag('--retry-errors');
-const delayMs = Number(option('--delay-ms', 4000));
-const outFile = path.resolve(option('--out', path.join(evalDir, 'results', 'latest.json')));
-const MAX_CONSECUTIVE_ERRORS = 5;
-
 function fail(message) {
   console.error(`eval: ${message}`);
   process.exit(1);
 }
-if (retrievalOnly && retryErrors) fail('--retry-errors cannot be combined with --retrieval-only.');
-if (!Number.isFinite(delayMs) || delayMs < 0) fail('--delay-ms must be a number of milliseconds (0 or more).');
+
+let options;
+try {
+  options = parseArgs(process.argv.slice(2), process.cwd());
+} catch (error) {
+  fail(error.message);
+}
+// The app reads .env from the working directory, so work from the project root from here on.
+process.chdir(root);
+const { retrievalOnly, retryErrors, delayMs } = options;
+// A retrieval-only run is free and never touches the (paid) full-run file.
+const outFile = options.out ?? path.join(evalDir, 'results', retrievalOnly ? 'retrieval.json' : 'latest.json');
+const MAX_CONSECUTIVE_ERRORS = 5;
 
 // ---- 1. Dataset checks, before any model is loaded --------------------------------------------
 const docsDir = path.join(evalDir, 'docs');
@@ -192,6 +192,26 @@ const records = [];
 const results = [];
 let consecutiveErrors = 0;
 let llmCalls = 0;
+
+/**
+ * A full-run results file costs Gemini quota: before overwriting one (not when retrying it), move it to
+ * latest.<date>.json next to it. Retrieval-only files are free and are simply replaced.
+ */
+function archiveFullRun(file) {
+  if (!fs.existsSync(file)) return;
+  let previousMeta = null;
+  try {
+    previousMeta = JSON.parse(fs.readFileSync(file, 'utf8')).meta;
+  } catch {
+    // Unreadable file: keep it too, under a .bak name.
+  }
+  if (previousMeta?.mode === 'retrieval-only') return;
+  const stamp = String(previousMeta?.date ?? new Date(fs.statSync(file).mtime).toISOString()).replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+  const target = path.join(path.dirname(file), `latest.${stamp}${previousMeta ? '' : '.bak'}.json`);
+  fs.renameSync(file, target);
+  console.log(`Moved the existing results file to ${path.relative(root, target)}`);
+}
+if (!retryErrors) archiveFullRun(outFile);
 
 function save() {
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
