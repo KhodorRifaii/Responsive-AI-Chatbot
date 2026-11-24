@@ -128,16 +128,17 @@ Open `.env` and paste your key:
 
 ```env
 GOOGLE_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-3.5-flash
+GEMINI_MODEL=gemini-3.5-flash-lite
 ```
 
 | Variable | Default | Description |
 | --- | --- | --- |
 | `GOOGLE_API_KEY` | (none) | Your Gemini API key. Required for answers. |
-| `GEMINI_MODEL` | `gemini-3.5-flash` | Any Gemini model your key can use on the free tier. |
-| `GEMINI_FALLBACK_MODEL` | `gemini-3.5-flash-lite` | Second model, tried automatically when the main model is out of quota, overloaded, too slow or retired. It uses the same API key. `none` turns the fallback off. |
+| `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Any Gemini model your key can use on the free tier. This default answered quickly on a free key on 2026-11-24, while `gemini-3.6-flash` returned 429 (quota) and `gemini-3.8-flash` 503 (busy). Free-tier quotas change, so check yours; a stronger model such as `gemini-3.6-flash` is one setting away. |
+| `GEMINI_FALLBACK_MODEL` | `gemini-3.1-flash-lite` | Second model, tried automatically when the main model is out of quota, overloaded, too slow or retired. It uses the same API key. `none` turns the fallback off. |
 | `GEMINI_TIMEOUT_SECONDS` | `30` | Seconds each model gets to answer (its own retries included) before the fallback is tried. |
-| `GEMINI_THINKING_BUDGET` | `0` | Gemini "thinking" tokens per answer. `0` turns thinking off, which saves most of the free quota; `default` uses the model's own setting. |
+| `GEMINI_THINKING_LEVEL` | `minimal` | How much Gemini 3 models think before answering: `minimal`, `low`, `medium` or `high`. Less thinking saves free quota. `default` uses the model's own setting. `gemini-3.8-flash` has no `minimal` and gets `low` instead. |
+| `GEMINI_THINKING_BUDGET` | `0` | Thinking tokens per answer for Gemini 2.5 models only. `0` turns thinking off; `default` uses the model's own setting. |
 | `EMBEDDING_MODEL` | `Xenova/all-MiniLM-L6-v2` | Local embedding model from the Hugging Face Hub. |
 | `PORT` | `3000` | Server port. |
 | `MAX_FILE_SIZE_MB` | `10` | Maximum size of each uploaded file. |
@@ -149,6 +150,8 @@ GEMINI_MODEL=gemini-3.5-flash
 | `RATE_LIMIT_CHAT_PER_HOUR` | `100` | Questions per visitor per hour. |
 | `RATE_LIMIT_UPLOADS_PER_HOUR` | `30` | Upload requests per visitor per hour (each can hold up to 10 files). |
 | `TRUST_PROXY` | `1` | Number of proxies in front of the app, so rate limits see each visitor's real IP. `1` fits Render. Use `false` when you run the app with nothing in front of it (for example `npm start` on a public server), so visitors can't fake their IP with an `X-Forwarded-For` header. |
+
+Gemini models take different thinking settings. Gemini 3 models use a level (`thinkingLevel`) and reject a token budget; Gemini 2.5 models use the budget. The app builds the setting for each model (`src/services/thinking.js`) from a list of models whose accepted levels were checked against [Google's thinking page](https://aistudio.google.com/docs/thinking) and the live model list. For any model that is not on that list (for example `gemini-3.5-flash`, `gemini-3.7-flash` or a `gemini-4-*` model) it sends no thinking setting, so the model uses its own default. This matters because a wrong setting is a `400` error ("Request contains an invalid argument."): with the old defaults the fallback model rejected every call.
 
 If the main model is out of quota, overloaded, too slow or retired, the server asks `GEMINI_FALLBACK_MODEL` instead and logs `LLM fallback: …`. Bad requests and a rejected key are not retried on the fallback, because they would fail there too. If both models fail, the error names the main model. If Google retires the model for good, set `GEMINI_MODEL` to another one, for example `gemini-flash-latest`, and restart the server.
 

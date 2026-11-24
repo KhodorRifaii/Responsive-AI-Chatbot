@@ -65,3 +65,14 @@ test('createLlm sends each model the thinking setting its family accepts (no net
     'gemini-4-argon null',
   ].join('\n'));
 });
+test('the defaults in .env.example are the defaults of the code (no drift between the two)', async () => {
+  const example = Object.fromEntries(fs.readFileSync(path.join(projectRoot, '.env.example'), 'utf8').split('\n')
+    .filter((line) => /^[A-Z_]+=/.test(line)).map((line) => line.split(/=(.*)/s).slice(0, 2)));
+  assert.ok(example.GEMINI_MODEL && example.GEMINI_FALLBACK_MODEL && example.GEMINI_THINKING_LEVEL, 'the three Gemini model settings are in .env.example');
+  const out = JSON.parse(await inFreshProcess({}, 'console.log(JSON.stringify({ model: config.geminiModel, fallback: config.geminiFallbackModel, level: config.geminiThinkingLevel, budget: config.geminiThinkingBudget }));'));
+  assert.equal(out.model, example.GEMINI_MODEL);
+  assert.equal(out.fallback, example.GEMINI_FALLBACK_MODEL);
+  assert.equal(out.level, example.GEMINI_THINKING_LEVEL);
+  assert.equal(String(out.budget), example.GEMINI_THINKING_BUDGET);
+});
+
