@@ -35,6 +35,15 @@ function readFallbackModel(value, mainModel) {
   return model === mainModel ? null : model;
 }
 
+/**
+ * Seconds for GEMINI_TIMEOUT_SECONDS. setTimeout holds at most 2^31-1 ms (about 24.8 days);
+ * larger values (or Infinity) would fire at once, so they fall back to the default too.
+ */
+function readTimeoutSeconds(value, fallback) {
+  const seconds = Number(value?.trim());
+  return Number.isFinite(seconds) && seconds > 0 && seconds * 1000 <= 2_147_483_647 ? seconds : fallback;
+}
+
 /** A non-negative whole number from the environment (0 allowed), or the fallback. */
 function readLimit(value, fallback) {
   const number = Number(value?.trim());
@@ -50,7 +59,7 @@ const config = {
   geminiModel,
   geminiFallbackModel: readFallbackModel(process.env.GEMINI_FALLBACK_MODEL, geminiModel),
   // Seconds each model gets to answer (its own retries included) before the fallback is tried.
-  geminiTimeoutSeconds: Number(process.env.GEMINI_TIMEOUT_SECONDS) > 0 ? Number(process.env.GEMINI_TIMEOUT_SECONDS) : 30,
+  geminiTimeoutSeconds: readTimeoutSeconds(process.env.GEMINI_TIMEOUT_SECONDS, 30),
   geminiThinkingBudget: readThinkingBudget(process.env.GEMINI_THINKING_BUDGET),
   embeddingModel: process.env.EMBEDDING_MODEL?.trim() || 'Xenova/all-MiniLM-L6-v2',
   // q8 (quantized) and 1 thread keep memory low enough for 512 MB hosts.
