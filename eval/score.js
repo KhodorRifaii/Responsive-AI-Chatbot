@@ -2,21 +2,46 @@
 // Matching policy (documented in the README): text is normalised, split into tokens, and a gold
 // alternative must appear as a run of whole tokens in the answer. No raw substring matching.
 
-/** Lowercase, unify Arabic spellings, turn Arabic/Persian digits into ASCII, drop thousands separators. */
+const UNITS = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
+const TENS = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+// Arabic hours as ordinal words ("الساعة التاسعة"), written the way normalize() spells them.
+const ARABIC_HOURS = [['الحاديه عشره', 11], ['الثانيه عشره', 12], ['الاولي', 1], ['الثانيه', 2], ['الثالثه', 3], ['الرابعه', 4], ['الخامسه', 5], ['السادسه', 6], ['السابعه', 7], ['الثامنه', 8], ['التاسعه', 9], ['العاشره', 10]];
+
+/**
+ * Lowercase and unify spellings so that equal facts compare equal: curly quotes, markdown
+ * emphasis, Arabic letters/digits, thousands separators (comma, dot, space), "9:00 p.m." as "9 pm",
+ * "$40" as "40 dollars", English number words ("twenty-four", "twelve") and Arabic hour words.
+ */
 export function normalize(text) {
-  return String(text ?? '')
+  let out = String(text ?? '')
     .normalize('NFKC')
     .toLowerCase()
-    .replace(/[ً-ٰٟـ]/g, '') // Arabic diacritics and tatweel
+    .replace(/[’‘´]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[*`]/g, '')
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, '') // Arabic diacritics and tatweel
     .replace(/[أإآٱ]/g, 'ا')
     .replace(/ى/g, 'ي')
     .replace(/ة/g, 'ه')
     .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
     .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
     .replace(/٫/g, '.')
-    .replace(/(?<=\d)[,٬،](?=\d{3}(?!\d))/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+  out = out
+    .replace(/(?<=\d)[,٬،](?=\d{3}(?!\d))/g, '')
+    // 45.000 (dot groups, not an address like 192.168.8.1) and 45 000 (space groups)
+    .replace(/(?<![\d.])\d{1,3}(?:\.\d{3})+(?!\d|\.\d)/g, (m) => m.replaceAll('.', ''))
+    .replace(/(?<![\d.,])\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?!\d)/g, (m) => m.replace(/[ \u00a0\u202f]/g, ''))
+    .replace(/(?:us\s?)?\$\s?(\d+(?:\.\d+)?)/g, '$1 dollars')
+    .replace(/\b([ap])\.\s?m\b\.?/g, '$1m')
+    .replace(/(\d{1,2})\.(\d{2})(?=\s?[ap]m\b)/g, '$1:$2')
+    .replace(/\b(\d{1,2}):00(?=\s?[ap]m\b)/g, '$1')
+    .replace(/\b(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)[ -](one|two|three|four|five|six|seven|eight|nine)\b/g, (_, t, u) => String(TENS[t] + UNITS[u]))
+    .replace(/\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen)\b/g, (w) => String(UNITS[w]))
+    .replace(/\b(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\b/g, (w) => String(TENS[w]));
+  for (const [word, hour] of ARABIC_HOURS) out = out.replaceAll(`الساعه ${word}`, `الساعه ${hour}`);
+  return out;
 }
 
 /** Numbers (with an optional decimal part) and runs of letters. "ب30" gives "ب", "30"; "10:00" gives "10", "00". */

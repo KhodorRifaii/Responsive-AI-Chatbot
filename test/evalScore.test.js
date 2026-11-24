@@ -26,8 +26,8 @@ test('hasFact: whole tokens only, never raw substrings', () => {
   assert.equal(hasFact('Fee: 22,000 SAR', ['22000']), true);
   assert.equal(hasFact('The reset takes twelve seconds', ['12', 'twelve']), true);
   assert.equal(hasFact('There is no internet connection.', ['no internet']), true);
-  assert.equal(hasFact('Closes at 9:00 PM', ['9 00 pm']), true);
-  assert.equal(hasFact('Closes at 9:00 PM', ['9 pm']), false);
+  assert.equal(hasFact('Closes at 9:00 PM', ['9 pm']), true);
+  assert.equal(hasFact('Closes at 9:15 PM', ['9 pm']), false);
 });
 
 test('hasFact: Arabic prefixes only on the answer side, never stripped on their own', () => {
@@ -114,4 +114,35 @@ test('retrieval-only: a record with no answer carries no answer scores, and summ
   assert.equal(s.factRecall, null);
   assert.equal(s.refused, null);
   assert.equal(s.retrievalAll, 1);
+});
+
+test('normalize: times, thousands separators, spelled numbers, currency (false fails reported by review)', () => {
+  assert.equal(hasFact('The branch closes at 9:00 p.m.', ['9 pm']), true);
+  assert.equal(hasFact('The branch closes at 9.00 pm.', ['9 pm']), true);
+  assert.equal(hasFact('The branch closes at 9 PM.', ['9 pm']), true);
+  assert.equal(hasFact('It closes at 9:30 pm.', ['9 pm']), false);
+  assert.equal(normalize('45 000 books'), '45000 books');
+  assert.equal(normalize('45 000 books'), '45000 books');
+  assert.equal(normalize('45.000 books'), '45000 books');
+  assert.equal(normalize('45,000 books'), '45000 books');
+  assert.equal(normalize('192.168.8.1'), '192.168.8.1');
+  assert.equal(normalize('1.5 years'), '1.5 years');
+  assert.equal(normalize('up to 5 days, 300 sar'), 'up to 5 days, 300 sar');
+  assert.equal(hasFact('Hold it for twelve seconds', ['12 seconds']), true);
+  assert.equal(hasFact('You get twenty-four working days', ['24 working days']), true);
+  assert.equal(hasFact('You get 24 working days', ['twenty four working days']), true);
+  assert.equal(hasFact('about three months', ['3 months']), true);
+  assert.equal(hasFact('up to $40 per day', ['40 dollars']), true);
+  assert.equal(hasFact('up to 1,200 US dollars', ['1200 us dollars']), true);
+});
+
+test('normalize: Arabic hours written as words, and refusals with curly quotes or bold', () => {
+  const answer = 'من الساعة التاسعة صباحا حتى الساعة الثانية ظهرا';
+  assert.equal(hasFact(answer, ['9 صباحا']), true);
+  assert.equal(hasFact(answer, ['2 ظهرا']), true);
+  assert.equal(hasFact('الدوام ثانية واحدة', ['2 ظهرا']), false);
+  const sentence = "I couldn't find that in your uploaded documents.";
+  assert.equal(isRefusal('I couldn’t find that in your uploaded documents.', sentence), true);
+  assert.equal(isRefusal(`**${sentence}**`, sentence), true);
+  assert.equal(isRefusal('`' + sentence + '`', sentence), true);
 });
