@@ -6,11 +6,13 @@
 //   npm run eval -- --retrieval-only      no Gemini calls: retrieval scores only (free)
 //   npm run eval -- --retry-errors        re-ask only the questions that errored last time
 //   options: --delay-ms N (pause between Gemini calls, default 4000)  --out FILE
+// Offline tests only: EVAL_FAKE_LLM=<module> (full mode) replaces Gemini by the { llm, fallbackLlm } that the module
+// exports. The results are marked fakeLlm and must never be published (see test/evalRun.test.js).
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from './args.js';
 import { retryProblems } from './retry.js';
 import { validateQuestions } from './validate.js';
@@ -81,7 +83,21 @@ const datasetFingerprint = createHash('sha256')
   .slice(0, 16);
 
 // ---- 2. The app's real pipeline ----------------------------------------------------------------
-if (!retrievalOnly && !config.googleApiKey) {
+// A scripted fake model for offline tests of this runner. Loaded before the key check; with it no key is needed.
+let fake = null;
+if (!retrievalOnly && process.env.EVAL_FAKE_LLM) {
+  try {
+    fake = (await import(pathToFileURL(path.resolve(process.env.EVAL_FAKE_LLM)).href)).default;
+  } catch (error) {
+    fail(`EVAL_FAKE_LLM could not be loaded: ${error.message}`);
+  }
+  const runnable = (x) => typeof x?.invoke === 'function';
+  if (!runnable(fake?.llm) || (fake.fallbackLlm !== undefined && !runnable(fake.fallbackLlm))) {
+    fail('EVAL_FAKE_LLM must default-export { llm, fallbackLlm? } (runnables with an invoke method).');
+  }
+  console.log('!!! EVAL_FAKE_LLM: the answers come from a scripted fake model, not from Gemini. Never publish these results.');
+}
+if (!retrievalOnly && !fake && !config.googleApiKey) {
   fail('GOOGLE_API_KEY is missing. Add it to .env (free key: https://aistudio.google.com/app/apikey), or run with --retrieval-only.');
 }
 const { createSession, addDocument, search } = await import('../src/services/vectorStore.js');
@@ -102,7 +118,7 @@ const previousById = new Map((previous?.results ?? []).map((r) => [r.id, r]));
 // A retry may only complete the same run (see retry.js). A file from a run that stopped half way is fine:
 // questions missing from it are asked.
 if (previous) {
-  const settings = { mainModel: config.geminiModel, fallbackModel: config.geminiFallbackModel, thinking, embeddingModel: config.embeddingModel, embeddingDtype: config.embeddingDtype, chunkSize: config.chunkSize, chunkOverlap: config.chunkOverlap, topK: config.topK, mode: 'full' };
+  const settings = { mainModel: config.geminiModel, fallbackModel: config.geminiFallbackModel, thinking, fakeLlm: Boolean(fake), embeddingModel: config.embeddingModel, embeddingDtype: config.embeddingDtype, chunkSize: config.chunkSize, chunkOverlap: config.chunkOverlap, topK: config.topK, mode: 'full' };
   const problems = retryProblems(previous, { settings, fingerprint: datasetFingerprint, questionIds: questions.map((q) => q.id) });
   if (problems.length) fail(`--retry-errors cannot complete that file (${problems.join('; ')}). Run the eval again from the start instead.`);
 }
@@ -154,6 +170,7 @@ const meta = previous ? { ...previous.meta } : {
   mainModel: config.geminiModel,
   fallbackModel: config.geminiFallbackModel,
   thinking,
+  fakeLlm: Boolean(fake),
   embeddingModel: config.embeddingModel,
   embeddingDtype: config.embeddingDtype,
   chunkSize: config.chunkSize,
@@ -223,7 +240,7 @@ for (const [index, q] of questions.entries()) {
         run.retried = true;
       }
       const started = performance.now();
-      const { value, error, logs } = await captureLogs(() => answerQuestion({ question: q.question, session }));
+      const { value, error, logs } = await captureLogs(() => answerQuestion({ question: q.question, session, ...(fake ? { llm: fake.llm, fallbackLlm: fake.fallbackLlm } : {}) }));
       run.latencyMs = Math.round(performance.now() - started);
       Object.assign(run, analyzeLogs(logs, config.geminiModel));
       if (error) {
