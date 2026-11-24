@@ -5,6 +5,7 @@ import { StringOutputParser } from '@langchain/core/output_parsers';
 import config from '../config.js';
 import { search, hasDocuments } from './vectorStore.js';
 import { HttpError } from '../utils/httpError.js';
+import { thinkingConfigFor } from './thinking.js';
 
 const MAX_MESSAGE_LENGTH = 2000;
 
@@ -50,14 +51,16 @@ export function createLlm(model = config.geminiModel) {
   if (!config.googleApiKey) {
     throw new HttpError(503, 'MISSING_API_KEY', 'The AI is not set up yet: add GOOGLE_API_KEY to the .env file and restart the server. You can get a free key at aistudio.google.com.');
   }
+  // Thinking off or minimal by default: about 6x fewer tokens per answer, and simple maths still works.
+  // Each model family takes a different setting (see thinking.js), so it is built per model.
+  const thinkingConfig = thinkingConfigFor(model, { level: config.geminiThinkingLevel, budget: config.geminiThinkingBudget });
   return new ChatGoogleGenerativeAI({
     model,
     apiKey: config.googleApiKey,
     temperature: 0.2,
     // Fail fast when Gemini is overloaded instead of retrying for a minute or more.
     maxRetries: 2,
-    // Thinking off by default: about 6x fewer tokens per answer, and simple maths still works.
-    ...(config.geminiThinkingBudget === null ? {} : { thinkingConfig: { thinkingBudget: config.geminiThinkingBudget } }),
+    ...(thinkingConfig ? { thinkingConfig } : {}),
   });
 }
 

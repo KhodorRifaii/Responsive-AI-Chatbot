@@ -1,6 +1,6 @@
 // Guard for --retry-errors: a retry may only complete the same run (same models, settings, questions and
 // documents), or the results file would mix two different runs.
-const SETTINGS = ['mainModel', 'fallbackModel', 'thinkingBudget', 'embeddingModel', 'embeddingDtype', 'chunkSize', 'chunkOverlap', 'topK', 'mode'];
+const SETTINGS = ['mainModel', 'fallbackModel', 'thinking', 'embeddingModel', 'embeddingDtype', 'chunkSize', 'chunkOverlap', 'topK', 'mode'];
 
 /**
  * Reasons why a previous results file cannot be completed by this run (empty list = fine).

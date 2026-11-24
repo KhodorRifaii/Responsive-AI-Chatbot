@@ -1,8 +1,8 @@
 import 'dotenv/config';
 
 /**
- * Gemini "thinking" token budget. 0 (default) turns thinking off: answers use far fewer
- * tokens of the free quota. "default" leaves the model's own setting.
+ * Gemini 2.5 "thinking" token budget (Gemini 3 models use the level below instead). 0 (default)
+ * turns thinking off: answers use far fewer tokens of the free quota. "default" leaves the model's own setting.
  */
 function readThinkingBudget(value) {
   const text = value?.trim();
@@ -10,6 +10,16 @@ function readThinkingBudget(value) {
   if (text.toLowerCase() === 'default') return null;
   const budget = Number(text);
   return Number.isInteger(budget) ? budget : 0;
+}
+
+/**
+ * Gemini 3 "thinking" level: minimal (default, the lowest and cheapest), low, medium or high.
+ * "default" leaves the model's own setting (null). Anything else falls back to minimal.
+ */
+function readThinkingLevel(value) {
+  const text = value?.trim().toLowerCase();
+  if (text === 'default') return null;
+  return ['minimal', 'low', 'medium', 'high'].includes(text) ? text : 'minimal';
 }
 
 /**
@@ -61,6 +71,7 @@ const config = {
   // Seconds each model gets to answer (its own retries included) before the fallback is tried.
   geminiTimeoutSeconds: readTimeoutSeconds(process.env.GEMINI_TIMEOUT_SECONDS, 30),
   geminiThinkingBudget: readThinkingBudget(process.env.GEMINI_THINKING_BUDGET),
+  geminiThinkingLevel: readThinkingLevel(process.env.GEMINI_THINKING_LEVEL),
   embeddingModel: process.env.EMBEDDING_MODEL?.trim() || 'Xenova/all-MiniLM-L6-v2',
   // q8 (quantized) and 1 thread keep memory low enough for 512 MB hosts.
   embeddingDtype: process.env.EMBEDDING_DTYPE?.trim() || 'q8',

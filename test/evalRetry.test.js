@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { retryProblems } from '../eval/retry.js';
 
-const settings = { mainModel: 'm', fallbackModel: null, thinkingBudget: null, embeddingModel: 'e', embeddingDtype: 'q8', chunkSize: 1000, chunkOverlap: 150, topK: 4, mode: 'full' };
+const settings = { mainModel: 'm', fallbackModel: null, thinking: { main: { thinkingLevel: 'minimal' }, fallback: null }, embeddingModel: 'e', embeddingDtype: 'q8', chunkSize: 1000, chunkOverlap: 150, topK: 4, mode: 'full' };
 const prev = (ids, extra = {}) => ({ meta: { ...settings, datasetFingerprint: 'abc', ...extra }, results: ids.map((id) => ({ id })) });
 const now = (extra = {}) => ({ settings: { ...settings, ...extra }, fingerprint: 'abc', questionIds: ['a', 'b', 'c'] });
 
@@ -26,4 +26,9 @@ test('different settings, models or data are rejected', () => {
   assert.match(retryProblems(prev(['a']), now({ fallbackModel: 'f' })).join(), /fallbackModel/);
   assert.match(retryProblems(prev(['a']), { ...now(), fingerprint: 'changed' }).join(), /questions or documents/);
   assert.match(retryProblems({ results: [] }, now()).join(), /mainModel/);
+});
+
+test('a different thinking setting for the main model or for the fallback model is rejected', () => {
+  assert.match(retryProblems(prev(['a']), now({ thinking: { main: { thinkingLevel: 'high' }, fallback: null } })).join(), /thinking differs/);
+  assert.match(retryProblems(prev(['a']), now({ thinking: { main: { thinkingLevel: 'minimal' }, fallback: { thinkingLevel: 'low' } } })).join(), /thinking differs/);
 });

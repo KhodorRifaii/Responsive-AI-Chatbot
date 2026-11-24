@@ -43,6 +43,7 @@ const docText = Object.fromEntries(docFiles.map((f) => [f, fs.readFileSync(path.
 // checked against that parsed text, not the raw file. Loaded below, after the app's config is imported.
 const { default: config } = await import('../src/config.js');
 const { loadAndSplit } = await import('../src/services/documentLoader.js');
+const { thinkingConfigFor } = await import('../src/services/thinking.js');
 const parsedText = {};
 for (const name of docFiles) {
   const chunks = await loadAndSplit({ originalname: name, buffer: Buffer.from(docText[name], 'utf8') }, name);
@@ -114,13 +115,22 @@ if (!retrievalOnly && !config.googleApiKey) {
 const { createSession, addDocument, search } = await import('../src/services/vectorStore.js');
 const { answerQuestion, NOT_FOUND_ANSWER } = await import('../src/services/ragChain.js');
 
+// What the app sends to each model as its thinking setting (null = the model's own default). Saved in the results and
+// compared by a retry, so a retry can never mix two thinking settings.
+const thinkingSettings = { level: config.geminiThinkingLevel, budget: config.geminiThinkingBudget };
+const thinking = {
+  main: thinkingConfigFor(config.geminiModel, thinkingSettings) ?? null,
+  fallback: config.geminiFallbackModel ? thinkingConfigFor(config.geminiFallbackModel, thinkingSettings) ?? null : null,
+};
+const describeThinking = (t) => `${t.main ? JSON.stringify(t.main) : 'model default'}${t.fallback ? ` (fallback ${JSON.stringify(t.fallback)})` : ''}`;
+
 const previous = retryErrors && fs.existsSync(outFile) ? JSON.parse(fs.readFileSync(outFile, 'utf8')) : null;
 if (retryErrors && !previous) fail(`--retry-errors needs a previous results file (${path.relative(root, outFile)}).`);
 const previousById = new Map((previous?.results ?? []).map((r) => [r.id, r]));
 // A retry may only complete the same run (see retry.js). A file from a run that stopped half way is fine:
 // questions missing from it are asked.
 if (previous) {
-  const settings = { mainModel: config.geminiModel, fallbackModel: config.geminiFallbackModel, thinkingBudget: config.geminiThinkingBudget, embeddingModel: config.embeddingModel, embeddingDtype: config.embeddingDtype, chunkSize: config.chunkSize, chunkOverlap: config.chunkOverlap, topK: config.topK, mode: 'full' };
+  const settings = { mainModel: config.geminiModel, fallbackModel: config.geminiFallbackModel, thinking, embeddingModel: config.embeddingModel, embeddingDtype: config.embeddingDtype, chunkSize: config.chunkSize, chunkOverlap: config.chunkOverlap, topK: config.topK, mode: 'full' };
   const problems = retryProblems(previous, { settings, fingerprint: datasetFingerprint, questionIds: questions.map((q) => q.id) });
   if (problems.length) fail(`--retry-errors cannot complete that file (${problems.join('; ')}). Run the eval again from the start instead.`);
 }
@@ -171,7 +181,7 @@ const meta = previous ? { ...previous.meta } : {
   mode: retrievalOnly ? 'retrieval-only' : 'full',
   mainModel: config.geminiModel,
   fallbackModel: config.geminiFallbackModel,
-  thinkingBudget: config.geminiThinkingBudget,
+  thinking,
   embeddingModel: config.embeddingModel,
   embeddingDtype: config.embeddingDtype,
   chunkSize: config.chunkSize,
@@ -272,7 +282,7 @@ const pct = (share, n) => {
 };
 const num = (value, digits = 2) => (value === null ? 'n/a' : value.toFixed(digits));
 
-console.log(`\nModels: main ${meta.mainModel}, fallback ${meta.fallbackModel ?? 'none'} | thinking budget ${meta.thinkingBudget ?? 'default'} | embeddings ${meta.embeddingModel} (${meta.embeddingDtype}) | top-${meta.topK}, chunks ${meta.chunkSize}/${meta.chunkOverlap}`);
+console.log(`\nModels: main ${meta.mainModel}, fallback ${meta.fallbackModel ?? 'none'} | thinking ${describeThinking(meta.thinking)} | embeddings ${meta.embeddingModel} (${meta.embeddingDtype}) | top-${meta.topK}, chunks ${meta.chunkSize}/${meta.chunkOverlap}`);
 console.log('\nRETRIEVAL (answerable questions; hit = expected file(s) among the top-k chunks)');
 console.log(`${'slice'.padEnd(14)}${'n'.padStart(3)}  ${'all expected files in top-k'.padEnd(38)}${'any expected file'.padEnd(32)}${'top-1 is expected'.padEnd(32)}random: top-k / top-1`);
 for (const [name, g] of Object.entries(summary)) {
