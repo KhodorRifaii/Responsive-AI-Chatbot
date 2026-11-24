@@ -1,7 +1,7 @@
 // Tests for the embedder comparison summary (eval/embedderSummary.js). Pure: no model, no network.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { summarizeRun, FLAG_RSS_MB } from '../eval/embedderSummary.js';
+import { summarizeRun, sourceRuleOf, sourceRuleF1, MINILM_RULE, FLAG_RSS_MB } from '../eval/embedderSummary.js';
 
 const group = (answerable, hitAll, hitAny, top1, chance = 0.4, chanceTop1 = 0.15, a = 0.5, u = 0.4, chunk = undefined) => ({
   answerable, retrievalAll: hitAll / answerable, retrievalAny: hitAny / answerable, retrievalTop1: top1 / answerable, chance, chanceTop1, topScoreAnswerable: a, topScoreUnanswerable: u,
@@ -54,7 +54,7 @@ test('fallback source filter: how many of the 4 chunks pass the app\'s score rul
     { id: 'b', lang: 'ar', retrieved: [0.9, 0.5, 0.3, 0.1].map((score) => ({ source: 'y.txt', chunk: 0, score })) },
   ];
   const out = summarizeRun(run, { minScore: 0.2, relativeScore: 0.7 });
-  assert.deepEqual(out.sourceFilter, { questions: 2, averageChunksShown: 2.5, allFourShown: 1 });
+  assert.deepEqual(out.sourceFilter, { rule: { minScore: 0.2, relativeScore: 0.7 }, questions: 2, averageChunksShown: 2.5, allFourShown: 1, f1: null, f1WithMiniLmRule: null });
 });
 
 test('a question that retrieved nothing is reported, not a crash', () => {
@@ -62,7 +62,7 @@ test('a question that retrieved nothing is reported, not a crash', () => {
   run.results = [{ id: 'a', lang: 'en', retrieved: [] }, { id: 'b', lang: 'ar', retrieved: [{ source: 'z.txt', chunk: 0, score: 0.5 }] }];
   const out = summarizeRun(run);
   assert.equal(out.top1Spread.en.mostFrequent, '(nothing retrieved)');
-  assert.deepEqual(out.sourceFilter, { questions: 2, averageChunksShown: 0.5, allFourShown: 0 });
+  assert.deepEqual(out.sourceFilter, { rule: { minScore: 0.2, relativeScore: 0.7 }, questions: 2, averageChunksShown: 0.5, allFourShown: 0, f1: null, f1WithMiniLmRule: null });
 });
 
 test('chunk-level hit with its Wilson interval, only when the run computed it', () => {
@@ -74,4 +74,27 @@ test('chunk-level hit with its Wilson interval, only when the run computed it', 
   assert.equal(out.retrieval.all.hitChunk.k, 2);
   assert.equal(out.retrieval.all.hitChunk.n, 4);
   assert.ok(out.retrieval.all.hitChunk.low > 0.15 && out.retrieval.all.hitChunk.high < 0.85);
+});
+
+test('each run is summarised with its own model\'s source rule: saved thresholds first, else the model\'s profile', () => {
+  assert.deepEqual(sourceRuleOf({ embeddingModel: 'Xenova/all-MiniLM-L6-v2' }), { minScore: 0.2, relativeScore: 0.7 });
+  assert.deepEqual(sourceRuleOf({ embeddingModel: 'Xenova/multilingual-e5-small', embeddingProfile: { pooling: 'mean' } }), { minScore: 0.2, relativeScore: 0.92 }, 'an older run without saved thresholds');
+  assert.deepEqual(sourceRuleOf({ embeddingModel: 'Xenova/multilingual-e5-small', embeddingProfile: { sourceMinScore: 0.3, sourceRelativeScore: 0.8 } }), { minScore: 0.3, relativeScore: 0.8 }, 'saved thresholds win');
+  // Scores 0.9 .. 0.75: the e5 rule (0.828) shows 2 chunks, the MiniLM rule (0.63) would show all four.
+  const run = raw({ peakRssMb: 300 });
+  run.meta.embeddingModel = 'Xenova/multilingual-e5-small';
+  run.results = [{ id: 'a', lang: 'en', retrieved: [0.9, 0.85, 0.8, 0.75].map((score) => ({ source: 'x.txt', chunk: 0, score })) }];
+  assert.deepEqual(summarizeRun(run).sourceFilter, { rule: { minScore: 0.2, relativeScore: 0.92 }, questions: 1, averageChunksShown: 2, allFourShown: 0, f1: null, f1WithMiniLmRule: null });
+});
+
+test('sourceRuleF1: F1 between the chunks shown and the chunks of the expected files, per answerable question', () => {
+  const chunk = (source, score) => ({ source, chunk: 1, score });
+  // Scores .9 (right file) .85 (other) .8 (right) .75 (other). The MiniLM rule (threshold 0.63) shows all four: precision 2/4,
+  // recall 2/2, F1 2/3. At 0.92 x best (0.828) it shows the first two: 1/2 and 1/2, F1 0.5. At 0.95 x best (0.855) only the first: 1 and 1/2, F1 2/3.
+  const results = [{ expectedSources: ['a.txt'], retrieved: [chunk('a.txt', 0.9), chunk('b.txt', 0.85), chunk('a.txt', 0.8), chunk('b.txt', 0.75)] }];
+  assert.equal(sourceRuleF1(results, MINILM_RULE), 0.667);
+  assert.equal(sourceRuleF1(results, { minScore: 0.2, relativeScore: 0.92 }), 0.5);
+  assert.equal(sourceRuleF1(results, { minScore: 0.2, relativeScore: 0.95 }), 0.667);
+  // A question with no expected file (unanswerable) is not part of it.
+  assert.equal(sourceRuleF1([{ expectedSources: [], retrieved: [chunk('a.txt', 0.9)] }], MINILM_RULE), null);
 });

@@ -292,9 +292,15 @@
         }
       },
       "sourceFilter": {
+        "rule": {
+          "minScore": 0.2,
+          "relativeScore": 0.7
+        },
         "questions": 33,
         "averageChunksShown": 2,
-        "allFourShown": 4
+        "allFourShown": 4,
+        "f1": 0.501,
+        "f1WithMiniLmRule": 0.501
       },
       "topScore": {
         "answerable": 0.533768,
@@ -552,9 +558,15 @@
         }
       },
       "sourceFilter": {
+        "rule": {
+          "minScore": 0.2,
+          "relativeScore": 0.92
+        },
         "questions": 33,
-        "averageChunksShown": 4,
-        "allFourShown": 33
+        "averageChunksShown": 3.27,
+        "allFourShown": 19,
+        "f1": 0.802,
+        "f1WithMiniLmRule": 0.733
       },
       "topScore": {
         "answerable": 0.8652799999999999,
@@ -812,9 +824,15 @@
         }
       },
       "sourceFilter": {
+        "rule": {
+          "minScore": 0.2,
+          "relativeScore": 0.92
+        },
         "questions": 33,
-        "averageChunksShown": 4,
-        "allFourShown": 33
+        "averageChunksShown": 3.27,
+        "allFourShown": 18,
+        "f1": 0.826,
+        "f1WithMiniLmRule": 0.744
       },
       "topScore": {
         "answerable": 0.8401359999999998,
@@ -1072,9 +1090,15 @@
         }
       },
       "sourceFilter": {
+        "rule": {
+          "minScore": 0.2,
+          "relativeScore": 0.55
+        },
         "questions": 33,
-        "averageChunksShown": 2.42,
-        "allFourShown": 8
+        "averageChunksShown": 3.15,
+        "allFourShown": 17,
+        "f1": 0.869,
+        "f1WithMiniLmRule": 0.791
       },
       "topScore": {
         "answerable": 0.5961480000000001,
@@ -1332,9 +1356,15 @@
         }
       },
       "sourceFilter": {
+        "rule": {
+          "minScore": 0.2,
+          "relativeScore": 0.8
+        },
         "questions": 33,
-        "averageChunksShown": 3.61,
-        "allFourShown": 26
+        "averageChunksShown": 2.82,
+        "allFourShown": 12,
+        "f1": 0.792,
+        "f1WithMiniLmRule": 0.776
       },
       "topScore": {
         "answerable": 0.5736840000000001,

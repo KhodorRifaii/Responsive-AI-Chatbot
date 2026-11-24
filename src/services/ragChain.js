@@ -80,9 +80,9 @@ export function createLlm(model = config.geminiModel) {
   });
 }
 
-// Fallback when the model does not cite: show chunks clearly related to the question.
-export const MIN_SOURCE_SCORE = 0.2;
-export const RELATIVE_SOURCE_SCORE = 0.7;
+// Fallback when the model does not cite: show chunks clearly related to the question. How high a score must be
+// depends on the embedding model (e5 scores sit in 0.7-0.9, MiniLM's in 0-0.7), so the thresholds are in the
+// embedding profile (embeddingProfile.js: sourceMinScore, sourceRelativeScore).
 // The last line "SOURCES: 1, 3" / "SOURCES: none" (any case, optional ** and colon). It may also
 // end the last sentence ("… 18 months. SOURCES: 1"), but then it needs the colon. Only "none" or
 // numbers may follow, with commas, "and", ranges or brackets ("[1], [3]", "1 and 3", "1-3"), so a
@@ -98,12 +98,13 @@ export function splitCitations(output) {
   return { answer: output.slice(0, match.index).trim(), cited };
 }
 
-function pickSourceChunks(results, cited) {
+/** The chunks to show as sources: the cited ones, or (nothing cited) those scoring high enough for the embedding profile. */
+export function pickSourceChunks(results, cited, profile = config.embeddingProfile) {
   if (cited) {
     return cited.map((n) => results[n - 1]?.[0]).filter(Boolean);
   }
   const best = results[0]?.[1] ?? 0;
-  const threshold = Math.max(MIN_SOURCE_SCORE, best * RELATIVE_SOURCE_SCORE);
+  const threshold = Math.max(profile.sourceMinScore, best * profile.sourceRelativeScore);
   return results.filter(([, score]) => score >= threshold).map(([chunk]) => chunk);
 }
 

@@ -269,7 +269,16 @@ One real run with `multilingual-e5-small` (`gemini-3.5-flash-lite`, no fallback,
 ### If you switch
 
 - Set `EMBEDDING_MODEL=Xenova/multilingual-e5-small` and restart. The prefixes (`query: ` for questions, `passage: ` for document parts) and pooling are applied for you; nothing is stored on disk, so there is nothing to re-index. An unlisted model gets mean pooling and no prefixes, with a warning at startup.
-- The sources shown when Gemini cites none (`MIN_SOURCE_SCORE` 0.2 and `RELATIVE_SOURCE_SCORE` 0.7 in `src/services/ragChain.js`) were tuned for MiniLM scores. E5 scores are squeezed into a narrow band (the best chunk scores 0.87 on average for answerable questions and 0.85 for unanswerable ones), so the rule keeps all 4 chunks for 33 of 33 questions (MiniLM: 4 of 33, 2 chunks on average). EmbeddingGemma and Qwen3 spread their scores more (2.4 and 3.6 chunks on average). If you move to E5, change that rule first.
+- The sources shown when Gemini cites none are the chunks that score at least `max(sourceMinScore, sourceRelativeScore x best score)`. These two thresholds belong to the model's profile (`src/services/embeddingProfile.js`), because scores differ a lot between models: MiniLM's are spread over 0 to 0.7, e5's sit between 0.7 and 0.9. MiniLM keeps its original 0.2 / 0.7, so the default behaves exactly as before. With that rule e5 showed all 4 chunks for 33 of 33 questions. The other models now have their own rule, picked on the 25 answerable questions (best F1 between the chunks shown and the chunks of the expected files, minimum fixed at 0.2, relative score on a 0.05 grid; for e5 0.92 because 0.90 and 0.94 are within 0.03):
+
+  | Model | Relative score | F1 with MiniLM's 0.7 | F1 with its own | Chunks shown on average (33 questions) |
+  | --- | --- | --- | --- | --- |
+  | `multilingual-e5-small` | 0.92 | 0.73 | 0.80 | 3.3 (was 4.0) |
+  | `multilingual-e5-base` | 0.92 | 0.74 | 0.83 | 3.3 (was 4.0) |
+  | `embeddinggemma-300m` | 0.55 | 0.79 | 0.87 | 3.2 (was 2.4) |
+  | `Qwen3-Embedding-0.6B` | 0.8 | 0.78 | 0.79 | 2.8 (was 3.6) |
+
+  This is better but not fixed: e5 scores are so close together that its rule still shows 3 or 4 chunks for many questions, and the thresholds were tuned on the same questions they are reported on, so treat them as a starting point for your own documents. When the model cites its sources, none of this applies. For a model that is not in the table, the MiniLM rule is used with a startup warning; set `EMBEDDING_SOURCE_MIN_SCORE` and `EMBEDDING_SOURCE_RELATIVE_SCORE` after looking at its scores (the eval prints the top scores).
 - `EmbeddingGemma` is called through its own `sentence_embedding` output (the ONNX graph pools and projects the vector itself), not through the feature-extraction pipeline, which would return the wrong vectors for it.
 
 ### Limits of this comparison

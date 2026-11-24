@@ -117,8 +117,8 @@ const thinking = {
 const describeThinking = (t) => `${t.main ? JSON.stringify(t.main) : 'model default'}${t.fallback ? ` (fallback ${JSON.stringify(t.fallback)})` : ''}`;
 
 // How the embedder was called (pooling, prefixes, size): saved in the results and compared by a retry.
-const { pooling, normalize, queryPrefix, documentPrefix, dimensions } = config.embeddingProfile;
-const embeddingProfile = { pooling, normalize, queryPrefix, documentPrefix, dimensions };
+const { pooling, normalize, queryPrefix, documentPrefix, dimensions, sourceMinScore, sourceRelativeScore } = config.embeddingProfile;
+const embeddingProfile = { pooling, normalize, queryPrefix, documentPrefix, dimensions, sourceMinScore, sourceRelativeScore };
 
 const previous = retryErrors && fs.existsSync(outFile) ? JSON.parse(fs.readFileSync(outFile, 'utf8')) : null;
 if (retryErrors && !previous) fail(`--retry-errors needs a previous results file (${path.relative(root, outFile)}).`);

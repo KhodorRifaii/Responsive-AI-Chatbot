@@ -13,7 +13,6 @@ import { fileURLToPath } from 'node:url';
 import { summarizeRun } from './embedderSummary.js';
 import { addChunkLevel } from './rescore.js';
 import { loadChunkTexts } from './chunks.js';
-import { MIN_SOURCE_SCORE, RELATIVE_SOURCE_SCORE } from '../src/services/ragChain.js';
 
 const evalDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(evalDir, '..');
@@ -100,7 +99,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       if (!fs.existsSync(rawFile) || old?.status !== 'ok') continue;
       const rescored = addChunkLevel(JSON.parse(fs.readFileSync(rawFile, 'utf8')), questions, chunkText);
       fs.writeFileSync(rawFile, `${JSON.stringify(rescored, null, 2)}\n`);
-      models.set(candidate.label, { ...old, ...summarizeRun(rescored, { minScore: MIN_SOURCE_SCORE, relativeScore: RELATIVE_SOURCE_SCORE }) });
+      models.set(candidate.label, { ...old, ...summarizeRun(rescored) });
       const { all } = models.get(candidate.label).retrieval;
       console.log(`${candidate.label}: right chunk in top-4 ${all.hitChunk.k}/${all.hitChunk.n}, file-level ${all.hitAll.k}/${all.n}`);
     }
@@ -128,7 +127,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       writeSummary();
       continue;
     }
-    const summary = summarizeRun(JSON.parse(fs.readFileSync(rawFile, 'utf8')), { minScore: MIN_SOURCE_SCORE, relativeScore: RELATIVE_SOURCE_SCORE });
+    const summary = summarizeRun(JSON.parse(fs.readFileSync(rawFile, 'utf8')));
     const bytes = downloadedBytes(candidate.model, candidate.dtype);
     models.set(candidate.label, { ...candidate, status: 'ok', downloadMb: Math.round(bytes / 1024 / 1024), ...summary });
     const { all, ar } = summary.retrieval;
