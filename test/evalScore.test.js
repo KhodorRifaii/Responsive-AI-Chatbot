@@ -246,3 +246,25 @@ test('hasFact: a negator counts only next to the fact, in the same clause', () =
   assert.equal(hasFact('نعم، يجب الإلغاء قبل 24 ساعة.', ['24 ساعة']), true);
   assert.equal(hasFact('لا. يجب الإلغاء قبل 24 ساعة.', ['24 ساعة']), true);
 });
+
+test('hasFact: an Arabic negator after a conditional or exception word does not negate the fact (mirror of the Arabic negation probes)', () => {
+  // natural correct answers for ar-02 (cancel at least 24 hours before)
+  assert.equal(hasFact('تُحتسب رسوم إذا لم تلغ قبل 24 ساعة', ['24 ساعة']), true);
+  assert.equal(hasFact('تُحتسب رسوم ما لم يتم الإلغاء قبل 24 ساعة', ['24 ساعة']), true);
+  assert.equal(hasFact('لا يمكن الإلغاء إلا قبل 24 ساعة', ['24 ساعة']), true);
+  assert.equal(hasFact('وإلا لم يعد الإلغاء ممكنا بعد 24 ساعة', ['24 ساعة']), true);
+  assert.equal(hasFact('لو لم تلغ قبل 24 ساعة تُحتسب رسوم', ['24 ساعة']), true);
+  assert.equal(hasFact('لا رسوم حتى 24 ساعة', ['24 ساعة']), true);
+  // still negated without such a word
+  assert.equal(hasFact('لا يجب الإلغاء قبل 24 ساعة', ['24 ساعة']), false);
+  assert.equal(hasFact('لا تقبل الإلغاء قبل 24 ساعة', ['24 ساعة']), false);
+  assert.equal(hasFact('ليس 24 يوما', ['24 يوما']), false);
+  // a conditional word in an earlier clause does not rescue a negator in this one
+  assert.equal(hasFact('إذا أردت الإلغاء، لا يجب الإلغاء قبل 24 ساعة', ['24 ساعة']), false);
+});
+
+test('scoreQuestion: the conditional answer from the review passes ar-02', () => {
+  const q = goldFor('ar-02');
+  assert.equal(scoreQuestion(q, { retrieved: [], answer: 'تُحتسب رسوم إذا لم تلغ قبل 24 ساعة', sources: [] }, NOT_FOUND).correct, true);
+  assert.equal(scoreQuestion(q, { retrieved: [], answer: 'لا يجب الإلغاء قبل 24 ساعة', sources: [] }, NOT_FOUND).correct, false);
+});

@@ -95,12 +95,18 @@ function tokenMatches(answerToken, goldToken) {
 const NEGATORS_EN = new Set(['not', 'no', 'never', 'neither', 'nor', 't']);
 const NEGATORS_AR = new Set(['لا', 'ليس', 'ليست', 'لم', 'لن', 'غير', 'ولا', 'فلا', 'ولم', 'ولن', 'وليس', 'وغير']);
 
+// Conditional and exception words, spelled as normalize() spells them: if (اذا, لو), except (الا, والا), until (حتي), and "ما لم" (unless).
+const CONDITIONS_AR = new Set(['اذا', 'لو', 'الا', 'والا', 'حتي']);
+
 function isNegated(words, start) {
   const clause = words[start].clause;
   const before = (n) => (start - n >= 0 && words[start - n].clause === clause ? words[start - n].t : undefined);
   if (NEGATORS_EN.has(before(1)) || NEGATORS_EN.has(before(2))) return true;
   if (before(1) === 'than' && ['more', 'less'].includes(before(2)) && NEGATORS_EN.has(before(3))) return true;
-  return [1, 2, 3, 4].some((n) => NEGATORS_AR.has(before(n)));
+  // A conditional or exception word earlier in the clause ("إذا لم تلغ قبل 24 ساعة", "ما لم", "لا ... إلا قبل 24 ساعة")
+  // turns the negator into part of the rule that the fact belongs to, so the fact is not denied.
+  const hasCondition = Array.from({ length: start }, (_, i) => start - 1 - i).some((index) => words[index].clause === clause && (CONDITIONS_AR.has(words[index].t) || (words[index].t === 'ما' && words[index + 1]?.t === 'لم')));
+  return !hasCondition && [1, 2, 3, 4].some((n) => NEGATORS_AR.has(before(n)));
 }
 
 /** True when any alternative appears as a consecutive run of tokens in the text, not negated. */
