@@ -1,12 +1,18 @@
 {
   "meta": {
-    "date": "2026-11-24T06:53:49.723Z",
-    "gitCommit": "67cfe31",
+    "date": "2026-11-24T07:45:52.993Z",
+    "gitCommit": "71dbd25",
     "node": "v24.15.0",
     "mode": "full",
-    "mainModel": "gemini-3.6-flash",
-    "fallbackModel": "gemini-3.5-flash-lite",
-    "thinkingBudget": null,
+    "mainModel": "gemini-3.5-flash-lite",
+    "fallbackModel": null,
+    "thinking": {
+      "main": {
+        "thinkingLevel": "minimal"
+      },
+      "fallback": null
+    },
+    "fakeLlm": false,
     "embeddingModel": "Xenova/all-MiniLM-L6-v2",
     "embeddingDtype": "q8",
     "chunkSize": 1000,
@@ -22,12 +28,13 @@
       "shifa-center-guide-ar.txt": 2,
       "solar-faq-ar.txt": 2
     },
-    "delayMs": 4000,
+    "delayMs": 5000,
     "judge": "none (deterministic checks only)",
+    "datasetFingerprint": "f4e115a4b5adb3ed",
     "summary": {
       "all": {
         "answerable": 25,
-        "unanswerable": 3,
+        "unanswerable": 8,
         "errored": 0,
         "retrievalAll": 0.92,
         "retrievalAny": 0.96,
@@ -42,13 +49,13 @@
         "answeredCount": 25,
         "refused": 1,
         "softRefused": 1,
-        "unansweredCount": 3,
+        "unansweredCount": 8,
         "topScoreAnswerable": 0.533768,
-        "topScoreUnanswerable": 0.3779333333333333
+        "topScoreUnanswerable": 0.47829999999999995
       },
       "en": {
         "answerable": 15,
-        "unanswerable": 2,
+        "unanswerable": 5,
         "errored": 0,
         "retrievalAll": 0.8666666666666667,
         "retrievalAny": 0.9333333333333333,
@@ -63,13 +70,13 @@
         "answeredCount": 15,
         "refused": 1,
         "softRefused": 1,
-        "unansweredCount": 2,
+        "unansweredCount": 5,
         "topScoreAnswerable": 0.48841999999999997,
-        "topScoreUnanswerable": 0.25565
+        "topScoreUnanswerable": 0.4067
       },
       "ar": {
         "answerable": 10,
-        "unanswerable": 1,
+        "unanswerable": 3,
         "errored": 0,
         "retrievalAll": 1,
         "retrievalAny": 1,
@@ -84,9 +91,9 @@
         "answeredCount": 10,
         "refused": 1,
         "softRefused": 1,
-        "unansweredCount": 1,
+        "unansweredCount": 3,
         "topScoreAnswerable": 0.6017899999999999,
-        "topScoreUnanswerable": 0.6225
+        "topScoreUnanswerable": 0.5976333333333333
       },
       "single": {
         "answerable": 19,
@@ -153,7 +160,7 @@
       },
       "unanswerable": {
         "answerable": 0,
-        "unanswerable": 3,
+        "unanswerable": 8,
         "errored": 0,
         "retrievalAll": null,
         "retrievalAny": null,
@@ -168,26 +175,14 @@
         "answeredCount": 0,
         "refused": 1,
         "softRefused": 1,
-        "unansweredCount": 3,
+        "unansweredCount": 8,
         "topScoreAnswerable": null,
-        "topScoreUnanswerable": 0.3779333333333333
+        "topScoreUnanswerable": 0.47829999999999995
       }
     },
-    "retries": [
-      {
-        "date": "2026-11-24T06:58:33.262Z",
-        "ids": [
-          "en-05",
-          "ar-02"
-        ]
-      }
-    ],
-    "datasetFingerprint": "f93d4dad39ee7e30",
     "answeredBy": {
-      "gemini-3.5-flash-lite": 26,
-      "gemini-3.6-flash": 2
-    },
-    "note": "answeredBy was derived afterwards from the recorded fallbackUsed flag; failure reasons (logs) were recorded for the two re-asked questions only; scores recomputed offline with the final scorer."
+      "gemini-3.5-flash-lite": 33
+    }
   },
   "results": [
     {
@@ -222,6 +217,12 @@
       ],
       "chance": 0.553921568627451,
       "chanceTop1": 0.16666666666666666,
+      "latencyMs": 2059,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
       "answer": "A full-time employee receives 24 working days of paid annual leave per calendar year.",
       "sources": [
         {
@@ -230,9 +231,6 @@
           "chunk": 1
         }
       ],
-      "latencyMs": 31644,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "en-01",
         "answerable": true,
@@ -251,8 +249,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "en-02",
@@ -286,6 +283,12 @@
       ],
       "chance": 0.553921568627451,
       "chanceTop1": 0.16666666666666666,
+      "latencyMs": 1021,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
       "answer": "The probation period for new employees at Northwind is 90 days.",
       "sources": [
         {
@@ -294,9 +297,6 @@
           "chunk": 2
         }
       ],
-      "latencyMs": 34014,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "en-02",
         "answerable": true,
@@ -315,8 +315,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "en-03",
@@ -350,7 +349,13 @@
       ],
       "chance": 0.553921568627451,
       "chanceTop1": 0.16666666666666666,
-      "answer": "When travelling, meals are reimbursed up to 40 US dollars per day.",
+      "latencyMs": 1359,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
+      "answer": "Northwind will reimburse meals up to 40 US dollars per day when travelling.",
       "sources": [
         {
           "source": "northwind-hr-policy.txt",
@@ -358,9 +363,6 @@
           "chunk": 2
         }
       ],
-      "latencyMs": 2050,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "en-03",
         "answerable": true,
@@ -379,8 +381,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "en-04",
@@ -414,6 +415,12 @@
       ],
       "chance": 0.553921568627451,
       "chanceTop1": 0.16666666666666666,
+      "latencyMs": 1179,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
       "answer": "The one-time home office stipend for new remote workers is 300 US dollars.",
       "sources": [
         {
@@ -422,9 +429,6 @@
           "chunk": 3
         }
       ],
-      "latencyMs": 1790,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "en-04",
         "answerable": true,
@@ -443,8 +447,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "en-05",
@@ -478,9 +481,12 @@
       ],
       "chance": 0.553921568627451,
       "chanceTop1": 0.16666666666666666,
-      "latencyMs": 3787,
-      "mainFailed": true,
-      "fallbackUsed": true,
+      "latencyMs": 2109,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
       "answer": "I couldn't find that in your uploaded documents.",
       "sources": [],
       "score": {
@@ -501,12 +507,7 @@
         "factRecall": 0,
         "correct": false,
         "correctAndCited": false
-      },
-      "retried": true,
-      "answeredBy": "gemini-3.5-flash-lite",
-      "logs": [
-        "LLM fallback: gemini-3.6-flash failed (429 [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash), trying gemini-3.5-flash-lite."
-      ]
+      }
     },
     {
       "id": "en-06",
@@ -540,7 +541,13 @@
       ],
       "chance": 0.553921568627451,
       "chanceTop1": 0.16666666666666666,
-      "answer": "You have to hold the reset button for 12 seconds to restore the factory settings on the Orbit R7.",
+      "latencyMs": 1295,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
+      "answer": "To restore the factory settings on the Orbit R7, you need to press and hold the reset button for 12 seconds.",
       "sources": [
         {
           "source": "orbit-router-manual.txt",
@@ -548,9 +555,6 @@
           "chunk": 2
         }
       ],
-      "latencyMs": 1527,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "en-06",
         "answerable": true,
@@ -569,8 +573,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "en-07",
@@ -604,6 +607,12 @@
       ],
       "chance": 0.553921568627451,
       "chanceTop1": 0.16666666666666666,
+      "latencyMs": 1275,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
       "answer": "The default address for the Orbit R7 router is 192.168.8.1.",
       "sources": [
         {
@@ -612,9 +621,6 @@
           "chunk": 1
         }
       ],
-      "latencyMs": 1893,
-      "fallbackUsed": false,
-      "mainFailed": false,
       "score": {
         "id": "en-07",
         "answerable": true,
@@ -633,8 +639,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.6-flash"
+      }
     },
     {
       "id": "en-08",
@@ -668,7 +673,13 @@
       ],
       "chance": 0.553921568627451,
       "chanceTop1": 0.16666666666666666,
-      "answer": "The warranty on the Orbit R7 is 18 months from the purchase date.",
+      "latencyMs": 1091,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
+      "answer": "The Orbit R7 has a warranty of 18 months from the purchase date.",
       "sources": [
         {
           "source": "orbit-router-manual.txt",
@@ -676,9 +687,6 @@
           "chunk": 3
         }
       ],
-      "latencyMs": 1463,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "en-08",
         "answerable": true,
@@ -697,8 +705,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "en-09",
@@ -732,7 +739,13 @@
       ],
       "chance": 0.40522875816993464,
       "chanceTop1": 0.1111111111111111,
-      "answer": "The Harbor branch holds 45,000 books.",
+      "latencyMs": 1079,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
+      "answer": "The Harbor branch of the Lakeside library holds 45,000 books.",
       "sources": [
         {
           "source": "lakeside-library-branches.csv",
@@ -740,9 +753,6 @@
           "chunk": 1
         }
       ],
-      "latencyMs": 1830,
-      "fallbackUsed": false,
-      "mainFailed": false,
       "score": {
         "id": "en-09",
         "answerable": true,
@@ -761,8 +771,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.6-flash"
+      }
     },
     {
       "id": "en-10",
@@ -796,6 +805,12 @@
       ],
       "chance": 0.40522875816993464,
       "chanceTop1": 0.1111111111111111,
+      "latencyMs": 816,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
       "answer": "The Lakeside library branch with the most study rooms is Central, with 12 study rooms.",
       "sources": [
         {
@@ -809,9 +824,6 @@
           "chunk": 1
         }
       ],
-      "latencyMs": 1709,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "en-10",
         "answerable": true,
@@ -830,8 +842,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "en-11",
@@ -865,7 +876,13 @@
       ],
       "chance": 0.40522875816993464,
       "chanceTop1": 0.1111111111111111,
-      "answer": "The Lakeview library branch closes at 21:00.",
+      "latencyMs": 1290,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
+      "answer": "The Lakeview library branch closes at 21:00 (Opening hours: 09:00-21:00).",
       "sources": [
         {
           "source": "lakeside-library-branches.csv",
@@ -873,9 +890,6 @@
           "chunk": 2
         }
       ],
-      "latencyMs": 3924,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "en-11",
         "answerable": true,
@@ -894,8 +908,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "ar-01",
@@ -929,6 +942,12 @@
       ],
       "chance": 0.40522875816993464,
       "chanceTop1": 0.1111111111111111,
+      "latencyMs": 903,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
       "answer": "رسوم الكشف العام في عيادة النور هي 150 ريالا.",
       "sources": [
         {
@@ -937,9 +956,6 @@
           "chunk": 1
         }
       ],
-      "latencyMs": 1831,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "ar-01",
         "answerable": true,
@@ -953,14 +969,12 @@
         "softRefused": false,
         "citedAll": true,
         "factsFound": [
-          true,
           true
         ],
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "ar-02",
@@ -994,10 +1008,13 @@
       ],
       "chance": 0.40522875816993464,
       "chanceTop1": 0.1111111111111111,
-      "latencyMs": 3096,
-      "mainFailed": true,
-      "fallbackUsed": true,
-      "answer": "يجب إلغاء الموعد قبل 24 ساعة على الأقل حتى لا تُحتسب رسوم.",
+      "latencyMs": 1401,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
+      "answer": "يجب إلغاء الموعد قبل 24 ساعة على الأقل حتى لا تُحتسب رسوم التأخير.",
       "sources": [
         {
           "source": "clinic-guide-ar.txt",
@@ -1023,12 +1040,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "retried": true,
-      "answeredBy": "gemini-3.5-flash-lite",
-      "logs": [
-        "LLM fallback: gemini-3.6-flash failed (429 [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash), trying gemini-3.5-flash-lite."
-      ]
+      }
     },
     {
       "id": "ar-03",
@@ -1062,6 +1074,12 @@
       ],
       "chance": 0.40522875816993464,
       "chanceTop1": 0.1111111111111111,
+      "latencyMs": 1201,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
       "answer": "تظهر نتائج التحاليل العادية خلال 48 ساعة في تطبيق العيادة.",
       "sources": [
         {
@@ -1070,9 +1088,6 @@
           "chunk": 2
         }
       ],
-      "latencyMs": 7110,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "ar-03",
         "answerable": true,
@@ -1086,14 +1101,12 @@
         "softRefused": false,
         "citedAll": true,
         "factsFound": [
-          true,
           true
         ],
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "ar-04",
@@ -1127,7 +1140,13 @@
       ],
       "chance": 0.40522875816993464,
       "chanceTop1": 0.1111111111111111,
-      "answer": "الرقم الذي توجه عيادة النور مرضاها للاتصال به في الحالات الطارئة هو 997.",
+      "latencyMs": 1376,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
+      "answer": "رقم الطوارئ الذي تتوجه إليه عيادة النور هو 997.",
       "sources": [
         {
           "source": "clinic-guide-ar.txt",
@@ -1135,9 +1154,6 @@
           "chunk": 2
         }
       ],
-      "latencyMs": 1577,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "ar-04",
         "answerable": true,
@@ -1156,8 +1172,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "ar-05",
@@ -1191,6 +1206,12 @@
       ],
       "chance": 0.40522875816993464,
       "chanceTop1": 0.1111111111111111,
+      "latencyMs": 956,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
       "answer": "يوم السبت يكون الدوام في عيادة النور من الساعة 9 صباحا حتى الساعة 2 ظهرا.",
       "sources": [
         {
@@ -1199,9 +1220,6 @@
           "chunk": 1
         }
       ],
-      "latencyMs": 1728,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "ar-05",
         "answerable": true,
@@ -1216,14 +1234,12 @@
         "citedAll": true,
         "factsFound": [
           true,
-          true,
           true
         ],
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "ar-06",
@@ -1257,6 +1273,12 @@
       ],
       "chance": 0.40522875816993464,
       "chanceTop1": 0.1111111111111111,
+      "latencyMs": 1323,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
       "answer": "مدة ضمان الألواح الشمسية لدى شمس الخليج هي 25 سنة.",
       "sources": [
         {
@@ -1265,9 +1287,6 @@
           "chunk": 1
         }
       ],
-      "latencyMs": 4035,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "ar-06",
         "answerable": true,
@@ -1286,8 +1305,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "ar-07",
@@ -1321,6 +1339,12 @@
       ],
       "chance": 0.40522875816993464,
       "chanceTop1": 0.1111111111111111,
+      "latencyMs": 2834,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
       "answer": "يبلغ سعر نظام الطاقة الشمسية المنزلي بقدرة 5 كيلوواط مبلغ 22,000 ريال شاملا التركيب.",
       "sources": [
         {
@@ -1329,9 +1353,6 @@
           "chunk": 1
         }
       ],
-      "latencyMs": 1869,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "ar-07",
         "answerable": true,
@@ -1350,8 +1371,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "ar-08",
@@ -1385,17 +1405,25 @@
       ],
       "chance": 0.40522875816993464,
       "chanceTop1": 0.1111111111111111,
+      "latencyMs": 1862,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
       "answer": "يمكن تقسيط ثمن النظام الشمسي على 36 شهرا بدون فوائد.",
       "sources": [
         {
           "source": "solar-faq-ar.txt",
           "page": null,
           "chunk": 2
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "page": null,
+          "chunk": 1
         }
       ],
-      "latencyMs": 7300,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "ar-08",
         "answerable": true,
@@ -1414,8 +1442,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "x-01",
@@ -1449,11 +1476,14 @@
       ],
       "chance": 0.40522875816993464,
       "chanceTop1": 0.1111111111111111,
+      "latencyMs": 1014,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
       "answer": "I couldn't find that in your uploaded documents.",
       "sources": [],
-      "latencyMs": 1538,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "x-01",
         "answerable": true,
@@ -1472,8 +1502,7 @@
         "factRecall": 0,
         "correct": false,
         "correctAndCited": false
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "x-02",
@@ -1507,7 +1536,13 @@
       ],
       "chance": 0.553921568627451,
       "chanceTop1": 0.16666666666666666,
-      "answer": "يحصل كل موظف بدوام كامل في شركة Northwind على 24 يوم عمل من الإجازة السنوية المدفوعة لكل سنة ميلادية، بالإضافة إلى 9 أيام عطلات رسمية.",
+      "latencyMs": 2609,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
+      "answer": "يحصل كل موظف بدوام كامل في شركة Northwind على 24 يوم عمل من الإجازة السنوية المدفوعة لكل سنة ميلادية.",
       "sources": [
         {
           "source": "northwind-hr-policy.txt",
@@ -1515,9 +1550,6 @@
           "chunk": 1
         }
       ],
-      "latencyMs": 1535,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "x-02",
         "answerable": true,
@@ -1536,8 +1568,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "multi-01",
@@ -1572,7 +1603,13 @@
       ],
       "chance": 0.26960784313725494,
       "chanceTop1": 0.3333333333333333,
-      "answer": "Based on your documents:\n- Northwind gives full-time employees 24 working days of paid annual leave per calendar year.\n- The warranty on the Orbit R7 is 18 months from the purchase date.",
+      "latencyMs": 932,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
+      "answer": "Based on the uploaded documents:\n- Northwind gives full-time employees 24 working days of paid annual leave per calendar year.\n- The warranty on the Orbit R7 is 18 months from the purchase date.",
       "sources": [
         {
           "source": "northwind-hr-policy.txt",
@@ -1585,9 +1622,6 @@
           "chunk": 3
         }
       ],
-      "latencyMs": 1642,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "multi-01",
         "answerable": true,
@@ -1607,8 +1641,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "multi-02",
@@ -1643,7 +1676,13 @@
       ],
       "chance": 0.1928104575163399,
       "chanceTop1": 0.2777777777777778,
-      "answer": "The Orbit R7 has 4 Gigabit LAN ports. I couldn't find information about the number of study rooms at the Lakeview library branch in your uploaded documents.",
+      "latencyMs": 1204,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
+      "answer": "The Orbit R7 has 4 Gigabit LAN ports. I couldn't find information about the number of study rooms in the Lakeview library branch in your uploaded documents.",
       "sources": [
         {
           "source": "orbit-router-manual.txt",
@@ -1651,9 +1690,6 @@
           "chunk": 1
         }
       ],
-      "latencyMs": 7313,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "multi-02",
         "answerable": true,
@@ -1673,8 +1709,7 @@
         "factRecall": 0.5,
         "correct": false,
         "correctAndCited": false
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "multi-03",
@@ -1709,7 +1744,13 @@
       ],
       "chance": 0.1928104575163399,
       "chanceTop1": 0.2777777777777778,
-      "answer": "Based on your documents:\n- The yearly training budget per Northwind employee is 1,200 US dollars.\n- The Oakwood library branch holds 33,000 books.",
+      "latencyMs": 2237,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
+      "answer": "Based on your documents:\n\n* The yearly training budget per Northwind employee is **1,200 US dollars**.\n* The Oakwood library branch holds **33,000** books.",
       "sources": [
         {
           "source": "northwind-hr-policy.txt",
@@ -1722,9 +1763,6 @@
           "chunk": 2
         }
       ],
-      "latencyMs": 7027,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "multi-03",
         "answerable": true,
@@ -1744,8 +1782,7 @@
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "multi-04",
@@ -1780,7 +1817,13 @@
       ],
       "chance": 0.13758169934640524,
       "chanceTop1": 0.2222222222222222,
-      "answer": "استناداً إلى المستندات المرفقة:\n\n- رسوم الكشف العام في عيادة النور هي 150 ريالاً.\n- مدة ضمان العاكس لدى شركة شمس الخليج هي 10 سنوات.",
+      "latencyMs": 5938,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
+      "answer": "- رسوم الكشف العام في عيادة النور هي 150 ريالا.\n- مدة ضمان العاكس لدى شمس الخليج هي 10 سنوات.",
       "sources": [
         {
           "source": "solar-faq-ar.txt",
@@ -1793,9 +1836,6 @@
           "chunk": 1
         }
       ],
-      "latencyMs": 4019,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "multi-04",
         "answerable": true,
@@ -1810,14 +1850,12 @@
         "citedAll": true,
         "factsFound": [
           true,
-          true,
           true
         ],
         "factRecall": 1,
         "correct": true,
         "correctAndCited": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "none-01",
@@ -1849,11 +1887,14 @@
       ],
       "chance": null,
       "chanceTop1": null,
+      "latencyMs": 1094,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
       "answer": "I couldn't find that in your uploaded documents.",
       "sources": [],
-      "latencyMs": 5580,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "none-01",
         "answerable": false,
@@ -1861,8 +1902,7 @@
         "refused": true,
         "softRefused": true,
         "refusedCorrectly": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "none-02",
@@ -1894,11 +1934,14 @@
       ],
       "chance": null,
       "chanceTop1": null,
+      "latencyMs": 2961,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
       "answer": "I couldn't find that in your uploaded documents.",
       "sources": [],
-      "latencyMs": 1532,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "none-02",
         "answerable": false,
@@ -1906,8 +1949,7 @@
         "refused": true,
         "softRefused": true,
         "refusedCorrectly": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
     },
     {
       "id": "none-03",
@@ -1939,11 +1981,14 @@
       ],
       "chance": null,
       "chanceTop1": null,
+      "latencyMs": 1294,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
       "answer": "I couldn't find that in your uploaded documents.",
       "sources": [],
-      "latencyMs": 6219,
-      "fallbackUsed": true,
-      "mainFailed": true,
       "score": {
         "id": "none-03",
         "answerable": false,
@@ -1951,8 +1996,242 @@
         "refused": true,
         "softRefused": true,
         "refusedCorrectly": true
-      },
-      "answeredBy": "gemini-3.5-flash-lite"
+      }
+    },
+    {
+      "id": "none-04",
+      "lang": "en",
+      "type": "unanswerable",
+      "question": "What does it mean when the Orbit R7 light is solid green?",
+      "expectedSources": [],
+      "retrieved": [
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 1,
+          "score": 0.361
+        },
+        {
+          "source": "orbit-r5-quick-guide.txt",
+          "chunk": 1,
+          "score": 0.3481
+        },
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 2,
+          "score": 0.2794
+        },
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 3,
+          "score": 0.2395
+        }
+      ],
+      "chance": null,
+      "chanceTop1": null,
+      "latencyMs": 1262,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
+      "answer": "I couldn't find that in your uploaded documents.",
+      "sources": [],
+      "score": {
+        "id": "none-04",
+        "answerable": false,
+        "topScore": 0.361,
+        "refused": true,
+        "softRefused": true,
+        "refusedCorrectly": true
+      }
+    },
+    {
+      "id": "none-05",
+      "lang": "en",
+      "type": "unanswerable",
+      "question": "How many LAN ports does the Orbit R9 have?",
+      "expectedSources": [],
+      "retrieved": [
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 1,
+          "score": 0.516
+        },
+        {
+          "source": "orbit-r5-quick-guide.txt",
+          "chunk": 1,
+          "score": 0.3957
+        },
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 3,
+          "score": 0.3806
+        },
+        {
+          "source": "orbit-r5-quick-guide.txt",
+          "chunk": 2,
+          "score": 0.3524
+        }
+      ],
+      "chance": null,
+      "chanceTop1": null,
+      "latencyMs": 986,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
+      "answer": "I couldn't find that in your uploaded documents.",
+      "sources": [],
+      "score": {
+        "id": "none-05",
+        "answerable": false,
+        "topScore": 0.516,
+        "refused": true,
+        "softRefused": true,
+        "refusedCorrectly": true
+      }
+    },
+    {
+      "id": "none-06",
+      "lang": "en",
+      "type": "unanswerable",
+      "question": "How many days of study leave can a Northwind employee take per year?",
+      "expectedSources": [],
+      "retrieved": [
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 1,
+          "score": 0.6452
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 3,
+          "score": 0.4769
+        },
+        {
+          "source": "northwind-fleet-safety.txt",
+          "chunk": 1,
+          "score": 0.4432
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 2,
+          "score": 0.377
+        }
+      ],
+      "chance": null,
+      "chanceTop1": null,
+      "latencyMs": 1228,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
+      "answer": "I couldn't find that in your uploaded documents.",
+      "sources": [],
+      "score": {
+        "id": "none-06",
+        "answerable": false,
+        "topScore": 0.6452,
+        "refused": true,
+        "softRefused": true,
+        "refusedCorrectly": true
+      }
+    },
+    {
+      "id": "none-07",
+      "lang": "ar",
+      "type": "unanswerable",
+      "question": "كم سنة مدة ضمان البطارية الاختيارية من شمس الخليج؟",
+      "expectedSources": [],
+      "retrieved": [
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.5467
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 2,
+          "score": 0.2664
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 1,
+          "score": 0.1868
+        },
+        {
+          "source": "lakeside-library-branches.csv",
+          "chunk": 1,
+          "score": 0.1744
+        }
+      ],
+      "chance": null,
+      "chanceTop1": null,
+      "latencyMs": 7988,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
+      "answer": "I couldn't find that in your uploaded documents.",
+      "sources": [],
+      "score": {
+        "id": "none-07",
+        "answerable": false,
+        "topScore": 0.5467,
+        "refused": true,
+        "softRefused": true,
+        "refusedCorrectly": true
+      }
+    },
+    {
+      "id": "none-08",
+      "lang": "ar",
+      "type": "unanswerable",
+      "question": "كم رسوم الكشف عند طبيب الأسنان في عيادة النور؟",
+      "expectedSources": [],
+      "retrieved": [
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.6237
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 2,
+          "score": 0.3575
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 1,
+          "score": 0.2591
+        },
+        {
+          "source": "clinic-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.2253
+        }
+      ],
+      "chance": null,
+      "chanceTop1": null,
+      "latencyMs": 3775,
+      "logs": [],
+      "failedModels": [],
+      "mainFailed": false,
+      "fallbackUsed": false,
+      "answeredBy": "gemini-3.5-flash-lite",
+      "answer": "I couldn't find that in your uploaded documents.",
+      "sources": [],
+      "score": {
+        "id": "none-08",
+        "answerable": false,
+        "topScore": 0.6237,
+        "refused": true,
+        "softRefused": true,
+        "refusedCorrectly": true
+      }
     }
   ]
 }
