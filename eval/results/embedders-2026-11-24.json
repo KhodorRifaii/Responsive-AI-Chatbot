@@ -1,0 +1,1146 @@
+{
+  "date": "2026-11-24",
+  "note": "Retrieval-only eval (eval/run.js --retrieval-only) per model, each in its own process, q8, 1 thread, top-4. Timings and memory are from this machine (not Render).",
+  "machine": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M5",
+    "cores": 10,
+    "node": "v24.15.0",
+    "transformers": "4.3.2"
+  },
+  "models": [
+    {
+      "label": "minilm-baseline",
+      "model": "Xenova/all-MiniLM-L6-v2",
+      "dtype": "q8",
+      "status": "ok",
+      "downloadMb": 23,
+      "embeddingProfile": {
+        "pooling": "mean",
+        "normalize": true,
+        "queryPrefix": "",
+        "documentPrefix": "",
+        "dimensions": null
+      },
+      "retrieval": {
+        "all": {
+          "n": 25,
+          "hitAll": {
+            "k": 23,
+            "n": 25,
+            "share": 0.92,
+            "low": 0.7503348787704218,
+            "high": 0.977780066308908
+          },
+          "hitAny": {
+            "k": 24,
+            "n": 25,
+            "share": 0.96,
+            "low": 0.8045552759497747,
+            "high": 0.9929039496133008
+          },
+          "top1": {
+            "k": 13,
+            "n": 25,
+            "share": 0.52,
+            "low": 0.334982179531473,
+            "high": 0.6996899607103998
+          },
+          "random": {
+            "topK": 0.42563398692810467,
+            "top1": 0.1577777777777778
+          }
+        },
+        "en": {
+          "n": 15,
+          "hitAll": {
+            "k": 13,
+            "n": 15,
+            "share": 0.8666666666666667,
+            "low": 0.6211750079348376,
+            "high": 0.9626395301086407
+          },
+          "hitAny": {
+            "k": 14,
+            "n": 15,
+            "share": 0.9333333333333333,
+            "low": 0.7018292244757601,
+            "high": 0.9881334113938051
+          },
+          "top1": {
+            "k": 13,
+            "n": 15,
+            "share": 0.8666666666666667,
+            "low": 0.6211750079348376,
+            "high": 0.9626395301086407
+          },
+          "random": {
+            "topK": 0.4471677559912855,
+            "top1": 0.17777777777777776
+          }
+        },
+        "ar": {
+          "n": 10,
+          "hitAll": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "top1": {
+            "k": 0,
+            "n": 10,
+            "share": 0,
+            "low": 0,
+            "high": 0.2775401687666166
+          },
+          "random": {
+            "topK": 0.3933333333333333,
+            "top1": 0.12777777777777782
+          }
+        },
+        "single": {
+          "n": 19,
+          "hitAll": {
+            "k": 19,
+            "n": 19,
+            "share": 1,
+            "low": 0.8318156346315496,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 19,
+            "n": 19,
+            "share": 1,
+            "low": 0.8318156346315496,
+            "high": 1
+          },
+          "top1": {
+            "k": 10,
+            "n": 19,
+            "share": 0.5263157894736842,
+            "low": 0.31707482511825114,
+            "high": 0.7267049451255145
+          },
+          "random": {
+            "topK": 0.46783625730994166,
+            "top1": 0.1345029239766082
+          }
+        },
+        "cross-lingual": {
+          "n": 2,
+          "hitAll": {
+            "k": 1,
+            "n": 2,
+            "share": 0.5,
+            "low": 0.09452865480086614,
+            "high": 0.9054713451991339
+          },
+          "hitAny": {
+            "k": 1,
+            "n": 2,
+            "share": 0.5,
+            "low": 0.09452865480086614,
+            "high": 0.9054713451991339
+          },
+          "top1": {
+            "k": 0,
+            "n": 2,
+            "share": 0,
+            "low": 0,
+            "high": 0.6576280471103807
+          },
+          "random": {
+            "topK": 0.4795751633986928,
+            "top1": 0.1388888888888889
+          }
+        },
+        "multi": {
+          "n": 4,
+          "hitAll": {
+            "k": 3,
+            "n": 4,
+            "share": 0.75,
+            "low": 0.3006360524426366,
+            "high": 0.9544139373553637
+          },
+          "hitAny": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "top1": {
+            "k": 3,
+            "n": 4,
+            "share": 0.75,
+            "low": 0.3006360524426366,
+            "high": 0.9544139373553637
+          },
+          "random": {
+            "topK": 0.19820261437908498,
+            "top1": 0.2777777777777778
+          }
+        }
+      },
+      "top1Spread": {
+        "en": {
+          "questions": 20,
+          "distinctChunks": 9,
+          "mostFrequent": "northwind-hr-policy.txt#1",
+          "times": 5
+        },
+        "ar": {
+          "questions": 13,
+          "distinctChunks": 1,
+          "mostFrequent": "shifa-center-guide-ar.txt#2",
+          "times": 13
+        }
+      },
+      "sourceFilter": {
+        "questions": 33,
+        "averageChunksShown": 2,
+        "allFourShown": 4
+      },
+      "topScore": {
+        "answerable": 0.533768,
+        "unanswerable": 0.47829999999999995
+      },
+      "performance": {
+        "modelLoadMs": 49,
+        "docsEmbedMs": 366,
+        "chunks": 18,
+        "searchMsMean": 2,
+        "searchMsMedian": 2,
+        "peakRssMb": 394,
+        "maxHeapMb": 84,
+        "vectorSize": 384
+      },
+      "nearLimit": false
+    },
+    {
+      "label": "e5-small",
+      "model": "Xenova/multilingual-e5-small",
+      "dtype": "q8",
+      "status": "ok",
+      "downloadMb": 129,
+      "embeddingProfile": {
+        "pooling": "mean",
+        "normalize": true,
+        "queryPrefix": "query: ",
+        "documentPrefix": "passage: ",
+        "dimensions": null
+      },
+      "retrieval": {
+        "all": {
+          "n": 25,
+          "hitAll": {
+            "k": 25,
+            "n": 25,
+            "share": 1,
+            "low": 0.8668035060468213,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 25,
+            "n": 25,
+            "share": 1,
+            "low": 0.8668035060468213,
+            "high": 1
+          },
+          "top1": {
+            "k": 23,
+            "n": 25,
+            "share": 0.92,
+            "low": 0.7503348787704218,
+            "high": 0.977780066308908
+          },
+          "random": {
+            "topK": 0.42563398692810467,
+            "top1": 0.1577777777777778
+          }
+        },
+        "en": {
+          "n": 15,
+          "hitAll": {
+            "k": 15,
+            "n": 15,
+            "share": 1,
+            "low": 0.7961107336956521,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 15,
+            "n": 15,
+            "share": 1,
+            "low": 0.7961107336956521,
+            "high": 1
+          },
+          "top1": {
+            "k": 13,
+            "n": 15,
+            "share": 0.8666666666666667,
+            "low": 0.6211750079348376,
+            "high": 0.9626395301086407
+          },
+          "random": {
+            "topK": 0.4471677559912855,
+            "top1": 0.17777777777777776
+          }
+        },
+        "ar": {
+          "n": 10,
+          "hitAll": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "top1": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.3933333333333333,
+            "top1": 0.12777777777777782
+          }
+        },
+        "single": {
+          "n": 19,
+          "hitAll": {
+            "k": 19,
+            "n": 19,
+            "share": 1,
+            "low": 0.8318156346315496,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 19,
+            "n": 19,
+            "share": 1,
+            "low": 0.8318156346315496,
+            "high": 1
+          },
+          "top1": {
+            "k": 17,
+            "n": 19,
+            "share": 0.8947368421052632,
+            "low": 0.686054495051583,
+            "high": 0.9706420586049034
+          },
+          "random": {
+            "topK": 0.46783625730994166,
+            "top1": 0.1345029239766082
+          }
+        },
+        "cross-lingual": {
+          "n": 2,
+          "hitAll": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "top1": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.4795751633986928,
+            "top1": 0.1388888888888889
+          }
+        },
+        "multi": {
+          "n": 4,
+          "hitAll": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "top1": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.19820261437908498,
+            "top1": 0.2777777777777778
+          }
+        }
+      },
+      "top1Spread": {
+        "en": {
+          "questions": 20,
+          "distinctChunks": 10,
+          "mostFrequent": "northwind-hr-policy.txt#3",
+          "times": 5
+        },
+        "ar": {
+          "questions": 13,
+          "distinctChunks": 4,
+          "mostFrequent": "clinic-guide-ar.txt#1",
+          "times": 8
+        }
+      },
+      "sourceFilter": {
+        "questions": 33,
+        "averageChunksShown": 4,
+        "allFourShown": 33
+      },
+      "topScore": {
+        "answerable": 0.8652799999999999,
+        "unanswerable": 0.8483
+      },
+      "performance": {
+        "modelLoadMs": 249,
+        "docsEmbedMs": 498,
+        "chunks": 18,
+        "searchMsMean": 3,
+        "searchMsMedian": 3,
+        "peakRssMb": 785,
+        "maxHeapMb": 239,
+        "vectorSize": 384
+      },
+      "nearLimit": true
+    },
+    {
+      "label": "e5-base",
+      "model": "Xenova/multilingual-e5-base",
+      "dtype": "q8",
+      "status": "ok",
+      "downloadMb": 282,
+      "embeddingProfile": {
+        "pooling": "mean",
+        "normalize": true,
+        "queryPrefix": "query: ",
+        "documentPrefix": "passage: ",
+        "dimensions": null
+      },
+      "retrieval": {
+        "all": {
+          "n": 25,
+          "hitAll": {
+            "k": 25,
+            "n": 25,
+            "share": 1,
+            "low": 0.8668035060468213,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 25,
+            "n": 25,
+            "share": 1,
+            "low": 0.8668035060468213,
+            "high": 1
+          },
+          "top1": {
+            "k": 24,
+            "n": 25,
+            "share": 0.96,
+            "low": 0.8045552759497747,
+            "high": 0.9929039496133008
+          },
+          "random": {
+            "topK": 0.42563398692810467,
+            "top1": 0.1577777777777778
+          }
+        },
+        "en": {
+          "n": 15,
+          "hitAll": {
+            "k": 15,
+            "n": 15,
+            "share": 1,
+            "low": 0.7961107336956521,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 15,
+            "n": 15,
+            "share": 1,
+            "low": 0.7961107336956521,
+            "high": 1
+          },
+          "top1": {
+            "k": 14,
+            "n": 15,
+            "share": 0.9333333333333333,
+            "low": 0.7018292244757601,
+            "high": 0.9881334113938051
+          },
+          "random": {
+            "topK": 0.4471677559912855,
+            "top1": 0.17777777777777776
+          }
+        },
+        "ar": {
+          "n": 10,
+          "hitAll": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "top1": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.3933333333333333,
+            "top1": 0.12777777777777782
+          }
+        },
+        "single": {
+          "n": 19,
+          "hitAll": {
+            "k": 19,
+            "n": 19,
+            "share": 1,
+            "low": 0.8318156346315496,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 19,
+            "n": 19,
+            "share": 1,
+            "low": 0.8318156346315496,
+            "high": 1
+          },
+          "top1": {
+            "k": 18,
+            "n": 19,
+            "share": 0.9473684210526315,
+            "low": 0.7536078466345479,
+            "high": 0.99064824750947
+          },
+          "random": {
+            "topK": 0.46783625730994166,
+            "top1": 0.1345029239766082
+          }
+        },
+        "cross-lingual": {
+          "n": 2,
+          "hitAll": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "top1": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.4795751633986928,
+            "top1": 0.1388888888888889
+          }
+        },
+        "multi": {
+          "n": 4,
+          "hitAll": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "top1": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.19820261437908498,
+            "top1": 0.2777777777777778
+          }
+        }
+      },
+      "top1Spread": {
+        "en": {
+          "questions": 20,
+          "distinctChunks": 9,
+          "mostFrequent": "northwind-hr-policy.txt#3",
+          "times": 5
+        },
+        "ar": {
+          "questions": 13,
+          "distinctChunks": 4,
+          "mostFrequent": "clinic-guide-ar.txt#1",
+          "times": 8
+        }
+      },
+      "sourceFilter": {
+        "questions": 33,
+        "averageChunksShown": 4,
+        "allFourShown": 33
+      },
+      "topScore": {
+        "answerable": 0.8401359999999998,
+        "unanswerable": 0.8239
+      },
+      "performance": {
+        "modelLoadMs": 318,
+        "docsEmbedMs": 1088,
+        "chunks": 18,
+        "searchMsMean": 7,
+        "searchMsMedian": 7,
+        "peakRssMb": 1169,
+        "maxHeapMb": 240,
+        "vectorSize": 768
+      },
+      "nearLimit": true
+    },
+    {
+      "label": "embeddinggemma-300m",
+      "model": "onnx-community/embeddinggemma-300m-ONNX",
+      "dtype": "q8",
+      "status": "ok",
+      "downloadMb": 316,
+      "embeddingProfile": {
+        "pooling": "model",
+        "normalize": true,
+        "queryPrefix": "task: search result | query: ",
+        "documentPrefix": "title: none | text: ",
+        "dimensions": null
+      },
+      "retrieval": {
+        "all": {
+          "n": 25,
+          "hitAll": {
+            "k": 25,
+            "n": 25,
+            "share": 1,
+            "low": 0.8668035060468213,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 25,
+            "n": 25,
+            "share": 1,
+            "low": 0.8668035060468213,
+            "high": 1
+          },
+          "top1": {
+            "k": 23,
+            "n": 25,
+            "share": 0.92,
+            "low": 0.7503348787704218,
+            "high": 0.977780066308908
+          },
+          "random": {
+            "topK": 0.42563398692810467,
+            "top1": 0.1577777777777778
+          }
+        },
+        "en": {
+          "n": 15,
+          "hitAll": {
+            "k": 15,
+            "n": 15,
+            "share": 1,
+            "low": 0.7961107336956521,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 15,
+            "n": 15,
+            "share": 1,
+            "low": 0.7961107336956521,
+            "high": 1
+          },
+          "top1": {
+            "k": 13,
+            "n": 15,
+            "share": 0.8666666666666667,
+            "low": 0.6211750079348376,
+            "high": 0.9626395301086407
+          },
+          "random": {
+            "topK": 0.4471677559912855,
+            "top1": 0.17777777777777776
+          }
+        },
+        "ar": {
+          "n": 10,
+          "hitAll": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "top1": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.3933333333333333,
+            "top1": 0.12777777777777782
+          }
+        },
+        "single": {
+          "n": 19,
+          "hitAll": {
+            "k": 19,
+            "n": 19,
+            "share": 1,
+            "low": 0.8318156346315496,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 19,
+            "n": 19,
+            "share": 1,
+            "low": 0.8318156346315496,
+            "high": 1
+          },
+          "top1": {
+            "k": 17,
+            "n": 19,
+            "share": 0.8947368421052632,
+            "low": 0.686054495051583,
+            "high": 0.9706420586049034
+          },
+          "random": {
+            "topK": 0.46783625730994166,
+            "top1": 0.1345029239766082
+          }
+        },
+        "cross-lingual": {
+          "n": 2,
+          "hitAll": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "top1": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.4795751633986928,
+            "top1": 0.1388888888888889
+          }
+        },
+        "multi": {
+          "n": 4,
+          "hitAll": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "top1": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.19820261437908498,
+            "top1": 0.2777777777777778
+          }
+        }
+      },
+      "top1Spread": {
+        "en": {
+          "questions": 20,
+          "distinctChunks": 9,
+          "mostFrequent": "northwind-hr-policy.txt#3",
+          "times": 5
+        },
+        "ar": {
+          "questions": 13,
+          "distinctChunks": 4,
+          "mostFrequent": "clinic-guide-ar.txt#1",
+          "times": 8
+        }
+      },
+      "sourceFilter": {
+        "questions": 33,
+        "averageChunksShown": 2.42,
+        "allFourShown": 8
+      },
+      "topScore": {
+        "answerable": 0.5961480000000001,
+        "unanswerable": 0.5095875000000001
+      },
+      "performance": {
+        "modelLoadMs": 469,
+        "docsEmbedMs": 1536,
+        "chunks": 18,
+        "searchMsMean": 68,
+        "searchMsMedian": 73,
+        "peakRssMb": 1737,
+        "maxHeapMb": 219,
+        "vectorSize": 768
+      },
+      "nearLimit": true
+    },
+    {
+      "label": "qwen3-embedding-0.6b",
+      "model": "onnx-community/Qwen3-Embedding-0.6B-ONNX",
+      "dtype": "q8",
+      "status": "ok",
+      "downloadMb": 596,
+      "embeddingProfile": {
+        "pooling": "last_token",
+        "normalize": true,
+        "queryPrefix": "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:",
+        "documentPrefix": "",
+        "dimensions": null
+      },
+      "retrieval": {
+        "all": {
+          "n": 25,
+          "hitAll": {
+            "k": 25,
+            "n": 25,
+            "share": 1,
+            "low": 0.8668035060468213,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 25,
+            "n": 25,
+            "share": 1,
+            "low": 0.8668035060468213,
+            "high": 1
+          },
+          "top1": {
+            "k": 24,
+            "n": 25,
+            "share": 0.96,
+            "low": 0.8045552759497747,
+            "high": 0.9929039496133008
+          },
+          "random": {
+            "topK": 0.42563398692810467,
+            "top1": 0.1577777777777778
+          }
+        },
+        "en": {
+          "n": 15,
+          "hitAll": {
+            "k": 15,
+            "n": 15,
+            "share": 1,
+            "low": 0.7961107336956521,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 15,
+            "n": 15,
+            "share": 1,
+            "low": 0.7961107336956521,
+            "high": 1
+          },
+          "top1": {
+            "k": 14,
+            "n": 15,
+            "share": 0.9333333333333333,
+            "low": 0.7018292244757601,
+            "high": 0.9881334113938051
+          },
+          "random": {
+            "topK": 0.4471677559912855,
+            "top1": 0.17777777777777776
+          }
+        },
+        "ar": {
+          "n": 10,
+          "hitAll": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "top1": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.3933333333333333,
+            "top1": 0.12777777777777782
+          }
+        },
+        "single": {
+          "n": 19,
+          "hitAll": {
+            "k": 19,
+            "n": 19,
+            "share": 1,
+            "low": 0.8318156346315496,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 19,
+            "n": 19,
+            "share": 1,
+            "low": 0.8318156346315496,
+            "high": 1
+          },
+          "top1": {
+            "k": 18,
+            "n": 19,
+            "share": 0.9473684210526315,
+            "low": 0.7536078466345479,
+            "high": 0.99064824750947
+          },
+          "random": {
+            "topK": 0.46783625730994166,
+            "top1": 0.1345029239766082
+          }
+        },
+        "cross-lingual": {
+          "n": 2,
+          "hitAll": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "top1": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.4795751633986928,
+            "top1": 0.1388888888888889
+          }
+        },
+        "multi": {
+          "n": 4,
+          "hitAll": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "top1": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.19820261437908498,
+            "top1": 0.2777777777777778
+          }
+        }
+      },
+      "top1Spread": {
+        "en": {
+          "questions": 20,
+          "distinctChunks": 9,
+          "mostFrequent": "northwind-hr-policy.txt#3",
+          "times": 6
+        },
+        "ar": {
+          "questions": 13,
+          "distinctChunks": 5,
+          "mostFrequent": "clinic-guide-ar.txt#1",
+          "times": 5
+        }
+      },
+      "sourceFilter": {
+        "questions": 33,
+        "averageChunksShown": 3.61,
+        "allFourShown": 26
+      },
+      "topScore": {
+        "answerable": 0.5736840000000001,
+        "unanswerable": 0.51785
+      },
+      "performance": {
+        "modelLoadMs": 502,
+        "docsEmbedMs": 9332,
+        "chunks": 18,
+        "searchMsMean": 83,
+        "searchMsMedian": 82,
+        "peakRssMb": 1977,
+        "maxHeapMb": 95,
+        "vectorSize": 1024
+      },
+      "nearLimit": true
+    }
+  ],
+  "serverCheck": {
+    "method": "Real server (npm start, one thread, q8, no .env) booted with each model; the 8 eval documents (18 chunks) uploaded in 3 separate sessions through POST /api/documents; RSS read with ps after boot and after the uploads. One sample each, this Mac (Render is a different CPU). Done with a throwaway script (not in the repo).",
+    "minilm-baseline": {
+      "idleMb": 206,
+      "afterUploadsMb": 431
+    },
+    "e5-small": {
+      "idleMb": 206,
+      "afterUploadsMb": 861
+    },
+    "flagLineMb": 450,
+    "renderFreePlanMb": 512
+  },
+  "answerEval": {
+    "note": "ONE real answer run with the only candidate that is close to usable (multilingual-e5-small): gemini-3.5-flash-lite, no fallback, thinking minimal, 33 questions, one sample. Full results: eval/results/latest-e5-small.json (not committed).",
+    "baselineMiniLM": {
+      "answerableCorrect": "22/25",
+      "refusalExactSentence": "8/8",
+      "file": "eval/baseline.json (2026-11-24)"
+    },
+    "e5-small": {
+      "answerableCorrect": "24/25",
+      "refusalExactSentence": "6/8",
+      "refusalCorrectInMeaning": "8/8 (read by hand: none-07 and none-08 refuse in Arabic wording, the scorer wants the exact English sentence)",
+      "medianLatencyMs": 1180
+    },
+    "changedVsBaseline": {
+      "fixed": [
+        "en-05",
+        "x-01",
+        "multi-02"
+      ],
+      "newFailure": [
+        "en-02: expected file retrieved, but not the chunk with the probation period (hit counts files, not chunks)"
+      ],
+      "refusalWording": [
+        "none-07",
+        "none-08"
+      ]
+    },
+    "caution": "25 answerable questions, one sample: 22/25 [70-96] and 24/25 [80-99] overlap; this is not a significant difference."
+  }
+}
