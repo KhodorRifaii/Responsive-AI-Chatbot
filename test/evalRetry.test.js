@@ -7,8 +7,13 @@ const settings = { mainModel: 'm', fallbackModel: null, thinking: { main: { thin
 const prev = (ids, extra = {}) => ({ meta: { ...settings, datasetFingerprint: 'abc', ...extra }, results: ids.map((id) => ({ id })) });
 const now = (extra = {}) => ({ settings: { ...settings, ...extra }, fingerprint: 'abc', questionIds: ['a', 'b', 'c'] });
 
-test('a complete previous run of the same settings and data may be retried', () => {
-  assert.deepEqual(retryProblems(prev(['a', 'b', 'c']), now()), []);
+test('a previous run with an errored question may be retried', () => {
+  const errored = { meta: { ...settings, datasetFingerprint: 'abc' }, results: [{ id: 'a' }, { id: 'b', error: { code: 'LLM_BUSY' } }, { id: 'c' }] };
+  assert.deepEqual(retryProblems(errored, now()), []);
+});
+
+test('a complete run with no error is refused: nothing to retry, and a finished baseline is never rewritten', () => {
+  assert.match(retryProblems(prev(['a', 'b', 'c']), now()).join(), /nothing to retry/);
 });
 
 test('a run that stopped half way can be resumed: missing ids are simply asked', () => {

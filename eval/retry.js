@@ -15,6 +15,9 @@ export function retryProblems(previous, current) {
   const known = new Set(current.questionIds);
   const unknown = priorIds.filter((id) => !known.has(id));
   if (unknown.length) problems.push(`ids not in the question file: ${unknown.join(', ')}`);
+  // A finished run (every question answered, none errored) has nothing to retry; accepting it would rewrite a finished record such as eval/baseline.json.
+  const answered = new Set((previous.results ?? []).filter((r) => !r.error).map((r) => r.id));
+  if (current.questionIds.every((id) => answered.has(id))) problems.push('nothing to retry: every question already has an answer');
   const twice = priorIds.filter((id, i) => priorIds.indexOf(id) !== i);
   if (twice.length) problems.push(`ids listed twice: ${[...new Set(twice)].join(', ')}`);
   return problems;
