@@ -113,6 +113,7 @@ export function scoreQuestion(question, run, notFoundAnswer) {
     record.retrievalAny = question.sources.some((s) => files.includes(s));
     record.retrievalTop1 = question.sources.includes(run.retrieved?.[0]?.source);
     record.chance = run.chance ?? null;
+    record.chanceTop1 = run.chanceTop1 ?? null;
   }
   if (run.error) return { ...record, errored: true };
   const cited = unique((run.sources ?? []).map((s) => s.source));
@@ -147,6 +148,7 @@ export function summarizeGroup(records) {
     retrievalAny: share(answerable, (r) => r.retrievalAny),
     retrievalTop1: share(answerable, (r) => r.retrievalTop1),
     chance: mean(answerable.map((r) => r.chance).filter((c) => c !== null)),
+    chanceTop1: mean(answerable.map((r) => r.chanceTop1).filter((c) => c !== null)),
     citedAll: share(answered, (r) => r.citedAll),
     correct: share(answered, (r) => r.correct),
     factRecall: mean(answered.map((r) => r.factRecall)),
