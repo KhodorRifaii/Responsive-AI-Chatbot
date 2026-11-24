@@ -31,3 +31,10 @@ test('a SOURCES list may end the last sentence, but ordinary text about sources 
   assert.deepEqual(splitCitations('The sources are described in the appendix.'), { answer: 'The sources are described in the appendix.', cited: null });
   assert.deepEqual(splitCitations('Sources of income: salary.').cited, null);
 });
+
+test('citation lists with brackets, "and" or ranges are read too', () => {
+  assert.deepEqual(splitCitations('The warranty is 18 months.\nSOURCES: [1], [3]'), { answer: 'The warranty is 18 months.', cited: [1, 3] });
+  assert.deepEqual(splitCitations('18 months.\nSOURCES: 1 and 3').cited, [1, 3]);
+  assert.deepEqual(splitCitations('18 months. SOURCES: 1-3').cited, [1, 3]);
+  assert.equal(splitCitations('Our sources: 2 and more suppliers.').cited, null);
+});

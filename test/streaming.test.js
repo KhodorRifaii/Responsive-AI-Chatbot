@@ -33,6 +33,9 @@ test('the SOURCES line is never shown while streaming, wherever the pieces split
   assert.equal(shown(['18 months.\n**Sources:** 2']), '18 months.\n');
   assert.equal(shown(['18 months.\n*', '*Sour', 'ces:** 2']), '18 months.\n');
   assert.equal(shown(['18 months. SOURCES: 1']), '18 months. ');
+  assert.equal(shown(['18 months.\nSOURCES: [1], ', '[3]']), '18 months.\n');
+  assert.equal(shown(['18 months.\nSOURCES: 1 a', 'nd 3']), '18 months.\n');
+  assert.equal(shown(['18 months.\nSOURCES: 1-3']), '18 months.\n');
 });
 
 test('ordinary text with the word "sources" is shown while streaming', () => {

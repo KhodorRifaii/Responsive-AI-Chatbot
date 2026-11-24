@@ -65,9 +65,10 @@ export function createLlm(model = config.geminiModel) {
 const MIN_SOURCE_SCORE = 0.2;
 const RELATIVE_SOURCE_SCORE = 0.7;
 // The last line "SOURCES: 1, 3" / "SOURCES: none" (any case, optional ** and colon). It may also
-// end the last sentence ("… 18 months. SOURCES: 1"), but then it needs the colon. Only numbers,
-// commas or "none" may follow, so a last sentence like "The sources are in the appendix." stays.
-const CITED = '(none|[\\d,; \\t]*)\\.?[ \\t]*\\**';
+// end the last sentence ("… 18 months. SOURCES: 1"), but then it needs the colon. Only "none" or
+// numbers may follow, with commas, "and", ranges or brackets ("[1], [3]", "1 and 3", "1-3"), so a
+// last sentence like "The sources are in the appendix." stays.
+const CITED = '(none|(?:[\\d,;&()\\[\\]\\- \\t]|and\\b)*)\\.?[ \\t]*\\**';
 const SOURCES_LINE = new RegExp(`(?:(?:^|\\n)[ \\t]*\\**SOURCES\\**[ \\t]*:?\\**[ \\t]*${CITED}|[ \\t]+\\**SOURCES\\**[ \\t]*:\\**[ \\t]*${CITED})\\s*$`, 'i');
 
 /** Split the model output into the answer and the context numbers it cited (null = no SOURCES line). */
@@ -267,7 +268,7 @@ async function invokeWithFallback(attempts, input) {
 // Text from a candidate position that could still become the final SOURCES line (see
 // SOURCES_LINE), also while it is incomplete: at a line start the colon is optional, after a
 // sentence it is required. Anything after a newline must be blank (the line must be the last).
-const MAYBE_CITED = '(?:n(?:o(?:n(?:e)?)?)?|[\\d,; \\t]*)\\.?[ \\t]*\\**[ \\t]*';
+const MAYBE_CITED = '(?:n(?:o(?:n(?:e)?)?)?|(?:[\\d,;&()\\[\\]\\- \\t]|a(?:n(?:d)?)?)*)\\.?[ \\t]*\\**[ \\t]*';
 const MAYBE_SOURCES_AT_LINE_START = new RegExp(`^\\**sources\\**[ \\t]*:?\\**[ \\t]*${MAYBE_CITED}(?:\\n\\s*)?$`, 'i');
 const MAYBE_SOURCES_IN_LINE = new RegExp(`^\\**sources\\**[ \\t]*(?::\\**[ \\t]*${MAYBE_CITED})?(?:\\n\\s*)?$`, 'i');
 
