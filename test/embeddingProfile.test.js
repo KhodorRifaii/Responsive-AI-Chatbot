@@ -88,3 +88,8 @@ test('truncateAndNormalize keeps the first N values and gives the vector length 
   assert.throws(() => truncateAndNormalize([1, 2], 3), /3 .*only 2/);
   assert.deepEqual(truncateAndNormalize([0, 0, 5], 2), [0, 0], 'a zero vector stays zero, never NaN');
 });
+
+test('an empty EMBEDDING_POOLING or EMBEDDING_DIMENSIONS (a bare line in .env) means "not set": no warning, table values kept', () => {
+  const gemma = resolveEmbeddingProfile('onnx-community/embeddinggemma-300m-ONNX', { EMBEDDING_POOLING: '', EMBEDDING_DIMENSIONS: '  ' });
+  assert.deepEqual([gemma.pooling, gemma.dimensions, gemma.warnings], ['model', null, []]);
+});

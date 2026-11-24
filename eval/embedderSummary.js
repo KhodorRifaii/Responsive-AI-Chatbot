@@ -31,7 +31,7 @@ export function summarizeRun(raw, sourceRule = { minScore: 0.2, relativeScore: 0
   // Does one chunk come first for most questions of a language (the collapse the baseline shows in Arabic)?
   const top1Spread = {};
   for (const lang of ['en', 'ar']) {
-    const firsts = results.filter((r) => r.lang === lang).map((r) => `${r.retrieved[0].source}#${r.retrieved[0].chunk}`);
+    const firsts = results.filter((r) => r.lang === lang).map((r) => (r.retrieved[0] ? `${r.retrieved[0].source}#${r.retrieved[0].chunk}` : '(nothing retrieved)'));
     const counts = new Map();
     for (const first of firsts) counts.set(first, (counts.get(first) ?? 0) + 1);
     const [mostFrequent, times] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0] ?? [null, 0];
@@ -40,7 +40,7 @@ export function summarizeRun(raw, sourceRule = { minScore: 0.2, relativeScore: 0
   // The app shows the chunks scoring at least max(minScore, relativeScore x best) when the model cites nothing.
   // A model whose scores are squeezed into a narrow band (e5: 0.8-0.9) lets every chunk pass, so no source is filtered out.
   const shown = results.map((r) => {
-    const threshold = Math.max(sourceRule.minScore, r.retrieved[0].score * sourceRule.relativeScore);
+    const threshold = Math.max(sourceRule.minScore, (r.retrieved[0]?.score ?? 0) * sourceRule.relativeScore);
     return r.retrieved.filter((x) => x.score >= threshold).length;
   });
   const sourceFilter = {

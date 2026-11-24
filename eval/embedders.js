@@ -72,6 +72,20 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const previous = fs.existsSync(outFile) ? JSON.parse(fs.readFileSync(outFile, 'utf8')) : null;
   const models = new Map((previous?.models ?? []).map((m) => [m.label, m]));
 
+  // Written after every candidate, failures included, so an interrupted run keeps what it measured.
+  const writeSummary = () => {
+    const out = {
+      date,
+      note: 'Retrieval-only eval (eval/run.js --retrieval-only) per model, each in its own process, q8, 1 thread, top-4. Timings and memory are from this machine (not Render).',
+      machine: { platform: os.platform(), arch: os.arch(), cpu: os.cpus()[0]?.model, cores: os.cpus().length, node: process.version, transformers: JSON.parse(fs.readFileSync(path.join(root, 'node_modules', '@huggingface', 'transformers', 'package.json'), 'utf8')).version },
+      // Hand-recorded measurements of the real server and of one answer run; a re-run of this script keeps them.
+      ...(previous?.serverCheck ? { serverCheck: previous.serverCheck } : {}),
+      ...(previous?.answerEval ? { answerEval: previous.answerEval } : {}),
+      models: CANDIDATES.map((c) => models.get(c.label)).filter(Boolean),
+    };
+    fs.writeFileSync(outFile, `${JSON.stringify(out, null, 2)}\n`);
+  };
+
   for (const candidate of only()) {
     console.log(`\n=== ${candidate.label}: ${candidate.model} (${candidate.dtype}) ===`);
     const env = envFor(candidate);
@@ -80,6 +94,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     if (!fetched.ok) {
       console.log(`download/load FAILED:\n${fetched.output.split('\n').slice(-6).join('\n')}`);
       models.set(candidate.label, { ...candidate, status: 'failed', error: fetched.output.split('\n').slice(-3).join(' | ').slice(0, 400) });
+      writeSummary();
       continue;
     }
     const rawFile = path.join(rawDir, `${candidate.label}.json`);
@@ -87,6 +102,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     if (!evaluated.ok) {
       console.log(`eval FAILED:\n${evaluated.output.split('\n').slice(-6).join('\n')}`);
       models.set(candidate.label, { ...candidate, status: 'failed', error: evaluated.output.split('\n').slice(-3).join(' | ').slice(0, 400) });
+      writeSummary();
       continue;
     }
     const summary = summarizeRun(JSON.parse(fs.readFileSync(rawFile, 'utf8')), { minScore: MIN_SOURCE_SCORE, relativeScore: RELATIVE_SOURCE_SCORE });
@@ -94,17 +110,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     models.set(candidate.label, { ...candidate, status: 'ok', downloadMb: Math.round(bytes / 1024 / 1024), ...summary });
     const { all, ar } = summary.retrieval;
     console.log(`all: hit-all ${all.hitAll.k}/${all.n}, top-1 ${all.top1.k}/${all.n} | ar top-1 ${ar.top1.k}/${ar.n}, ${summary.top1Spread.ar.distinctChunks} chunks first (most frequent ${summary.top1Spread.ar.mostFrequent} x${summary.top1Spread.ar.times}) | peak RSS ${summary.performance.peakRssMb} MB${summary.nearLimit ? ' (FLAGGED)' : ''} | download ${Math.round(bytes / 1024 / 1024)} MB`);
+    writeSummary();
   }
 
-  const out = {
-    date,
-    note: 'Retrieval-only eval (eval/run.js --retrieval-only) per model, each in its own process, q8, 1 thread, top-4. Timings and memory are from this machine (not Render).',
-    machine: { platform: os.platform(), arch: os.arch(), cpu: os.cpus()[0]?.model, cores: os.cpus().length, node: process.version, transformers: JSON.parse(fs.readFileSync(path.join(root, 'node_modules', '@huggingface', 'transformers', 'package.json'), 'utf8')).version },
-    // Hand-recorded measurements of the real server and of one answer run; a re-run of this script keeps them.
-    ...(previous?.serverCheck ? { serverCheck: previous.serverCheck } : {}),
-    ...(previous?.answerEval ? { answerEval: previous.answerEval } : {}),
-    models: CANDIDATES.map((c) => models.get(c.label)).filter(Boolean),
-  };
-  fs.writeFileSync(outFile, `${JSON.stringify(out, null, 2)}\n`);
+  writeSummary();
   console.log(`\nSummary written to ${path.relative(root, outFile)}`);
 }

@@ -144,7 +144,7 @@ GEMINI_MODEL=gemini-3.5-flash-lite
 | `EMBEDDING_THREADS` | `1` | CPU threads for embeddings. |
 | `EMBEDDING_QUERY_PREFIX`, `EMBEDDING_DOCUMENT_PREFIX` | from the model's profile | Text put before each question and before each document part. For a model that is not in the list, copy them from its model card (for example `"query: "` and `"passage: "` for E5). Put values with spaces in quotes; `\n` is a newline. Set but empty means no prefix. |
 | `EMBEDDING_POOLING` | from the model's profile | `mean`, `cls` or `last_token`. Any other value is ignored with a warning. |
-| `EMBEDDING_DIMENSIONS` | (full vector) | Keep only the first N values of each vector, then scale it back to length 1. Only for models trained for it (EmbeddingGemma, Qwen3-Embedding). |
+| `EMBEDDING_DIMENSIONS` | (full vector) | Keep only the first N values of each vector, then scale it back to length 1. Only for models trained for it (EmbeddingGemma, Qwen3-Embedding). The app cannot check this for a model that is not in the list: cutting the vector of any other model can lower retrieval quality, so measure with `node eval/run.js --retrieval-only` first. |
 | `PORT` | `3000` | Server port. |
 | `MAX_FILE_SIZE_MB` | `10` | Maximum size of each uploaded file. |
 | `SESSION_TTL_MINUTES` | `30` | Minutes without activity before a visitor's documents are deleted. |

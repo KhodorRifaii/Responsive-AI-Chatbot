@@ -55,3 +55,11 @@ test('fallback source filter: how many of the 4 chunks pass the app\'s score rul
   const out = summarizeRun(run, { minScore: 0.2, relativeScore: 0.7 });
   assert.deepEqual(out.sourceFilter, { questions: 2, averageChunksShown: 2.5, allFourShown: 1 });
 });
+
+test('a question that retrieved nothing is reported, not a crash', () => {
+  const run = raw({ peakRssMb: 300 });
+  run.results = [{ id: 'a', lang: 'en', retrieved: [] }, { id: 'b', lang: 'ar', retrieved: [{ source: 'z.txt', chunk: 0, score: 0.5 }] }];
+  const out = summarizeRun(run);
+  assert.equal(out.top1Spread.en.mostFrequent, '(nothing retrieved)');
+  assert.deepEqual(out.sourceFilter, { questions: 2, averageChunksShown: 0.5, allFourShown: 0 });
+});

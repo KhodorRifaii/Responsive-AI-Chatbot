@@ -362,6 +362,7 @@ const performanceStats = {
   vectorSize,
 };
 console.log(`\nEmbedder speed and memory: model load ${performanceStats.modelLoadMs} ms, ${performanceStats.chunks} chunks embedded in ${performanceStats.docsEmbedMs} ms, search (query embedding included) mean ${performanceStats.searchMsMean} ms / median ${performanceStats.searchMsMedian} ms, peak memory (RSS) ${performanceStats.peakRssMb} MB, highest JS heap sampled ${performanceStats.maxHeapMb} MB, vector size ${performanceStats.vectorSize}`);
+// A retry keeps the first run's metadata (and so its performance): the retry only re-asks a few questions and re-embeds the corpus, so its timings would not describe the run.
 if (!previous) meta.performance = performanceStats;
 meta.summary = summary;
 meta.answeredBy = Object.fromEntries(results.filter((r) => r.answeredBy).reduce((m, r) => m.set(r.answeredBy, (m.get(r.answeredBy) ?? 0) + 1), new Map()));
