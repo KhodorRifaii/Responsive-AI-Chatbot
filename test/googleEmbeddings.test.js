@@ -43,8 +43,9 @@ function clock() {
 function client(model, script, extra = {}) {
   const { fetch, calls } = fakeFetch(script);
   const time = clock();
-  const embeddings = new GoogleEmbeddings({ apiKey: KEY, model, profile: profile(model), fetch, now: time.now, sleep: time.sleep, random: () => 0, ...extra });
-  return { embeddings, calls, time };
+  const warnings = [];
+  const embeddings = new GoogleEmbeddings({ apiKey: KEY, model, profile: profile(model), fetch, now: time.now, sleep: time.sleep, random: () => 0, warn: (line) => warnings.push(line), ...extra });
+  return { embeddings, calls, time, warnings };
 }
 const norm = (v) => Math.hypot(...v);
 
@@ -175,7 +176,7 @@ test('hard budget: every call ends within budgetMs: a slow 503 and long waits st
     return json({ error: { code: 503, status: 'UNAVAILABLE', message: 'busy' } }, 503, { 'retry-after': '5' });
   };
   const { fetch, calls } = fakeFetch([slow503]);
-  const embeddings = new GoogleEmbeddings({ apiKey: KEY, model: V2, profile: profile(V2), fetch, now: time.now, sleep: time.sleep, random: () => 0 });
+  const embeddings = new GoogleEmbeddings({ apiKey: KEY, model: V2, profile: profile(V2), fetch, now: time.now, sleep: time.sleep, random: () => 0, warn: () => {} });
   await assert.rejects(embeddings.embedQuery('q'), EmbeddingUnavailableError);
   assert.equal(calls.length, 2, 'the wait for a third attempt would pass the 20 s budget');
   assert.ok(time.now() <= 20000, `ended at ${time.now()} ms`);
@@ -232,4 +233,47 @@ test('stats count the real HTTP calls, retries and statuses (the numbers the eva
   const { embeddings } = client(V2, [googleError(503, 503, null), echoOne]);
   await embeddings.embedQuery('q');
   assert.deepEqual({ ...embeddings.stats }, { requests: 2, retries: 1, texts: 1, byStatus: { 503: 1, 200: 1 } });
+});
+
+test('an answer that stalls after its headers is cut by the timeout and retried like a network error', async () => {
+  // Headers arrive at once; the body never ends until the request is aborted.
+  const stalledBody = (call) => new Response(new ReadableStream({
+    start(controller) {
+      call.signal.addEventListener('abort', () => controller.error(call.signal.reason));
+    },
+  }), { status: 200, headers: { 'content-type': 'application/json' } });
+  const { embeddings, calls } = client(V2, [stalledBody, echoOne], { timeoutMs: 30, now: () => performance.now(), sleep: async () => {} });
+  assert.equal((await embeddings.embedQuery('q')).length, 768, 'the second attempt works');
+  assert.equal(calls.length, 2);
+  const never = client(V2, [stalledBody], { timeoutMs: 20, now: () => performance.now(), sleep: async () => {} });
+  await assert.rejects(never.embeddings.embedQuery('q'), EmbeddingUnavailableError);
+  assert.equal(never.calls.length, 3);
+});
+
+test('every retry is logged (what happened and how long it waits), never with the key', async () => {
+  const { embeddings, warnings } = client(V2, [googleError(503, 503, null), googleError(429, 429, null), echoOne]);
+  await embeddings.embedQuery('q');
+  assert.equal(warnings.length, 2);
+  assert.match(warnings[0], /retry 1\/2 after 503 \(waiting 500 ms\)/);
+  assert.match(warnings[1], /retry 2\/2 after 429/);
+  assert.doesNotMatch(warnings.join(), /AIza/);
+});
+
+test('the visitor leaves: an aborted signal stops at once (no retry of the aborted call, no further batch)', async () => {
+  const controller = new AbortController();
+  const hang = (call) => new Promise((_, reject) => call.signal.addEventListener('abort', () => reject(call.signal.reason)));
+  const during = client(V2, [hang]);
+  const pending = during.embeddings.embedDocuments(['a', 'b'], { signal: controller.signal });
+  setTimeout(() => controller.abort(), 10);
+  await assert.rejects(pending, (error) => error.code === 'CLIENT_GONE');
+  assert.equal(during.calls.length, 1, 'the aborted call is not retried');
+  // Between batches: the first batch worked, the visitor left, so the second is never sent.
+  const between = new AbortController();
+  const { embeddings, calls } = client(V2, [(call) => { between.abort(); return echoBatch(call); }]);
+  await assert.rejects(embeddings.embedDocuments(Array.from({ length: 40 }, (_, i) => `t${i}`), { signal: between.signal }), (error) => error.code === 'CLIENT_GONE');
+  assert.equal(calls.length, 1);
+  // An already aborted signal makes no call at all.
+  const none = client(V2, [echoBatch]);
+  await assert.rejects(none.embeddings.embedDocuments(['a'], { signal: AbortSignal.abort() }), (error) => error.code === 'CLIENT_GONE');
+  assert.equal(none.calls.length, 0);
 });

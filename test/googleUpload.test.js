@@ -92,3 +92,30 @@ test('a quota error while searching (the visitor\'s question) is EMBEDDING_RATE_
   useGoogle(t, [() => failure(429, null, 'quota')]);
   await rejectsWith(store.search(session, 'When?'), 'EMBEDDING_RATE_LIMIT');
 });
+
+test('the visitor closes the page during a long upload: no more embedding calls, the space is given back', async (t) => {
+  const { default: app } = await import('../src/app.js');
+  const server = app.listen(0);
+  await new Promise((resolve) => server.once('listening', resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  t.mock.method(console, 'error', () => {});
+  let steps = 0;
+  // A slow embedder that honours the signal like GoogleEmbeddings does: 80 ms per step of 16 chunks.
+  t.mock.method(store.embeddings, 'embedDocuments', async (texts, { signal } = {}) => {
+    steps += 1;
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    if (signal?.aborted) throw Object.assign(new Error('gone'), { code: 'CLIENT_GONE' });
+    return texts.map((_, i) => vector(i));
+  });
+  const before = store.getStats().totalChunks;
+  const client = new AbortController();
+  const body = new FormData();
+  body.append('files', new Blob([longText], { type: 'text/plain' }), 'long.txt');
+  const request = fetch(`http://127.0.0.1:${server.address().port}/api/documents`, { method: 'POST', body, signal: client.signal }).catch(() => null);
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  client.abort();
+  await request;
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  assert.ok(steps < 3, `embedding went on after the visitor left (${steps} steps; the whole document has 3)`);
+  assert.equal(store.getStats().totalChunks, before, 'the reserved space is given back');
+});

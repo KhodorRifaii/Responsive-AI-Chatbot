@@ -6,6 +6,8 @@ const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 const KEY_LIKE = /AIza[0-9A-Za-z_-]{10,}/g;
 const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+/** The visitor left (the request was aborted): stop quietly. Not a failure of the embedding service. */
+const clientGone = () => new HttpError(499, 'CLIENT_GONE', 'The request was cancelled.');
 
 /**
  * Hosted embeddings from Google (Gemini API, plain `fetch`, no SDK). The model never runs in this process, so memory stays low.
@@ -17,10 +19,11 @@ const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  *   and answers that cannot be used are not retried.
  * - The key travels only in the `x-goog-api-key` header; nothing here logs it, and messages from Google are scrubbed before they are kept.
  * - Every vector is scaled to length 1 (required for gemini-embedding-001 with a reduced size, harmless for gemini-embedding-2).
- * `fetch`, `sleep`, `now` and `random` can be replaced (tests).
+ * - A `signal` (the visitor left) stops the work at once: no further batch, no retry. Every retry is logged (without the key).
+ * `fetch`, `sleep`, `now`, `random` and `warn` can be replaced (tests).
  */
 export class GoogleEmbeddings extends Embeddings {
-  constructor({ apiKey, model, profile, fetch = globalThis.fetch, baseUrl = BASE_URL, batchSize = 16, maxAttempts = 3, timeoutMs = 8000, budgetMs = 20000, maxRetryAfterMs = 5000, backoffMs = 500, sleep = defaultSleep, now = () => performance.now(), random = Math.random, ...rest } = {}) {
+  constructor({ apiKey, model, profile, fetch = globalThis.fetch, baseUrl = BASE_URL, batchSize = 16, maxAttempts = 3, timeoutMs = 8000, budgetMs = 20000, maxRetryAfterMs = 5000, backoffMs = 500, sleep = defaultSleep, now = () => performance.now(), random = Math.random, warn = console.warn, ...rest } = {}) {
     super(rest);
     this.apiKey = apiKey?.trim() ?? '';
     this.model = model;
@@ -36,6 +39,7 @@ export class GoogleEmbeddings extends Embeddings {
     this.sleep = sleep;
     this.now = now;
     this.random = random;
+    this.warn = warn;
     /** Real HTTP calls, retries, embedded texts and answers by status: what the eval reports as "API calls". */
     this.stats = { requests: 0, retries: 0, texts: 0, byStatus: {} };
   }
@@ -59,52 +63,61 @@ export class GoogleEmbeddings extends Embeddings {
     };
   }
 
-  /** One POST with the retry rules above. Resolves to the parsed answer. */
-  async post(method, body) {
+  /** One POST with the retry rules above. Resolves to the parsed answer. `signal`: the visitor left, give up at once. */
+  async post(method, body, signal) {
     if (!this.apiKey) {
       throw new HttpError(503, 'MISSING_API_KEY', 'The AI is not set up yet: add GOOGLE_API_KEY to the .env file and restart the server. You can get a free key at aistudio.google.com.');
     }
     const started = this.now();
     let failure = null;
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
+      if (signal?.aborted) throw clientGone();
       const left = this.budgetMs - (this.now() - started);
       if (left <= 0) break;
       this.stats.requests += 1;
       failure = null;
-      let response;
+      const timeout = AbortSignal.timeout(Math.max(1, Math.min(this.timeoutMs, left)));
+      let status = 0;
+      let text = '';
+      let headers = null;
       try {
-        response = await this.fetch(`${this.baseUrl}/models/${this.model}:${method}`, {
+        const response = await this.fetch(`${this.baseUrl}/models/${this.model}:${method}`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'x-goog-api-key': this.apiKey },
           body: JSON.stringify(body),
-          signal: AbortSignal.timeout(Math.max(1, Math.min(this.timeoutMs, left))),
+          signal: signal ? AbortSignal.any([timeout, signal]) : timeout,
         });
+        status = response.status;
+        headers = response.headers;
+        // Reading the body is part of the attempt: an answer that stalls after its headers is cut by the same timeout and retried.
+        text = await response.text();
       } catch (error) {
+        if (signal?.aborted) throw clientGone();
         failure = { status: 0, message: `${error?.name ?? 'Error'}: ${this.scrub(error?.message)}`, retryAfterMs: null };
       }
-      if (response) {
-        this.stats.byStatus[response.status] = (this.stats.byStatus[response.status] ?? 0) + 1;
-        const text = await response.text().catch(() => '');
+      if (!failure) {
+        this.stats.byStatus[status] = (this.stats.byStatus[status] ?? 0) + 1;
         let payload = null;
         try {
           payload = JSON.parse(text);
         } catch {
           // Not JSON: handled below.
         }
-        if (response.ok) {
+        if (status >= 200 && status < 300) {
           if (payload) return payload;
           throw new EmbeddingUnavailableError('Google sent an answer that could not be read.');
         }
         const reason = payload?.error?.details?.map((detail) => detail?.reason).find(Boolean) ?? '';
         const message = this.scrub(payload?.error?.message ?? text);
-        this.throwIfFinal(response.status, reason, message);
-        const retryAfter = Number(response.headers.get('retry-after'));
-        failure = { status: response.status, message, retryAfterMs: Number.isFinite(retryAfter) && retryAfter >= 0 && response.headers.has('retry-after') ? retryAfter * 1000 : null };
+        this.throwIfFinal(status, reason, message);
+        const retryAfter = Number(headers.get('retry-after'));
+        failure = { status, message, retryAfterMs: headers.has('retry-after') && Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter * 1000 : null };
       }
       const wait = Math.min(failure.retryAfterMs ?? this.backoffMs * 2 ** (attempt - 1) * (1 + this.random() * 0.2), this.maxRetryAfterMs);
       // Another attempt only if its wait still fits in the budget.
       if (attempt === this.maxAttempts || this.now() - started + wait >= this.budgetMs) break;
       this.stats.retries += 1;
+      this.warn(`Embedding ${method} retry ${attempt}/${this.maxAttempts - 1} after ${failure.status || 'no answer'} (waiting ${Math.round(wait)} ms).`);
       await this.sleep(wait);
     }
     const detail = failure ? `${failure.status || 'no answer'} ${failure.message}` : 'no time left';
@@ -141,11 +154,12 @@ export class GoogleEmbeddings extends Embeddings {
     return this.clean(answer?.embedding?.values, this.profile.dimensions);
   }
 
-  async embedDocuments(texts) {
+  /** @param {string[]} texts @param {{ signal?: AbortSignal }} [options] signal: the visitor left, so no further call is made */
+  async embedDocuments(texts, { signal } = {}) {
     const vectors = [];
     for (let i = 0; i < texts.length; i += this.batchSize) {
       const batch = texts.slice(i, i + this.batchSize);
-      const answer = await this.post('batchEmbedContents', { requests: batch.map((text) => this.content(text, 'document')) });
+      const answer = await this.post('batchEmbedContents', { requests: batch.map((text) => this.content(text, 'document')) }, signal);
       const returned = answer?.embeddings;
       if (!Array.isArray(returned) || returned.length !== batch.length) {
         throw new EmbeddingUnavailableError(`Google returned ${Array.isArray(returned) ? returned.length : 'no'} vectors for ${batch.length} texts.`);
