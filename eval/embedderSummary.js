@@ -12,9 +12,10 @@ function count(share, n) {
 }
 
 /**
- * @param {{ meta: object, results: Array<{ lang: string, retrieved: Array<{ source: string, chunk: number }> }> }} raw
+ * @param {{ meta: object, results: Array<{ lang: string, retrieved: Array<{ source: string, chunk: number, score: number }> }> }} raw
+ * @param {{ minScore: number, relativeScore: number }} sourceRule the app's rule for the sources it shows when the model cites none (ragChain.js)
  */
-export function summarizeRun(raw) {
+export function summarizeRun(raw, sourceRule = { minScore: 0.2, relativeScore: 0.7 }) {
   const { meta, results } = raw;
   const retrieval = {};
   for (const [name, g] of Object.entries(meta.summary)) {
@@ -36,10 +37,22 @@ export function summarizeRun(raw) {
     const [mostFrequent, times] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0] ?? [null, 0];
     top1Spread[lang] = { questions: firsts.length, distinctChunks: counts.size, mostFrequent, times };
   }
+  // The app shows the chunks scoring at least max(minScore, relativeScore x best) when the model cites nothing.
+  // A model whose scores are squeezed into a narrow band (e5: 0.8-0.9) lets every chunk pass, so no source is filtered out.
+  const shown = results.map((r) => {
+    const threshold = Math.max(sourceRule.minScore, r.retrieved[0].score * sourceRule.relativeScore);
+    return r.retrieved.filter((x) => x.score >= threshold).length;
+  });
+  const sourceFilter = {
+    questions: shown.length,
+    averageChunksShown: Math.round((shown.reduce((a, b) => a + b, 0) / shown.length) * 100) / 100,
+    allFourShown: shown.filter((n) => n === 4).length,
+  };
   return {
     embeddingProfile: meta.embeddingProfile,
     retrieval,
     top1Spread,
+    sourceFilter,
     topScore: { answerable: meta.summary.all.topScoreAnswerable, unanswerable: meta.summary.all.topScoreUnanswerable },
     performance: meta.performance,
     nearLimit: (meta.performance?.peakRssMb ?? 0) >= FLAG_RSS_MB,

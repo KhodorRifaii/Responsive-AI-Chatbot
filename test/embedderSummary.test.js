@@ -44,3 +44,14 @@ test('a model whose peak memory reaches the flag line is flagged', () => {
   assert.equal(summarizeRun(raw({ peakRssMb: 450 })).nearLimit, true);
   assert.equal(summarizeRun(raw({ peakRssMb: 900 })).nearLimit, true);
 });
+
+test('fallback source filter: how many of the 4 chunks pass the app\'s score rule (a compressed score range lets all of them pass)', () => {
+  const run = raw({ peakRssMb: 300 });
+  // Scores 0.9, 0.85, 0.8, 0.75 with a 0.7 relative rule: threshold 0.63, all four pass. Scores 0.9, 0.5, 0.3, 0.1: only the first passes.
+  run.results = [
+    { id: 'a', lang: 'en', retrieved: [0.9, 0.85, 0.8, 0.75].map((score) => ({ source: 'x.txt', chunk: 0, score })) },
+    { id: 'b', lang: 'ar', retrieved: [0.9, 0.5, 0.3, 0.1].map((score) => ({ source: 'y.txt', chunk: 0, score })) },
+  ];
+  const out = summarizeRun(run, { minScore: 0.2, relativeScore: 0.7 });
+  assert.deepEqual(out.sourceFilter, { questions: 2, averageChunksShown: 2.5, allFourShown: 1 });
+});

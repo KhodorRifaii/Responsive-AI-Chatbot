@@ -81,8 +81,8 @@ export function createLlm(model = config.geminiModel) {
 }
 
 // Fallback when the model does not cite: show chunks clearly related to the question.
-const MIN_SOURCE_SCORE = 0.2;
-const RELATIVE_SOURCE_SCORE = 0.7;
+export const MIN_SOURCE_SCORE = 0.2;
+export const RELATIVE_SOURCE_SCORE = 0.7;
 // The last line "SOURCES: 1, 3" / "SOURCES: none" (any case, optional ** and colon). It may also
 // end the last sentence ("… 18 months. SOURCES: 1"), but then it needs the colon. Only "none" or
 // numbers may follow, with commas, "and", ranges or brackets ("[1], [3]", "1 and 3", "1-3"), so a
