@@ -185,7 +185,7 @@ The tests use Node's built-in test runner, so there is nothing extra to install.
 
 ### Results
 
-Run on 2026-11-24 with **one model**: `gemini-3.5-flash-lite` answered all 33 questions (`GEMINI_FALLBACK_MODEL=none`, thinking level `minimal`, no errors, no retries), embeddings `Xenova/all-MiniLM-L6-v2`, top-4 chunks, 5 seconds between calls. The full run is `eval/baseline.json`. The earlier run, which mixed two models, is kept as `eval/baseline-mixed-2026-11-24.json`; it also scored 22/25 correct on the same answerable questions.
+Run on 2026-11-24 with **one model**: `gemini-3.5-flash-lite` answered all 33 questions (`GEMINI_FALLBACK_MODEL=none`, thinking level `minimal`, no errors, no retries), embeddings `Xenova/all-MiniLM-L6-v2`, top-4 chunks, 5 seconds between calls. The full run is `eval/baseline.json`; its `gitCommit` (`71dbd25`) comes before the last documentation, retry-guard and negation-heuristic commits, which do not change how the stored answers score (rescored with the final scorer: the same 22/25). The earlier run, which mixed two models, is kept as `eval/baseline-mixed-2026-11-24.json`; it also scored 22/25 correct on the same answerable questions.
 
 | Measure (95% interval in brackets) | All | English | Arabic |
 | --- | --- | --- | --- |
