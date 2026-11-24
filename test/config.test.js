@@ -76,3 +76,15 @@ test('the defaults in .env.example are the defaults of the code (no drift betwee
   assert.equal(String(out.budget), example.GEMINI_THINKING_BUDGET);
 });
 
+
+test('the startup warning for a model without a thinking setting is printed once per model', async () => {
+  const code = `
+    console.warn = (...args) => console.log(args.join(' '));
+    rag.warnAboutThinking();
+    rag.warnAboutThinking();`;
+  // An old .env: the former default model, which is not in the verified list.
+  const out = await inFreshProcess({ GEMINI_MODEL: 'gemini-3.5-flash', GEMINI_FALLBACK_MODEL: 'gemini-3.1-flash-lite' }, code);
+  assert.equal(out.split('\n').length, 1);
+  assert.match(out, /No thinking setting for gemini-3\.5-flash; it uses its own default/);
+  assert.equal(await inFreshProcess({}, code), '');
+});

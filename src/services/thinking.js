@@ -27,6 +27,8 @@ const ALLOWED_LEVELS = {
 export function thinkingConfigFor(model, { level, budget }) {
   // The API accepts "models/gemini-..." and any letter case; both mean the same model.
   const id = model.replace(/^models\//i, '').toLowerCase();
+  // Legacy and unverified: Gemini 2.5 takes a budget, but gemini-2.5-flash answers 404 for new keys (2026-11), so this path
+  // was not tried against the live API in this project.
   if (/^gemini-2\.5-/.test(id)) return budget === null ? undefined : { thinkingBudget: budget };
   const allowed = ALLOWED_LEVELS[id];
   if (!allowed || level === null) return undefined;
@@ -34,4 +36,16 @@ export function thinkingConfigFor(model, { level, budget }) {
   // Highest accepted level at or below the request, otherwise the lowest accepted one.
   const below = allowed.filter((l) => LEVELS.indexOf(l) <= LEVELS.indexOf(level));
   return { thinkingLevel: below.at(-1) ?? allowed[0] };
+}
+
+/**
+ * A sentence for the log when `model` gets no thinking setting although one was asked for (an old .env that still
+ * names gemini-3.5-flash, an unknown or newer model); null when a setting is sent or "default" was chosen on purpose.
+ */
+export function thinkingWarning(model, { level, budget }) {
+  if (thinkingConfigFor(model, { level, budget }) !== undefined) return null;
+  const id = model.replace(/^models\//i, '').toLowerCase();
+  const chosenDefault = /^gemini-2\.5-/.test(id) ? budget === null : ALLOWED_LEVELS[id] ? level === null : level === null && budget === null;
+  if (chosenDefault) return null;
+  return `No thinking setting for ${model}; it uses its own default. Models with a verified setting: ${Object.keys(ALLOWED_LEVELS).join(', ')} (GEMINI_THINKING_LEVEL).`;
 }

@@ -5,7 +5,7 @@ import { StringOutputParser } from '@langchain/core/output_parsers';
 import config from '../config.js';
 import { search, hasDocuments } from './vectorStore.js';
 import { HttpError } from '../utils/httpError.js';
-import { thinkingConfigFor } from './thinking.js';
+import { thinkingConfigFor, thinkingWarning } from './thinking.js';
 
 const MAX_MESSAGE_LENGTH = 2000;
 
@@ -47,6 +47,21 @@ const prompt = ChatPromptTemplate.fromMessages([
   ['human', '{question}'],
 ]);
 
+const warnedModels = new Set();
+
+/**
+ * Say once per model (to the log) when it gets no thinking setting, for example an old .env that still names
+ * gemini-3.5-flash. The server calls it at startup for both models; createLlm calls it too (eval runs).
+ */
+export function warnAboutThinking(models = [config.geminiModel, config.geminiFallbackModel]) {
+  for (const model of models) {
+    if (!model || warnedModels.has(model)) continue;
+    warnedModels.add(model);
+    const message = thinkingWarning(model, { level: config.geminiThinkingLevel, budget: config.geminiThinkingBudget });
+    if (message) console.warn(message);
+  }
+}
+
 export function createLlm(model = config.geminiModel) {
   if (!config.googleApiKey) {
     throw new HttpError(503, 'MISSING_API_KEY', 'The AI is not set up yet: add GOOGLE_API_KEY to the .env file and restart the server. You can get a free key at aistudio.google.com.');
@@ -54,6 +69,7 @@ export function createLlm(model = config.geminiModel) {
   // Thinking off or minimal by default: about 6x fewer tokens per answer, and simple maths still works.
   // Each model family takes a different setting (see thinking.js), so it is built per model.
   const thinkingConfig = thinkingConfigFor(model, { level: config.geminiThinkingLevel, budget: config.geminiThinkingBudget });
+  warnAboutThinking([model]);
   return new ChatGoogleGenerativeAI({
     model,
     apiKey: config.googleApiKey,

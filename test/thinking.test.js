@@ -1,7 +1,7 @@
 import './env.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { thinkingConfigFor } from '../src/services/thinking.js';
+import { thinkingConfigFor, thinkingWarning } from '../src/services/thinking.js';
 
 const level = (model, requested) => thinkingConfigFor(model, { level: requested, budget: 0 });
 
@@ -50,4 +50,18 @@ test('"models/" prefix and letter case do not change the result', () => {
   assert.deepEqual(level('models/gemini-3.5-flash-lite', 'low'), { thinkingLevel: 'low' });
   assert.deepEqual(level('Gemini-3.8-Flash', 'minimal'), { thinkingLevel: 'low' });
   assert.deepEqual(thinkingConfigFor('models/gemini-2.5-flash', { level: 'low', budget: 0 }), { thinkingBudget: 0 });
+});
+
+test('a model that gets no thinking setting is announced, unless the operator chose "default"', () => {
+  const settings = { level: 'minimal', budget: 0 };
+  assert.match(thinkingWarning('gemini-3.5-flash', settings), /No thinking setting for gemini-3\.5-flash; it uses its own default/);
+  assert.match(thinkingWarning('gemini-4-argon', settings), /gemini-4-argon/);
+  assert.match(thinkingWarning('Gemini-3.5-Flash', settings), /No thinking setting/);
+  // sent a setting: nothing to say
+  assert.equal(thinkingWarning('gemini-3.5-flash-lite', settings), null);
+  assert.equal(thinkingWarning('gemini-2.5-flash', settings), null);
+  // chosen on purpose
+  assert.equal(thinkingWarning('gemini-3.5-flash-lite', { level: null, budget: 0 }), null);
+  assert.equal(thinkingWarning('gemini-2.5-flash', { level: 'minimal', budget: null }), null);
+  assert.equal(thinkingWarning('gemini-3.5-flash', { level: null, budget: null }), null);
 });
