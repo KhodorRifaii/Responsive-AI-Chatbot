@@ -112,25 +112,45 @@ const thinking = {
 };
 const describeThinking = (t) => `${t.main ? JSON.stringify(t.main) : 'model default'}${t.fallback ? ` (fallback ${JSON.stringify(t.fallback)})` : ''}`;
 
+// How the embedder was called (pooling, prefixes, size): saved in the results and compared by a retry.
+const { pooling, normalize, queryPrefix, documentPrefix, dimensions } = config.embeddingProfile;
+const embeddingProfile = { pooling, normalize, queryPrefix, documentPrefix, dimensions };
+
 const previous = retryErrors && fs.existsSync(outFile) ? JSON.parse(fs.readFileSync(outFile, 'utf8')) : null;
 if (retryErrors && !previous) fail(`--retry-errors needs a previous results file (${path.relative(root, outFile)}).`);
 const previousById = new Map((previous?.results ?? []).map((r) => [r.id, r]));
 // A retry may only complete the same run (see retry.js). A file from a run that stopped half way is fine:
 // questions missing from it are asked.
 if (previous) {
-  const settings = { mainModel: config.geminiModel, fallbackModel: config.geminiFallbackModel, thinking, fakeLlm: Boolean(fake), embeddingModel: config.embeddingModel, embeddingDtype: config.embeddingDtype, chunkSize: config.chunkSize, chunkOverlap: config.chunkOverlap, topK: config.topK, mode: 'full' };
+  const settings = { mainModel: config.geminiModel, fallbackModel: config.geminiFallbackModel, thinking, fakeLlm: Boolean(fake), embeddingModel: config.embeddingModel, embeddingDtype: config.embeddingDtype, embeddingProfile, chunkSize: config.chunkSize, chunkOverlap: config.chunkOverlap, topK: config.topK, mode: 'full' };
   const problems = retryProblems(previous, { settings, fingerprint: datasetFingerprint, questionIds: questions.map((q) => q.id) });
   if (problems.length) fail(`--retry-errors cannot complete that file (${problems.join('; ')}). Run the eval again from the start instead.`);
 }
 
 console.log('Loading documents through the real pipeline (loader, splitter, local embeddings)...');
 const session = createSession();
+// Speed and memory of the embedder, for choosing one (see README "Choosing an embedder"). Heap = the highest value sampled.
+const MB = 1024 * 1024;
+let maxHeapMb = 0;
+const sampleHeap = () => {
+  maxHeapMb = Math.max(maxHeapMb, process.memoryUsage().heapUsed / MB);
+};
+// Searching the still empty store embeds one query, so this call loads the model (download excluded when it is cached).
+let tick = performance.now();
+await search(session, 'warm-up', 1);
+const modelLoadMs = performance.now() - tick;
+sampleHeap();
 const chunksByFile = {};
+tick = performance.now();
 for (const name of docFiles) {
   const buffer = Buffer.from(docText[name], 'utf8');
   const info = await addDocument(session, { originalname: name, buffer, size: buffer.length });
   chunksByFile[name] = info.chunks;
+  sampleHeap();
 }
+const docsEmbedMs = performance.now() - tick;
+const vectorSize = session.store.memoryVectors[0]?.embedding.length ?? null;
+const searchMs = [];
 console.log(`Chunks: ${Object.entries(chunksByFile).map(([f, n]) => `${f} ${n}`).join(', ')} (total ${Object.values(chunksByFile).reduce((a, b) => a + b, 0)})`);
 
 // ---- 3. Ask every question ---------------------------------------------------------------------
@@ -173,6 +193,7 @@ const meta = previous ? { ...previous.meta } : {
   fakeLlm: Boolean(fake),
   embeddingModel: config.embeddingModel,
   embeddingDtype: config.embeddingDtype,
+  embeddingProfile,
   chunkSize: config.chunkSize,
   chunkOverlap: config.chunkOverlap,
   topK: config.topK,
@@ -216,7 +237,10 @@ function save() {
 }
 
 for (const [index, q] of questions.entries()) {
+  tick = performance.now();
   const retrievedPairs = await search(session, q.question, config.topK);
+  searchMs.push(performance.now() - tick);
+  sampleHeap();
   const retrieved = retrievedPairs.map(([chunk, score]) => ({ source: chunk.metadata.source, chunk: chunk.metadata.chunk, score: Number(score.toFixed(4)) }));
   const totalChunks = Object.values(chunksByFile).reduce((a, b) => a + b, 0);
   const run = {
@@ -325,6 +349,20 @@ if (flagged.length) {
   }
 }
 
+const sortedSearch = [...searchMs].sort((a, b) => a - b);
+// maxRSS is in kilobytes (Node docs): the peak memory of this whole process, model loading included.
+const performanceStats = {
+  modelLoadMs: Math.round(modelLoadMs),
+  docsEmbedMs: Math.round(docsEmbedMs),
+  chunks: Object.values(chunksByFile).reduce((a, b) => a + b, 0),
+  searchMsMean: Math.round(searchMs.reduce((a, b) => a + b, 0) / searchMs.length),
+  searchMsMedian: Math.round(sortedSearch[Math.floor(sortedSearch.length / 2)]),
+  peakRssMb: Math.round(process.resourceUsage().maxRSS / 1024),
+  maxHeapMb: Math.round(maxHeapMb),
+  vectorSize,
+};
+console.log(`\nEmbedder speed and memory: model load ${performanceStats.modelLoadMs} ms, ${performanceStats.chunks} chunks embedded in ${performanceStats.docsEmbedMs} ms, search (query embedding included) mean ${performanceStats.searchMsMean} ms / median ${performanceStats.searchMsMedian} ms, peak memory (RSS) ${performanceStats.peakRssMb} MB, highest JS heap sampled ${performanceStats.maxHeapMb} MB, vector size ${performanceStats.vectorSize}`);
+if (!previous) meta.performance = performanceStats;
 meta.summary = summary;
 meta.answeredBy = Object.fromEntries(results.filter((r) => r.answeredBy).reduce((m, r) => m.set(r.answeredBy, (m.get(r.answeredBy) ?? 0) + 1), new Map()));
 if (previous) meta.retries.push({ date: new Date().toISOString(), ids: retriedIds });
