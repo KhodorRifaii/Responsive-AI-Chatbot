@@ -30,6 +30,7 @@ function fail(message) {
   console.error(`eval: ${message}`);
   process.exit(1);
 }
+if (retrievalOnly && retryErrors) fail('--retry-errors cannot be combined with --retrieval-only.');
 if (!Number.isFinite(delayMs) || delayMs < 0) fail('--delay-ms must be a number of milliseconds (0 or more).');
 
 // ---- 1. Dataset checks, before any model is loaded --------------------------------------------
@@ -96,6 +97,13 @@ const { answerQuestion, NOT_FOUND_ANSWER } = await import('../src/services/ragCh
 const previous = retryErrors && fs.existsSync(outFile) ? JSON.parse(fs.readFileSync(outFile, 'utf8')) : null;
 if (retryErrors && !previous) fail(`--retry-errors needs a previous results file (${path.relative(root, outFile)}).`);
 const previousById = new Map((previous?.results ?? []).map((r) => [r.id, r]));
+// A retry may only complete the same run: same models, settings and documents, or the file would mix two runs.
+const SETTINGS = ['mainModel', 'fallbackModel', 'thinkingBudget', 'embeddingModel', 'embeddingDtype', 'chunkSize', 'chunkOverlap', 'topK', 'mode'];
+if (previous) {
+  const now = { mainModel: config.geminiModel, fallbackModel: config.geminiFallbackModel, thinkingBudget: config.geminiThinkingBudget, embeddingModel: config.embeddingModel, embeddingDtype: config.embeddingDtype, chunkSize: config.chunkSize, chunkOverlap: config.chunkOverlap, topK: config.topK, mode: 'full' };
+  const changed = SETTINGS.filter((key) => JSON.stringify(previous.meta?.[key]) !== JSON.stringify(now[key]));
+  if (changed.length) fail(`--retry-errors needs the same settings as the first run (different: ${changed.join(', ')}). Run the eval again from the start instead.`);
+}
 
 console.log('Loading documents through the real pipeline (loader, splitter, local embeddings)...');
 const session = createSession();
@@ -136,7 +144,7 @@ const gitCommit = (() => {
   }
 })();
 
-const meta = {
+const meta = previous ? { ...previous.meta } : {
   date: new Date().toISOString(),
   gitCommit,
   node: process.version,
@@ -152,9 +160,11 @@ const meta = {
   chunksByFile,
   delayMs,
   judge: 'none (deterministic checks only)',
-  retriedFrom: previous?.meta?.date ?? null,
 };
+if (previous) meta.retries = [...(previous.meta.retries ?? [])];
 
+// A retry keeps the first run's metadata and lists each retry (date and question ids) under `retries`.
+const retriedIds = [];
 const records = [];
 const results = [];
 let consecutiveErrors = 0;
@@ -185,6 +195,7 @@ for (const [index, q] of questions.entries()) {
     } else {
       if (llmCalls > 0 && delayMs > 0) await sleep(delayMs);
       llmCalls += 1;
+      if (old) retriedIds.push(q.id);
       const started = performance.now();
       const { value, error, logs } = await captureLogs(() => answerQuestion({ question: q.question, session }));
       run.latencyMs = Math.round(performance.now() - started);
@@ -263,6 +274,7 @@ if (flagged.length) {
 }
 
 meta.summary = summary;
+if (previous) meta.retries.push({ date: new Date().toISOString(), ids: retriedIds });
 save();
 console.log(`\nResults written to ${path.relative(root, outFile)}`);
 // Safety net: if a native library keeps the process alive, leave after two seconds.

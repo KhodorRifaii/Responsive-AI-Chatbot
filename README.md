@@ -178,7 +178,7 @@ The tests use Node's built-in test runner, so there is nothing extra to install.
 
 ### Results
 
-Run on 2026-11-24 with `GEMINI_MODEL=gemini-3.6-flash`, `GEMINI_FALLBACK_MODEL=gemini-3.5-flash-lite`, `GEMINI_THINKING_BUDGET=default`, embeddings `Xenova/all-MiniLM-L6-v2`, top-4 chunks. The full run is in `eval/baseline.json`.
+Run on 2026-11-24 with `GEMINI_MODEL=gemini-3.6-flash`, `GEMINI_FALLBACK_MODEL=gemini-3.5-flash-lite`, `GEMINI_THINKING_BUDGET=default`, embeddings `Xenova/all-MiniLM-L6-v2`, top-4 chunks. Two questions that hit a rate limit were asked again afterwards with the same settings (`eval/baseline.json` lists them under `meta.retries`). The full run is in `eval/baseline.json`.
 
 | Measure | All | English | Arabic |
 | --- | --- | --- | --- |

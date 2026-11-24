@@ -46,6 +46,8 @@ test('refusal detection: the exact sentence versus loose phrases', () => {
   const sentence = "I couldn't find that in your uploaded documents.";
   assert.equal(isRefusal(sentence, sentence), true);
   assert.equal(isRefusal('The answer is 24 days.', sentence), false);
+  assert.equal(isRefusal(`The document says: ${sentence}`, sentence), false);
+  assert.equal(isRefusal(`${sentence} `, sentence), true);
   assert.equal(isSoftRefusal('The documents do not mention dental insurance.'), true);
   assert.equal(isSoftRefusal('لم أجد هذه المعلومة في المستندات'), true);
   assert.equal(isSoftRefusal('لا يوجد ذكر للتقسيط في دليل العيادة'), true);

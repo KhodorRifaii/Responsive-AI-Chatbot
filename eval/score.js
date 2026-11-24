@@ -64,8 +64,8 @@ const SOFT_REFUSAL = new RegExp([
   'غير (?:موجود|مذكور|متوفر|متاح|وارد)',
 ].join('|'));
 
-/** The app's own refusal: the exact "not found" sentence (the UI hides sources only for it). */
-export const isRefusal = (answer, notFoundAnswer) => normalize(answer).includes(normalize(notFoundAnswer));
+/** The app's own refusal: the answer is exactly the "not found" sentence (nothing before or after it). */
+export const isRefusal = (answer, notFoundAnswer) => normalize(answer) === normalize(notFoundAnswer);
 export const isSoftRefusal = (answer) => SOFT_REFUSAL.test(normalize(answer));
 
 const choose = (n, k) => {
@@ -118,7 +118,8 @@ export function scoreQuestion(question, run, notFoundAnswer) {
   if (run.error) return { ...record, errored: true };
   const cited = unique((run.sources ?? []).map((s) => s.source));
   record.refused = isRefusal(run.answer, notFoundAnswer);
-  record.softRefused = record.refused || isSoftRefusal(run.answer);
+  // Loose flag: any "not found" wording, including the exact sentence inside a longer answer.
+  record.softRefused = record.refused || isSoftRefusal(run.answer) || normalize(run.answer).includes(normalize(notFoundAnswer));
   if (answerable) {
     record.citedAll = question.sources.every((s) => cited.includes(s));
     record.factsFound = question.facts.map((alternatives) => hasFact(run.answer, alternatives));
