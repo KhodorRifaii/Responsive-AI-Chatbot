@@ -99,3 +99,19 @@ test('summarizeGroup: errors are excluded from answer scores and counted', () =>
   assert.equal(s.correct, 1);
   assert.equal(s.answeredCount, 1);
 });
+
+test('retrieval-only: a record with no answer carries no answer scores, and summaries show null', () => {
+  const run = { retrieved: [{ source: 'hr.txt', score: 0.6 }], chance: 0.5, chanceTop1: 0.2 };
+  const record = scoreQuestion(hr, run, NOT_FOUND);
+  assert.equal(record.retrievalAll, true);
+  for (const key of ['refused', 'softRefused', 'correct', 'citedAll', 'factRecall', 'factsFound']) assert.equal(key in record, false, key);
+  const none = scoreQuestion({ id: 'n', sources: [], facts: [] }, { retrieved: [] }, NOT_FOUND);
+  assert.equal('refusedCorrectly' in none, false);
+  const s = summarizeGroup([record, none]);
+  assert.equal(s.answeredCount, 0);
+  assert.equal(s.unansweredCount, 0);
+  assert.equal(s.correct, null);
+  assert.equal(s.factRecall, null);
+  assert.equal(s.refused, null);
+  assert.equal(s.retrievalAll, 1);
+});

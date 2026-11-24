@@ -102,7 +102,8 @@ const unique = (list) => [...new Set(list)];
 /**
  * Score one question. run = { retrieved: [{ source, score }], answer, sources: [{ source }], error }.
  * Answerable questions get retrieval, citation and answer scores; unanswerable ones a refusal score.
- * A run with an error has no answer scores (it is reported as errored, not as wrong).
+ * A run with an error has no answer scores (it is reported as errored, not as wrong); a run with no
+ * answer at all (retrieval-only) gets the retrieval fields only.
  */
 export function scoreQuestion(question, run, notFoundAnswer) {
   const answerable = question.sources.length > 0;
@@ -116,6 +117,8 @@ export function scoreQuestion(question, run, notFoundAnswer) {
     record.chanceTop1 = run.chanceTop1 ?? null;
   }
   if (run.error) return { ...record, errored: true };
+  // No answer was asked for (retrieval-only run): only retrieval fields, never fake answer scores.
+  if (run.answer === undefined) return { ...record, noAnswer: true };
   const cited = unique((run.sources ?? []).map((s) => s.source));
   record.refused = isRefusal(run.answer, notFoundAnswer);
   // Loose flag: any "not found" wording, including the exact sentence inside a longer answer.
@@ -138,9 +141,9 @@ const share = (records, predicate) => (records.length ? records.filter(predicate
 /** One table row for a group of scored records (and their questions' types/languages). */
 export function summarizeGroup(records) {
   const answerable = records.filter((r) => r.answerable);
-  const answered = answerable.filter((r) => !r.errored);
+  const answered = answerable.filter((r) => !r.errored && !r.noAnswer);
   const unanswerable = records.filter((r) => !r.answerable);
-  const answeredNone = unanswerable.filter((r) => !r.errored);
+  const answeredNone = unanswerable.filter((r) => !r.errored && !r.noAnswer);
   return {
     answerable: answerable.length,
     unanswerable: unanswerable.length,
