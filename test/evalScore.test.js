@@ -1,5 +1,8 @@
 // Tests for the eval scorer (eval/score.js). It imports nothing from src/, so no .env, key or model is involved.
 import { test } from 'node:test';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { wilson, analyzeLogs, normalize, tokens, hasFact, findCollisions, isRefusal, isSoftRefusal, chanceHitAll, scoreQuestion, summarizeGroup } from '../eval/score.js';
 
@@ -12,7 +15,9 @@ test('normalize: digits, separators and Arabic spellings', () => {
 });
 
 test('tokens: attached letters and times split cleanly', () => {
-  assert.deepEqual(tokens('ب30 يوما، 10:00-21:00'), ['ب', '30', 'يوما', '10', '00', '21', '00']);
+  // A full hour (":00") is the same as the bare hour, so "9:00 pm" and "9 pm" compare equal.
+  assert.deepEqual(tokens('ب30 يوما، 10:00-21:00'), ['ب', '30', 'يوما', '10', '21']);
+  assert.deepEqual(tokens('9:30 and 9:00'), ['9', '30', 'and', '9']);
   assert.deepEqual(tokens('192.168.8.1'), ['192.168', '8.1']);
 });
 
@@ -201,4 +206,28 @@ test('wilson: 95% interval', () => {
   assert.equal(hi1, 1);
   assert.ok(Math.abs(lo1 - 0.7225) < 0.002, String(lo1));
   assert.equal(wilson(0, 0), null);
+});
+
+// ---- review round 2 (Rami's probes) ------------------------------------------------------------------
+const questions = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'eval', 'questions.jsonl'), 'utf8')
+  .split('\n').filter(Boolean).map((line) => JSON.parse(line));
+const goldFor = (id) => questions.find((q) => q.id === id);
+const passes = (id, answer) => scoreQuestion(goldFor(id), { retrieved: [], answer, sources: [] }, NOT_FOUND).correct;
+
+test('natural correct answers still pass: short answers, :00 times, Arabic hour words without "الساعة"', () => {
+  assert.equal(passes('en-10', 'Central.'), true);
+  assert.equal(passes('en-10', 'Central (12 study rooms).'), true);
+  assert.equal(passes('en-10', 'The Central branch has the most study rooms.'), true);
+  assert.equal(passes('en-10', 'Harbor.'), false);
+  assert.equal(passes('en-11', 'It closes at 21:00.'), true);
+  assert.equal(passes('en-11', 'Lakeview closes at 9:00 PM.'), true);
+  assert.equal(passes('en-11', 'Lakeview closes at 9 pm.'), true);
+  assert.equal(passes('en-11', 'It closes at 20:00.'), false);
+  assert.equal(passes('ar-05', 'من 9:00 صباحا إلى 2:00 ظهرا'), true);
+  assert.equal(passes('ar-05', 'من التاسعة صباحا حتى الثانية ظهرا'), true);
+  assert.equal(passes('ar-05', 'من الساعة التاسعة صباحا حتى الساعة الثانية ظهرا'), true);
+  assert.equal(passes('ar-05', 'من التاسعة صباحا حتى الثالثة ظهرا'), false);
+  assert.equal(normalize('10:00-21:00'), '10-21');
+  assert.equal(normalize('1:10:00'), '1:10:00');
+  assert.equal(normalize('9:00:30'), '9:00:30');
 });

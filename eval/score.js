@@ -7,10 +7,13 @@ const TENS = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy:
 // Arabic hours as ordinal words ("الساعة التاسعة"), written the way normalize() spells them.
 const ARABIC_HOURS = [['الحاديه عشره', 11], ['الثانيه عشره', 12], ['الاولي', 1], ['الثانيه', 2], ['الثالثه', 3], ['الرابعه', 4], ['الخامسه', 5], ['السادسه', 6], ['السابعه', 7], ['الثامنه', 8], ['التاسعه', 9], ['العاشره', 10]];
 
+// Parts of the day, as normalize() spells them. An hour word followed by one of them is a time of day.
+const DAY_PARTS = '(?:صباحا|صباح|ظهرا|ظهر|عصرا|عصر|مساء|ليلا|ليل|فجرا|فجر)';
+
 /**
  * Lowercase and unify spellings so that equal facts compare equal: curly quotes, markdown
  * emphasis, Arabic letters/digits, thousands separators (comma, dot, space), "9:00 p.m." as "9 pm",
- * "$40" as "40 dollars", English number words ("twenty-four", "twelve") and Arabic hour words.
+ * "$40" as "40 dollars", "9:00" as "9", English number words ("twenty-four", "twelve") and Arabic hour words.
  */
 export function normalize(text) {
   let out = String(text ?? '')
@@ -36,11 +39,17 @@ export function normalize(text) {
     .replace(/(?:us\s?)?\$\s?(\d+(?:\.\d+)?)/g, '$1 dollars')
     .replace(/\b([ap])\.\s?m\b\.?/g, '$1m')
     .replace(/(\d{1,2})\.(\d{2})(?=\s?[ap]m\b)/g, '$1:$2')
-    .replace(/\b(\d{1,2}):00(?=\s?[ap]m\b)/g, '$1')
+    // A full hour ("9:00", "21:00") equals the bare hour, with or without am/pm. Not part of 1:10:00 or 9:00:30.
+    .replace(/(?<![\d:.])(\d{1,2}):00(?!\d|:\d)/g, '$1')
     .replace(/\b(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)[ -](one|two|three|four|five|six|seven|eight|nine)\b/g, (_, t, u) => String(TENS[t] + UNITS[u]))
     .replace(/\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen)\b/g, (w) => String(UNITS[w]))
     .replace(/\b(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\b/g, (w) => String(TENS[w]));
-  for (const [word, hour] of ARABIC_HOURS) out = out.replaceAll(`الساعه ${word}`, `الساعه ${hour}`);
+  for (const [word, hour] of ARABIC_HOURS) {
+    out = out.replaceAll(`الساعه ${word}`, `الساعه ${hour}`);
+    // Without "الساعة" an hour word still means that hour when a part of the day follows ("التاسعة صباحا").
+    // A leading و ("and") stays a separate word.
+    out = out.replace(new RegExp(`(?<!\\p{L})(و?)${word}(?= ${DAY_PARTS}(?!\\p{L}))`, 'gu'), (_, and) => `${and ? 'و ' : ''}${hour}`);
+  }
   return out;
 }
 
