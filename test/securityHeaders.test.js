@@ -36,3 +36,10 @@ test('the page has no inline scripts and loads nothing from other sites', async 
     assert.equal((await fetch(`${base}/${asset[1]}`)).status, 200, asset[1]);
   }
 });
+
+test('versioned vendor files are cached for a year, the page is not', async () => {
+  const vendor = await fetch(`${base}/vendor/bootstrap/5.3.3/css/bootstrap.min.css`);
+  assert.equal(vendor.status, 200);
+  assert.match(vendor.headers.get('cache-control'), /max-age=31536000.*immutable/);
+  assert.doesNotMatch((await fetch(`${base}/`)).headers.get('cache-control'), /immutable/);
+});

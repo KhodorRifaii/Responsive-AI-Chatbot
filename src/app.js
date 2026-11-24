@@ -21,6 +21,8 @@ app.disable('x-powered-by');
 app.use(securityHeaders);
 
 app.use(express.json({ limit: '1mb' }));
+// Vendor files have the version in their path (vendor/bootstrap/5.3.3/…), so browsers may keep them a year.
+app.use('/vendor', express.static(path.join(__dirname, '..', 'public', 'vendor'), { maxAge: '1y', immutable: true }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/api/health', (req, res) => {
