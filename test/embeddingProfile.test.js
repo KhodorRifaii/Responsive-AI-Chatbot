@@ -103,6 +103,8 @@ test('the sources shown when the model cites none are part of the profile: MiniL
   assert.deepEqual(thresholds('onnx-community/embeddinggemma-300m-ONNX'), [0.2, 0.55]);
   assert.deepEqual(thresholds('onnx-community/Qwen3-Embedding-0.6B-ONNX'), [0.2, 0.8]);
   assert.deepEqual(thresholds('someone/unknown-embedder'), [0.2, 0.7], 'an unlisted model gets the MiniLM rule (with the startup warning)');
+  assert.deepEqual(thresholds('gemini-embedding-2', { EMBEDDING_PROVIDER: 'google' }), [0.2, 0.85]);
+  assert.deepEqual(thresholds('gemini-embedding-001', { EMBEDDING_PROVIDER: 'google' }), [0.2, 0.85]);
 });
 
 test('EMBEDDING_SOURCE_MIN_SCORE and EMBEDDING_SOURCE_RELATIVE_SCORE override the table; bad values are ignored with a warning', () => {

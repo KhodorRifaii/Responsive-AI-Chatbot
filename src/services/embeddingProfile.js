@@ -32,11 +32,11 @@ const KNOWN = {
   // prefixes as EmbeddingGemma). gemini-embedding-001 takes `taskType` and no prefix, and its truncated vectors are not normalised.
   'gemini-embedding-2': {
     provider: 'google', pooling: 'api', queryPrefix: 'task: search result | query: ', documentPrefix: 'title: none | text: ', taskTypes: null,
-    nativeDimensions: 3072, minDimensions: 128, defaultDimensions: 768, sourceMinScore: 0.2, sourceRelativeScore: 0.7,
+    nativeDimensions: 3072, minDimensions: 128, defaultDimensions: 768, sourceMinScore: 0.2, sourceRelativeScore: 0.85,
   },
   'gemini-embedding-001': {
     provider: 'google', pooling: 'api', queryPrefix: '', documentPrefix: '', taskTypes: { query: 'RETRIEVAL_QUERY', document: 'RETRIEVAL_DOCUMENT' },
-    nativeDimensions: 3072, minDimensions: 128, defaultDimensions: 768, sourceMinScore: 0.2, sourceRelativeScore: 0.7,
+    nativeDimensions: 3072, minDimensions: 128, defaultDimensions: 768, sourceMinScore: 0.2, sourceRelativeScore: 0.85,
   },
 };
 
@@ -55,7 +55,7 @@ export function readEmbeddingProvider(value) {
  * max(sourceMinScore, sourceRelativeScore x best score). MiniLM's 0.2 / 0.7 is the original rule and must not change.
  * The others were picked per model on the 25 answerable questions of the eval (eval/embedders.js, README "Choosing an
  * embedder"): the best F1 between the chunks shown and the chunks of the expected files, with the minimum fixed at 0.2
- * and the relative score on a 0.05 grid (0.92 for e5, where 0.90 and 0.94 are within 0.03). They are tuned on the same
+ * and the relative score on a 0.05 grid (0.92 for e5, where 0.90 and 0.94 are within 0.03; 0.85 for both Google models). They are tuned on the same
  * questions they were measured on, so treat them as a starting point for another corpus.
  */
 

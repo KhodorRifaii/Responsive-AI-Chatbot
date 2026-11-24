@@ -1381,6 +1381,557 @@
         "vectorSize": 1024
       },
       "nearLimit": true
+    },
+    {
+      "label": "google-embedding-2",
+      "model": "gemini-embedding-2",
+      "provider": "google",
+      "status": "ok",
+      "embeddingProfile": {
+        "provider": "google",
+        "pooling": "api",
+        "normalize": true,
+        "queryPrefix": "task: search result | query: ",
+        "documentPrefix": "title: none | text: ",
+        "taskTypes": null,
+        "dimensions": 768,
+        "sourceMinScore": 0.2,
+        "sourceRelativeScore": 0.7
+      },
+      "retrieval": {
+        "all": {
+          "n": 25,
+          "hitAll": {
+            "k": 25,
+            "n": 25,
+            "share": 1,
+            "low": 0.8668035060468213,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 25,
+            "n": 25,
+            "share": 1,
+            "low": 0.8668035060468213,
+            "high": 1
+          },
+          "top1": {
+            "k": 23,
+            "n": 25,
+            "share": 0.92,
+            "low": 0.7503348787704218,
+            "high": 0.977780066308908
+          },
+          "hitChunk": {
+            "k": 24,
+            "n": 25,
+            "share": 0.96,
+            "low": 0.8045552759497747,
+            "high": 0.9929039496133008
+          },
+          "random": {
+            "topK": 0.42563398692810467,
+            "top1": 0.1577777777777778
+          }
+        },
+        "en": {
+          "n": 15,
+          "hitAll": {
+            "k": 15,
+            "n": 15,
+            "share": 1,
+            "low": 0.7961107336956521,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 15,
+            "n": 15,
+            "share": 1,
+            "low": 0.7961107336956521,
+            "high": 1
+          },
+          "top1": {
+            "k": 13,
+            "n": 15,
+            "share": 0.8666666666666667,
+            "low": 0.6211750079348376,
+            "high": 0.9626395301086407
+          },
+          "hitChunk": {
+            "k": 14,
+            "n": 15,
+            "share": 0.9333333333333333,
+            "low": 0.7018292244757601,
+            "high": 0.9881334113938051
+          },
+          "random": {
+            "topK": 0.4471677559912855,
+            "top1": 0.17777777777777776
+          }
+        },
+        "ar": {
+          "n": 10,
+          "hitAll": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "top1": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "hitChunk": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.3933333333333333,
+            "top1": 0.12777777777777782
+          }
+        },
+        "single": {
+          "n": 19,
+          "hitAll": {
+            "k": 19,
+            "n": 19,
+            "share": 1,
+            "low": 0.8318156346315496,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 19,
+            "n": 19,
+            "share": 1,
+            "low": 0.8318156346315496,
+            "high": 1
+          },
+          "top1": {
+            "k": 17,
+            "n": 19,
+            "share": 0.8947368421052632,
+            "low": 0.686054495051583,
+            "high": 0.9706420586049034
+          },
+          "hitChunk": {
+            "k": 18,
+            "n": 19,
+            "share": 0.9473684210526315,
+            "low": 0.7536078466345479,
+            "high": 0.99064824750947
+          },
+          "random": {
+            "topK": 0.46783625730994166,
+            "top1": 0.1345029239766082
+          }
+        },
+        "cross-lingual": {
+          "n": 2,
+          "hitAll": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "top1": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "hitChunk": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.4795751633986928,
+            "top1": 0.1388888888888889
+          }
+        },
+        "multi": {
+          "n": 4,
+          "hitAll": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "top1": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "hitChunk": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.19820261437908498,
+            "top1": 0.2777777777777778
+          }
+        }
+      },
+      "top1Spread": {
+        "en": {
+          "questions": 20,
+          "distinctChunks": 10,
+          "mostFrequent": "northwind-hr-policy.txt#3",
+          "times": 7
+        },
+        "ar": {
+          "questions": 13,
+          "distinctChunks": 5,
+          "mostFrequent": "clinic-guide-ar.txt#1",
+          "times": 6
+        }
+      },
+      "sourceFilter": {
+        "rule": {
+          "minScore": 0.2,
+          "relativeScore": 0.85
+        },
+        "questions": 33,
+        "averageChunksShown": 3.18,
+        "allFourShown": 17,
+        "f1": 0.871,
+        "f1WithMiniLmRule": 0.792
+      },
+      "topScore": {
+        "answerable": 0.756732,
+        "unanswerable": 0.7128500000000001
+      },
+      "performance": {
+        "modelLoadMs": 0,
+        "docsEmbedMs": 5756,
+        "chunks": 18,
+        "searchMsMean": 525,
+        "searchMsMedian": 507,
+        "peakRssMb": 241,
+        "maxHeapMb": 51,
+        "vectorSize": 768,
+        "apiCalls": 41,
+        "apiRetries": 0,
+        "apiStatuses": {
+          "200": 41
+        }
+      },
+      "nearLimit": false
+    },
+    {
+      "label": "google-embedding-001",
+      "model": "gemini-embedding-001",
+      "provider": "google",
+      "status": "ok",
+      "embeddingProfile": {
+        "provider": "google",
+        "pooling": "api",
+        "normalize": true,
+        "queryPrefix": "",
+        "documentPrefix": "",
+        "taskTypes": {
+          "query": "RETRIEVAL_QUERY",
+          "document": "RETRIEVAL_DOCUMENT"
+        },
+        "dimensions": 768,
+        "sourceMinScore": 0.2,
+        "sourceRelativeScore": 0.7
+      },
+      "retrieval": {
+        "all": {
+          "n": 25,
+          "hitAll": {
+            "k": 25,
+            "n": 25,
+            "share": 1,
+            "low": 0.8668035060468213,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 25,
+            "n": 25,
+            "share": 1,
+            "low": 0.8668035060468213,
+            "high": 1
+          },
+          "top1": {
+            "k": 25,
+            "n": 25,
+            "share": 1,
+            "low": 0.8668035060468213,
+            "high": 1
+          },
+          "hitChunk": {
+            "k": 24,
+            "n": 25,
+            "share": 0.96,
+            "low": 0.8045552759497747,
+            "high": 0.9929039496133008
+          },
+          "random": {
+            "topK": 0.42563398692810467,
+            "top1": 0.1577777777777778
+          }
+        },
+        "en": {
+          "n": 15,
+          "hitAll": {
+            "k": 15,
+            "n": 15,
+            "share": 1,
+            "low": 0.7961107336956521,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 15,
+            "n": 15,
+            "share": 1,
+            "low": 0.7961107336956521,
+            "high": 1
+          },
+          "top1": {
+            "k": 15,
+            "n": 15,
+            "share": 1,
+            "low": 0.7961107336956521,
+            "high": 1
+          },
+          "hitChunk": {
+            "k": 14,
+            "n": 15,
+            "share": 0.9333333333333333,
+            "low": 0.7018292244757601,
+            "high": 0.9881334113938051
+          },
+          "random": {
+            "topK": 0.4471677559912855,
+            "top1": 0.17777777777777776
+          }
+        },
+        "ar": {
+          "n": 10,
+          "hitAll": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "top1": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "hitChunk": {
+            "k": 10,
+            "n": 10,
+            "share": 1,
+            "low": 0.7224598312333834,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.3933333333333333,
+            "top1": 0.12777777777777782
+          }
+        },
+        "single": {
+          "n": 19,
+          "hitAll": {
+            "k": 19,
+            "n": 19,
+            "share": 1,
+            "low": 0.8318156346315496,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 19,
+            "n": 19,
+            "share": 1,
+            "low": 0.8318156346315496,
+            "high": 1
+          },
+          "top1": {
+            "k": 19,
+            "n": 19,
+            "share": 1,
+            "low": 0.8318156346315496,
+            "high": 1
+          },
+          "hitChunk": {
+            "k": 18,
+            "n": 19,
+            "share": 0.9473684210526315,
+            "low": 0.7536078466345479,
+            "high": 0.99064824750947
+          },
+          "random": {
+            "topK": 0.46783625730994166,
+            "top1": 0.1345029239766082
+          }
+        },
+        "cross-lingual": {
+          "n": 2,
+          "hitAll": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "top1": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "hitChunk": {
+            "k": 2,
+            "n": 2,
+            "share": 1,
+            "low": 0.34237195288961925,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.4795751633986928,
+            "top1": 0.1388888888888889
+          }
+        },
+        "multi": {
+          "n": 4,
+          "hitAll": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "hitAny": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "top1": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "hitChunk": {
+            "k": 4,
+            "n": 4,
+            "share": 1,
+            "low": 0.5100999795960008,
+            "high": 1
+          },
+          "random": {
+            "topK": 0.19820261437908498,
+            "top1": 0.2777777777777778
+          }
+        }
+      },
+      "top1Spread": {
+        "en": {
+          "questions": 20,
+          "distinctChunks": 7,
+          "mostFrequent": "orbit-router-manual.txt#3",
+          "times": 7
+        },
+        "ar": {
+          "questions": 13,
+          "distinctChunks": 4,
+          "mostFrequent": "clinic-guide-ar.txt#1",
+          "times": 8
+        }
+      },
+      "sourceFilter": {
+        "rule": {
+          "minScore": 0.2,
+          "relativeScore": 0.85
+        },
+        "questions": 33,
+        "averageChunksShown": 2.97,
+        "allFourShown": 13,
+        "f1": 0.855,
+        "f1WithMiniLmRule": 0.768
+      },
+      "topScore": {
+        "answerable": 0.7327800000000002,
+        "unanswerable": 0.704075
+      },
+      "performance": {
+        "modelLoadMs": 0,
+        "docsEmbedMs": 4681,
+        "chunks": 18,
+        "searchMsMean": 393,
+        "searchMsMedian": 388,
+        "peakRssMb": 240,
+        "maxHeapMb": 50,
+        "vectorSize": 768,
+        "apiCalls": 41,
+        "apiRetries": 0,
+        "apiStatuses": {
+          "200": 41
+        }
+      },
+      "nearLimit": false
     }
   ]
 }

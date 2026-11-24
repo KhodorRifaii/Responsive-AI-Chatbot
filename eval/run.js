@@ -104,7 +104,7 @@ if (!retrievalOnly && process.env.EVAL_FAKE_LLM) {
 if (!retrievalOnly && !fake && !config.googleApiKey) {
   fail('GOOGLE_API_KEY is missing. Add it to .env (free key: https://aistudio.google.com/app/apikey), or run with --retrieval-only.');
 }
-const { createSession, addDocument, search } = await import('../src/services/vectorStore.js');
+const { createSession, addDocument, search, embeddings } = await import('../src/services/vectorStore.js');
 const { answerQuestion, NOT_FOUND_ANSWER } = await import('../src/services/ragChain.js');
 
 // What the app sends to each model as its thinking setting (null = the model's own default). Saved in the results and
@@ -117,8 +117,8 @@ const thinking = {
 const describeThinking = (t) => `${t.main ? JSON.stringify(t.main) : 'model default'}${t.fallback ? ` (fallback ${JSON.stringify(t.fallback)})` : ''}`;
 
 // How the embedder was called (pooling, prefixes, size): saved in the results and compared by a retry.
-const { pooling, normalize, queryPrefix, documentPrefix, dimensions, sourceMinScore, sourceRelativeScore } = config.embeddingProfile;
-const embeddingProfile = { pooling, normalize, queryPrefix, documentPrefix, dimensions, sourceMinScore, sourceRelativeScore };
+const { provider, pooling, normalize, queryPrefix, documentPrefix, taskTypes, dimensions, sourceMinScore, sourceRelativeScore } = config.embeddingProfile;
+const embeddingProfile = { provider, pooling, normalize, queryPrefix, documentPrefix, taskTypes, dimensions, sourceMinScore, sourceRelativeScore };
 
 const previous = retryErrors && fs.existsSync(outFile) ? JSON.parse(fs.readFileSync(outFile, 'utf8')) : null;
 if (retryErrors && !previous) fail(`--retry-errors needs a previous results file (${path.relative(root, outFile)}).`);
@@ -140,9 +140,10 @@ const sampleHeap = () => {
   maxHeapMb = Math.max(maxHeapMb, process.memoryUsage().heapUsed / MB);
 };
 // Searching the still empty store embeds one query, so this call loads the model (download excluded when it is cached).
+// A hosted embedder has nothing to load: the warm-up would only spend one API call, so it is skipped (load time 0).
 let tick = performance.now();
-await search(session, 'warm-up', 1);
-const modelLoadMs = performance.now() - tick;
+if (config.embeddingProvider !== 'google') await search(session, 'warm-up', 1);
+const modelLoadMs = config.embeddingProvider === 'google' ? 0 : performance.now() - tick;
 sampleHeap();
 const chunksByFile = {};
 tick = performance.now();
@@ -299,7 +300,7 @@ const pct = (share, n) => {
 };
 const num = (value, digits = 2) => (value === null ? 'n/a' : value.toFixed(digits));
 
-console.log(`\nModels: main ${meta.mainModel}, fallback ${meta.fallbackModel ?? 'none'} | thinking ${describeThinking(meta.thinking)} | embeddings ${meta.embeddingModel} (${meta.embeddingDtype}) | top-${meta.topK}, chunks ${meta.chunkSize}/${meta.chunkOverlap}`);
+console.log(`\nModels: main ${meta.mainModel}, fallback ${meta.fallbackModel ?? 'none'} | thinking ${describeThinking(meta.thinking)} | embeddings ${meta.embeddingProfile.provider === 'google' ? 'Google ' : ''}${meta.embeddingModel}${meta.embeddingProfile.provider === 'google' ? '' : ` (${meta.embeddingDtype})`} | top-${meta.topK}, chunks ${meta.chunkSize}/${meta.chunkOverlap}`);
 console.log('\nRETRIEVAL (answerable questions; hit = expected file(s) among the top-k chunks; right chunk = every gold fact is in a retrieved chunk of an expected file)');
 console.log(`${'slice'.padEnd(14)}${'n'.padStart(3)}  ${'all expected files in top-k'.padEnd(38)}${'any expected file'.padEnd(32)}${'top-1 is expected'.padEnd(32)}${'right chunk in top-k'.padEnd(32)}random: top-k / top-1`);
 for (const [name, g] of Object.entries(summary)) {
@@ -364,8 +365,10 @@ const performanceStats = {
   peakRssMb: Math.round(process.resourceUsage().maxRSS / 1024),
   maxHeapMb: Math.round(maxHeapMb),
   vectorSize,
+  // Hosted embedder only: real HTTP calls to the embedding API during this whole run (corpus, warm-up and every question), retries included.
+  ...(embeddings.stats ? { apiCalls: embeddings.stats.requests, apiRetries: embeddings.stats.retries, apiStatuses: embeddings.stats.byStatus } : {}),
 };
-console.log(`\nEmbedder speed and memory: model load ${performanceStats.modelLoadMs} ms, ${performanceStats.chunks} chunks embedded in ${performanceStats.docsEmbedMs} ms, search (query embedding included) mean ${performanceStats.searchMsMean} ms / median ${performanceStats.searchMsMedian} ms, peak memory (RSS) ${performanceStats.peakRssMb} MB, highest JS heap sampled ${performanceStats.maxHeapMb} MB, vector size ${performanceStats.vectorSize}`);
+console.log(`\nEmbedder speed and memory: model load ${performanceStats.modelLoadMs} ms, ${performanceStats.chunks} chunks embedded in ${performanceStats.docsEmbedMs} ms, search (query embedding included) mean ${performanceStats.searchMsMean} ms / median ${performanceStats.searchMsMedian} ms, peak memory (RSS) ${performanceStats.peakRssMb} MB, highest JS heap sampled ${performanceStats.maxHeapMb} MB, vector size ${performanceStats.vectorSize}${embeddings.stats ? `, embedding API calls ${performanceStats.apiCalls} (${performanceStats.apiRetries} retries, statuses ${JSON.stringify(performanceStats.apiStatuses)})` : ''}`);
 // A retry keeps the first run's metadata (and so its performance): the retry only re-asks a few questions and re-embeds the corpus, so its timings would not describe the run.
 if (!previous) meta.performance = performanceStats;
 meta.summary = summary;
