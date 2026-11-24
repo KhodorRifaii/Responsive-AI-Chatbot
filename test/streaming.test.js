@@ -87,6 +87,26 @@ test('no fallback once text was shown: the error ends the answer', async () => {
   assert.equal(fallbackCalls, 0);
 });
 
+test('when the visitor leaves, the model request is aborted and no fallback is tried', async () => {
+  let fallbackCalls = 0;
+  let aborted = false;
+  const slow = RunnableLambda.from(async function* (input, config) {
+    config.signal?.addEventListener('abort', () => { aborted = true; });
+    yield '18 ';
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    yield 'months.';
+  });
+  const fallback = RunnableLambda.from(async () => {
+    fallbackCalls += 1;
+    return 'never used';
+  });
+  const visitor = new AbortController();
+  const answer = rag.streamAnswer({ question: 'How long is the warranty?', session, llm: slow, fallbackLlm: fallback, signal: visitor.signal, onToken: () => visitor.abort() });
+  await assert.rejects(answer, rag.ClientGoneError);
+  assert.equal(aborted, true);
+  assert.equal(fallbackCalls, 0);
+});
+
 test('a streamed request that fails before any token gets a plain JSON error', async () => {
   // No API key in tests: MISSING_API_KEY happens before the stream starts.
   const upload = new FormData();

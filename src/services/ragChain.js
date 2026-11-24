@@ -208,12 +208,22 @@ function describeError(error) {
   return status ? `${status} ${text}` : text;
 }
 
+/** The visitor closed the page or the connection: stop, and do not try the fallback. */
+export class ClientGoneError extends Error {
+  constructor() {
+    super('The visitor left before the answer was finished.');
+    this.name = 'ClientGoneError';
+  }
+}
+
 /**
  * Run one model call with GEMINI_TIMEOUT_SECONDS; a timeout aborts the request. Streams call
  * touch() for each piece of text, so the limit is the wait for the next piece, not the whole answer.
+ * clientSignal (optional) aborts the request too when the visitor leaves.
  */
-async function withTimeout(call) {
+async function withTimeout(call, clientSignal) {
   const controller = new AbortController();
+  const signal = clientSignal ? AbortSignal.any([controller.signal, clientSignal]) : controller.signal;
   const ms = config.geminiTimeoutSeconds * 1000;
   let timer = setTimeout(() => controller.abort(), ms);
   const touch = () => {
@@ -222,10 +232,12 @@ async function withTimeout(call) {
   };
   try {
     // @langchain/google-genai ends a stream quietly when aborted, hence the check after the call too.
-    const result = await call(controller.signal, touch);
+    const result = await call(signal, touch);
+    if (clientSignal?.aborted) throw new ClientGoneError();
     if (controller.signal.aborted) throw new LlmTimeoutError();
     return result;
   } catch (error) {
+    if (clientSignal?.aborted) throw new ClientGoneError();
     throw controller.signal.aborted ? new LlmTimeoutError() : error;
   } finally {
     clearTimeout(timer);
@@ -322,7 +334,7 @@ export function createSourcesFilter() {
  * like invokeWithFallback, but only while no text was sent: after the first token an error
  * ends the answer (the visitor already saw part of it). Resolves to the full model output.
  */
-async function streamWithFallback(attempts, input, onToken) {
+async function streamWithFallback(attempts, input, onToken, clientSignal) {
   let firstError;
   for (const [index, { name, llm }] of attempts.entries()) {
     const chain = prompt.pipe(llm).pipe(new StringOutputParser());
@@ -341,10 +353,11 @@ async function streamWithFallback(attempts, input, onToken) {
             onToken(text);
           }
         }
-      });
+      }, clientSignal);
       if (index > 0) console.warn(`LLM answered with fallback model ${name}.`);
       return output;
     } catch (error) {
+      if (error instanceof ClientGoneError) throw error;
       if (sent) throw toLlmError(error);
       firstError ??= error;
       // The user sees the main model's error, so the fallback's own failure must reach the log.
@@ -429,10 +442,11 @@ export async function answerQuestion(params) {
 /**
  * Like answerQuestion, but calls onToken(text) while the model writes the answer (the
  * SOURCES line is never sent). Resolves to the same { answer, sources } as answerQuestion.
- * Errors before the first token are the same as answerQuestion's.
+ * Errors before the first token are the same as answerQuestion's. When `signal` aborts (the
+ * visitor left), the model request is aborted and it rejects with ClientGoneError.
  */
-export async function streamAnswer({ onToken, ...params }) {
+export async function streamAnswer({ onToken, signal, ...params }) {
   const { attempts, results, input } = await prepareAnswer(params);
   if (!input) return { answer: NOT_FOUND_ANSWER, sources: [] };
-  return finishAnswer(params.question, await streamWithFallback(attempts, input, onToken), results);
+  return finishAnswer(params.question, await streamWithFallback(attempts, input, onToken, signal), results);
 }
