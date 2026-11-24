@@ -1,18 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { MemoryVectorStore } from '@langchain/classic/vectorstores/memory';
-import { LocalEmbeddings } from './embeddings.js';
+import { createEmbeddings } from './embeddingFactory.js';
 import { loadAndSplit } from './documentLoader.js';
 import config from '../config.js';
 import { HttpError } from '../utils/httpError.js';
 import { toEmbeddingHttpError } from './embeddingErrors.js';
 
-// One embedding model for everyone; each visitor gets their own vector store.
-export const embeddings = new LocalEmbeddings({
-  model: config.embeddingModel,
-  dtype: config.embeddingDtype,
-  threads: config.embeddingThreads,
-  profile: config.embeddingProfile,
-});
+// One embedding model for everyone (local, or Google's when EMBEDDING_PROVIDER=google); each visitor gets their own vector store.
+export const embeddings = await createEmbeddings(config);
+const embeddingContext = { model: config.embeddingModel, provider: config.embeddingProvider };
 
 /**
  * Sessions by id. Each holds its own documents and vector store, so visitors
@@ -130,7 +126,7 @@ export async function addDocument(session, file, { onProgress } = {}) {
     // freeSession() already gave back this session's whole reservation if it expired meanwhile.
     if (sessions.get(session.id) === session) totalChunks -= chunks.length;
     console.error('Embedding failed:', error);
-    throw toEmbeddingHttpError(error, { model: config.embeddingModel });
+    throw toEmbeddingHttpError(error, embeddingContext);
   }
 
   // The session may have expired while a long file was being embedded.
@@ -164,7 +160,7 @@ export async function search(session, query, k = config.topK) {
     return await session.store.similaritySearchWithScore(query, k);
   } catch (error) {
     console.error('Search failed:', error);
-    throw toEmbeddingHttpError(error, { model: config.embeddingModel });
+    throw toEmbeddingHttpError(error, embeddingContext);
   }
 }
 
