@@ -3,8 +3,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { summarizeRun, FLAG_RSS_MB } from '../eval/embedderSummary.js';
 
-const group = (answerable, hitAll, hitAny, top1, chance = 0.4, chanceTop1 = 0.15, a = 0.5, u = 0.4) => ({
+const group = (answerable, hitAll, hitAny, top1, chance = 0.4, chanceTop1 = 0.15, a = 0.5, u = 0.4, chunk = undefined) => ({
   answerable, retrievalAll: hitAll / answerable, retrievalAny: hitAny / answerable, retrievalTop1: top1 / answerable, chance, chanceTop1, topScoreAnswerable: a, topScoreUnanswerable: u,
+  ...(chunk === undefined ? {} : { retrievalChunk: chunk / answerable }),
 });
 const raw = (performance) => ({
   meta: {
@@ -62,4 +63,15 @@ test('a question that retrieved nothing is reported, not a crash', () => {
   const out = summarizeRun(run);
   assert.equal(out.top1Spread.en.mostFrequent, '(nothing retrieved)');
   assert.deepEqual(out.sourceFilter, { questions: 2, averageChunksShown: 0.5, allFourShown: 0 });
+});
+
+test('chunk-level hit with its Wilson interval, only when the run computed it', () => {
+  const old = summarizeRun(raw({ peakRssMb: 300 }));
+  assert.equal(old.retrieval.all.hitChunk, undefined, 'a run scored before the metric existed has no chunk column');
+  const run = raw({ peakRssMb: 300 });
+  run.meta.summary.all = group(4, 3, 4, 2, 0.4, 0.15, 0.5, 0.4, 2);
+  const out = summarizeRun(run);
+  assert.equal(out.retrieval.all.hitChunk.k, 2);
+  assert.equal(out.retrieval.all.hitChunk.n, 4);
+  assert.ok(out.retrieval.all.hitChunk.low > 0.15 && out.retrieval.all.hitChunk.high < 0.85);
 });

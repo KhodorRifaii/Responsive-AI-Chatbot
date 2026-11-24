@@ -16,6 +16,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from './args.js';
 import { retryProblems } from './retry.js';
 import { validateQuestions } from './validate.js';
+import { loadChunkTexts } from './chunks.js';
 import { wilson, analyzeLogs, chanceHitAll, latencyStats, scoreQuestion, summarize } from './score.js';
 
 const evalDir = path.dirname(fileURLToPath(import.meta.url));
@@ -52,6 +53,9 @@ for (const name of docFiles) {
   const chunks = await loadAndSplit({ originalname: name, buffer: Buffer.from(docText[name], 'utf8') }, name);
   parsedText[name] = chunks.map((c) => c.pageContent).join('\n');
 }
+
+// The text of each chunk, to check that a retrieved chunk really holds the gold facts (not only the right file).
+const chunkText = await loadChunkTexts(docsDir, loadAndSplit);
 
 function loadQuestions() {
   const lines = fs.readFileSync(path.join(evalDir, 'questions.jsonl'), 'utf8').split('\n').filter((l) => l.trim());
@@ -278,7 +282,7 @@ for (const [index, q] of questions.entries()) {
       }
     }
   }
-  const record = scoreQuestion(q, run, NOT_FOUND_ANSWER);
+  const record = scoreQuestion(q, run, NOT_FOUND_ANSWER, chunkText);
   records.push(record);
   results.push({ id: q.id, lang: q.lang, type: q.type, question: q.question, expectedSources: q.sources, ...run, score: record });
   save();
@@ -296,11 +300,11 @@ const pct = (share, n) => {
 const num = (value, digits = 2) => (value === null ? 'n/a' : value.toFixed(digits));
 
 console.log(`\nModels: main ${meta.mainModel}, fallback ${meta.fallbackModel ?? 'none'} | thinking ${describeThinking(meta.thinking)} | embeddings ${meta.embeddingModel} (${meta.embeddingDtype}) | top-${meta.topK}, chunks ${meta.chunkSize}/${meta.chunkOverlap}`);
-console.log('\nRETRIEVAL (answerable questions; hit = expected file(s) among the top-k chunks)');
-console.log(`${'slice'.padEnd(14)}${'n'.padStart(3)}  ${'all expected files in top-k'.padEnd(38)}${'any expected file'.padEnd(32)}${'top-1 is expected'.padEnd(32)}random: top-k / top-1`);
+console.log('\nRETRIEVAL (answerable questions; hit = expected file(s) among the top-k chunks; right chunk = every gold fact is in a retrieved chunk of an expected file)');
+console.log(`${'slice'.padEnd(14)}${'n'.padStart(3)}  ${'all expected files in top-k'.padEnd(38)}${'any expected file'.padEnd(32)}${'top-1 is expected'.padEnd(32)}${'right chunk in top-k'.padEnd(32)}random: top-k / top-1`);
 for (const [name, g] of Object.entries(summary)) {
   if (g.answerable === 0) continue;
-  console.log(`${name.padEnd(14)}${String(g.answerable).padStart(3)}  ${pct(g.retrievalAll, g.answerable).padEnd(38)}${pct(g.retrievalAny, g.answerable).padEnd(32)}${pct(g.retrievalTop1, g.answerable).padEnd(32)}${Math.round(g.chance * 100)}% / ${Math.round(g.chanceTop1 * 100)}%`);
+  console.log(`${name.padEnd(14)}${String(g.answerable).padStart(3)}  ${pct(g.retrievalAll, g.answerable).padEnd(38)}${pct(g.retrievalAny, g.answerable).padEnd(32)}${pct(g.retrievalTop1, g.answerable).padEnd(32)}${pct(g.retrievalChunk, g.answerable).padEnd(32)}${Math.round(g.chance * 100)}% / ${Math.round(g.chanceTop1 * 100)}%`);
 }
 if (!retrievalOnly) {
   console.log('\nANSWERS (answerable questions that got an answer; correct = every gold fact present, not negated, not a refusal)');

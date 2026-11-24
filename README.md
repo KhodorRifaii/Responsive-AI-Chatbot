@@ -232,26 +232,28 @@ The embedder decides which parts of your documents Gemini gets to read. The defa
 
 ### Retrieval (95% interval in brackets)
 
-| Model | Every expected file in the top 4 | First chunk is from an expected file | English first chunk | Arabic first chunk | Arabic: different chunks first |
-| --- | --- | --- | --- | --- | --- |
-| MiniLM (default) | 23/25 [75-98] | 13/25 [33-70] | 13/15 | 0/10 [0-28] | 1 (the same one 13 of 13 times) |
-| `multilingual-e5-small` | 25/25 [87-100] | 23/25 [75-98] | 13/15 | 10/10 [72-100] | 4 |
-| `multilingual-e5-base` | 25/25 [87-100] | 24/25 [80-99] | 14/15 | 10/10 [72-100] | 4 |
-| `embeddinggemma-300m` | 25/25 [87-100] | 23/25 [75-98] | 13/15 | 10/10 [72-100] | 4 |
-| `Qwen3-Embedding-0.6B` | 25/25 [87-100] | 24/25 [80-99] | 14/15 | 10/10 [72-100] | 5 |
+| Model | Every expected file in the top 4 | Right chunk in the top 4 | First chunk is from an expected file | English first chunk | Arabic first chunk | Arabic: different chunks first |
+| --- | --- | --- | --- | --- | --- | --- |
+| MiniLM (default) | 23/25 [75-98] | 23/25 [75-98] | 13/25 [33-70] | 13/15 | 0/10 [0-28] | 1 (the same one 13 of 13 times) |
+| `multilingual-e5-small` | 25/25 [87-100] | 24/25 [80-99] | 23/25 [75-98] | 13/15 | 10/10 [72-100] | 4 |
+| `multilingual-e5-base` | 25/25 [87-100] | 25/25 [87-100] | 24/25 [80-99] | 14/15 | 10/10 [72-100] | 4 |
+| `embeddinggemma-300m` | 25/25 [87-100] | 24/25 [80-99] | 23/25 [75-98] | 13/15 | 10/10 [72-100] | 4 |
+| `Qwen3-Embedding-0.6B` | 25/25 [87-100] | 23/25 [75-98] | 24/25 [80-99] | 14/15 | 10/10 [72-100] | 5 |
+
+"Right chunk" is the strict version of the first column: every gold fact of the question is in the text of a retrieved chunk that comes from an expected file (the file-level hit only asks for the right file).
 
 What this shows:
 
 - **Arabic retrieval is fixed by any of the four.** Arabic first-chunk accuracy goes from 0/10 to 10/10, and the first chunk is no longer the same one every time. (In the e5 runs one clinic chunk comes first for 8 of 13 Arabic questions; 5 are questions about that clinic and 3 are near-miss questions about it, so this is the right chunk, not a collapse.)
-- **The four models are tied.** They differ by one question out of 25 (23 or 24), well inside the intervals. The "every expected file" column is also not a significant gain: [75-98] and [87-100] overlap. The first-chunk gain (13/25 to 23/25) and the Arabic gain are not noise.
-- **"Hit" means the right file, not the right chunk.** With e5-small `en-02` (probation period) retrieved the right file but not the chunk that holds the answer, and Gemini refused.
+- **The four models are tied.** The first-chunk column differs by one question out of 25 (23 or 24) and the right-chunk column by two (23 to 25), well inside the intervals. The "every expected file" and "right chunk" columns are not a significant gain over MiniLM either: [75-98] overlaps [87-100] and [80-99]. The first-chunk gain (13/25 to 23/25) and the Arabic gain are not noise.
+- **"Hit" means the right file, not the right chunk.** At chunk level Qwen3 is no better than MiniLM (23/25 both) and e5-small, EmbeddingGemma and Qwen3 miss 1 to 2 questions that the file-level column counts as hits. With e5-small `en-02` (probation period) retrieved the right file but not the chunk that holds the answer, and Gemini refused. Judge the models by the right-chunk and first-chunk columns.
 
 ### Cost
 
 | Model | Download | Load (cached) | Embed 18 chunks | Search (query embedded) | Peak memory, eval process | Real server after uploads |
 | --- | --- | --- | --- | --- | --- | --- |
-| MiniLM (default) | 23 MB | 0.05 s | 0.4 s | 2 ms | 394 MB | 431 MB |
-| `multilingual-e5-small` | 129 MB | 0.25 s | 0.5 s | 3 ms | **785 MB** | **861 MB** |
+| MiniLM (default) | 23 MB | 0.05 s | 0.4 s | 2 ms | 397 MB | 431 MB |
+| `multilingual-e5-small` | 129 MB | 0.25 s | 0.5 s | 3 ms | **786 MB** | **861 MB** |
 | `multilingual-e5-base` | 282 MB | 0.3 s | 1.1 s | 7 ms | **1,169 MB** | not run |
 | `embeddinggemma-300m` | 316 MB | 0.5 s | 1.5 s | 68 ms | **1,737 MB** | not run |
 | `Qwen3-Embedding-0.6B` | 596 MB | 0.5 s | 9.3 s | 83 ms | **1,977 MB** | not run |

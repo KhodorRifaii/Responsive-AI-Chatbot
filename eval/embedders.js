@@ -1,6 +1,7 @@
 // Compares embedding models on the retrieval eval, each in its own process (so memory is its own):
 //   node eval/embedders.js                       all candidates
 //   node eval/embedders.js --only e5-small,gemma some of them (labels below)
+//   node eval/embedders.js --resummarize         no model runs: re-score the stored raw runs (adds the chunk-level hit) and rebuild the summary
 // For each model: (1) download it (a first process, so downloading is not part of the timings), (2) run
 // `eval/run.js --retrieval-only` with that model (free: no Gemini call). Writes the raw runs to
 // eval/results/embedders-raw/ (not committed) and the summary to eval/results/embedders-<date>.json (committed).
@@ -10,6 +11,8 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { summarizeRun } from './embedderSummary.js';
+import { addChunkLevel } from './rescore.js';
+import { loadChunkTexts } from './chunks.js';
 import { MIN_SOURCE_SCORE, RELATIVE_SOURCE_SCORE } from '../src/services/ragChain.js';
 
 const evalDir = path.dirname(fileURLToPath(import.meta.url));
@@ -85,6 +88,26 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     };
     fs.writeFileSync(outFile, `${JSON.stringify(out, null, 2)}\n`);
   };
+
+  if (process.argv.includes('--resummarize')) {
+    // No model is run: the stored raw runs hold every retrieved chunk, so the chunk-level score and the summary are recomputed.
+    const { loadAndSplit } = await import('../src/services/documentLoader.js');
+    const chunkText = await loadChunkTexts(path.join(evalDir, 'docs'), loadAndSplit);
+    const questions = fs.readFileSync(path.join(evalDir, 'questions.jsonl'), 'utf8').split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
+    for (const candidate of CANDIDATES) {
+      const rawFile = path.join(rawDir, `${candidate.label}.json`);
+      const old = models.get(candidate.label);
+      if (!fs.existsSync(rawFile) || old?.status !== 'ok') continue;
+      const rescored = addChunkLevel(JSON.parse(fs.readFileSync(rawFile, 'utf8')), questions, chunkText);
+      fs.writeFileSync(rawFile, `${JSON.stringify(rescored, null, 2)}\n`);
+      models.set(candidate.label, { ...old, ...summarizeRun(rescored, { minScore: MIN_SOURCE_SCORE, relativeScore: RELATIVE_SOURCE_SCORE }) });
+      const { all } = models.get(candidate.label).retrieval;
+      console.log(`${candidate.label}: right chunk in top-4 ${all.hitChunk.k}/${all.hitChunk.n}, file-level ${all.hitAll.k}/${all.n}`);
+    }
+    writeSummary();
+    console.log(`Summary written to ${path.relative(root, outFile)}`);
+    process.exit(0);
+  }
 
   for (const candidate of only()) {
     console.log(`\n=== ${candidate.label}: ${candidate.model} (${candidate.dtype}) ===`);

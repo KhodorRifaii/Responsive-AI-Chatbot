@@ -25,6 +25,8 @@ export function summarizeRun(raw, sourceRule = { minScore: 0.2, relativeScore: 0
       hitAll: count(g.retrievalAll, g.answerable),
       hitAny: count(g.retrievalAny, g.answerable),
       top1: count(g.retrievalTop1, g.answerable),
+      // Every gold fact in a retrieved chunk of an expected file (absent in runs scored before the metric existed).
+      ...(g.retrievalChunk === null || g.retrievalChunk === undefined ? {} : { hitChunk: count(g.retrievalChunk, g.answerable) }),
       random: { topK: g.chance, top1: g.chanceTop1 },
     };
   }
