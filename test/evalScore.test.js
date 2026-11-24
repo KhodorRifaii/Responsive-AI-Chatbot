@@ -162,7 +162,7 @@ test('findCollisions: alternatives shared with a document that is not an expecte
   const docs = { 'hr.txt': 'Annual leave: 24 working days.', 'fleet.txt': 'Safety training takes 24 hours.', 'other.txt': 'Leave is 24 working days here too.' };
   const q = { sources: ['hr.txt'], facts: [['24 working days'], ['24 hours']] };
   assert.deepEqual(findCollisions(q, docs), [{ alternative: '24 working days', file: 'other.txt' }, { alternative: '24 hours', file: 'fleet.txt' }]);
-  assert.deepEqual(findCollisions({ ...q, shared: ['24 working days', '24 hours'] }, docs), []);
+  assert.deepEqual(findCollisions({ ...q, shared: { '24 working days': 'same policy text', '24 hours': 'also in the fleet handbook' } }, docs), []);
 });
 
 test('scoreQuestion: correctAndCited needs the expected source to be shown', () => {

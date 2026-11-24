@@ -85,14 +85,14 @@ export function hasFact(text, alternatives) {
 
 /**
  * Gold alternatives that also appear in a document that is NOT an expected source: an answer taken from
- * that document could pass. Alternatives listed in question.shared are known and accepted.
+ * that document could pass. Alternatives that are keys of question.shared ({ alternative: reason }) are known and accepted.
  * docText: { file: text }.
  */
 export function findCollisions(question, docText) {
   const found = [];
   for (const alternatives of question.facts) {
     for (const alternative of alternatives) {
-      if (question.shared?.includes(alternative)) continue;
+      if (Object.hasOwn(question.shared ?? {}, alternative)) continue;
       for (const [file, text] of Object.entries(docText)) {
         if (!question.sources.includes(file) && hasFact(text, [alternative])) found.push({ alternative, file });
       }

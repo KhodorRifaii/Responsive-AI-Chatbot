@@ -13,7 +13,8 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from './args.js';
 import { retryProblems } from './retry.js';
-import { wilson, analyzeLogs, chanceHitAll, findCollisions, hasFact, latencyStats, normalize, scoreQuestion, summarize } from './score.js';
+import { validateQuestions } from './validate.js';
+import { wilson, analyzeLogs, chanceHitAll, latencyStats, scoreQuestion, summarize } from './score.js';
 
 const evalDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(evalDir, '..');
@@ -61,45 +62,16 @@ function loadQuestions() {
   });
 }
 
-function validateQuestions(questions) {
-  const problems = [];
-  const seen = new Set();
-  const TYPES = ['single', 'multi', 'cross-lingual', 'unanswerable'];
-  for (const q of questions) {
-    const where = q.id ?? '(no id)';
-    if (!q.id || seen.has(q.id)) problems.push(`${where}: missing or duplicate id`);
-    seen.add(q.id);
-    if (!['en', 'ar'].includes(q.lang)) problems.push(`${where}: lang must be en or ar`);
-    if (!TYPES.includes(q.type)) problems.push(`${where}: unknown type ${q.type}`);
-    if (typeof q.question !== 'string' || !q.question.trim()) problems.push(`${where}: empty question`);
-    if (!Array.isArray(q.sources) || !Array.isArray(q.facts)) {
-      problems.push(`${where}: sources and facts must be arrays`);
-      continue;
-    }
-    for (const s of q.sources) if (!docText[s]) problems.push(`${where}: source ${s} is not in eval/docs`);
-    if (q.type === 'unanswerable') {
-      if (q.sources.length || q.facts.length) problems.push(`${where}: unanswerable questions have no sources or facts`);
-      continue;
-    }
-    if (q.sources.length < (q.type === 'multi' ? 2 : 1)) problems.push(`${where}: too few sources for type ${q.type}`);
-    if (q.facts.length === 0) problems.push(`${where}: answerable questions need at least one fact`);
-    // Every gold fact must appear in its source text (catches typos in the gold set).
-    const sourceText = q.sources.map((s) => parsedText[s] ?? '').join('\n');
-    for (const alternatives of q.facts) {
-      if (!Array.isArray(alternatives) || alternatives.length === 0) problems.push(`${where}: a fact needs a list of alternatives`);
-      else if (!hasFact(sourceText, alternatives)) problems.push(`${where}: no alternative of ${JSON.stringify(alternatives)} is found in its sources`);
-    }
-  }
-  // Warn (not fail) when a gold alternative also appears in a document that is not an expected source.
-  const warnings = questions.flatMap((q) => (Array.isArray(q.sources) && Array.isArray(q.facts) ? findCollisions(q, parsedText).map((c) => `${q.id}: "${c.alternative}" also appears in ${c.file}`) : []));
+function checkQuestions(questions) {
+  const { problems, warnings } = validateQuestions(questions, { docFiles, parsedText });
   for (const warning of warnings) console.warn(`eval: warning: ${warning}`);
   if (problems.length) fail(`dataset problems:\n  - ${problems.join('\n  - ')}`);
   const count = (keep) => questions.filter(keep).length;
-  console.log(`Dataset: ${questions.length} questions (en ${count((q) => q.lang === 'en')}, ar ${count((q) => q.lang === 'ar')}; single ${count((q) => q.type === 'single')}, cross-lingual ${count((q) => q.type === 'cross-lingual')}, multi ${count((q) => q.type === 'multi')}, unanswerable ${count((q) => q.type === 'unanswerable')}), ${docFiles.length} documents. Gold facts found in their sources: OK. Alternatives shared with other documents: ${warnings.length}.`);
+  console.log(`Dataset: ${questions.length} questions (en ${count((q) => q.lang === 'en')}, ar ${count((q) => q.lang === 'ar')}; single ${count((q) => q.type === 'single')}, cross-lingual ${count((q) => q.type === 'cross-lingual')}, multi ${count((q) => q.type === 'multi')}, unanswerable ${count((q) => q.type === 'unanswerable')}), ${docFiles.length} documents. Gold facts found in their sources: OK. Alternatives shared with other documents and not explained: ${warnings.length}.`);
 }
 
 const questions = loadQuestions();
-validateQuestions(questions);
+checkQuestions(questions);
 
 // Fingerprint of the question file and every document: a retry must match it, or old answers could be scored against a changed set.
 const datasetFingerprint = createHash('sha256')
