@@ -257,6 +257,8 @@ async function invokeWithFallback(attempts, input) {
       return answer;
     } catch (error) {
       firstError ??= error;
+      // The user sees the main model's error, so the fallback's own failure must reach the log.
+      if (index > 0) console.warn(`LLM fallback model ${name} failed too (${describeError(error)}).`);
       const next = attempts[index + 1];
       if (!next || !isRetryableLlmError(error)) break;
       console.warn(`LLM fallback: ${name} failed (${describeError(error)}), trying ${next.name}.`);
@@ -345,6 +347,8 @@ async function streamWithFallback(attempts, input, onToken) {
     } catch (error) {
       if (sent) throw toLlmError(error);
       firstError ??= error;
+      // The user sees the main model's error, so the fallback's own failure must reach the log.
+      if (index > 0) console.warn(`LLM fallback model ${name} failed too (${describeError(error)}).`);
       const next = attempts[index + 1];
       if (!next || !isRetryableLlmError(error)) break;
       console.warn(`LLM fallback: ${name} failed (${describeError(error)}), trying ${next.name}.`);

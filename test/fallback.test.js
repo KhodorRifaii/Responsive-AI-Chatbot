@@ -45,6 +45,13 @@ test('no fallback for a bad request or a rejected key', async () => {
   assert.equal(fallbackCalls, 0);
 });
 
+test('the fallback model\'s own failure is logged', async (t) => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  t.mock.method(console, 'error', () => {});
+  await assert.rejects(ask(fails(503, 'overloaded'), fails(400, 'Thinking budget is not supported')), { code: 'LLM_BUSY' });
+  assert.ok(warn.mock.calls.some((call) => /fallback model .* failed too \(400 Thinking budget/.test(call.arguments[0])));
+});
+
 test('when both models fail, the main model\'s error is reported', async () => {
   await assert.rejects(ask(fails(429, 'quota'), fails(503, 'overloaded')), { code: 'LLM_RATE_LIMIT' });
   await assert.rejects(ask(hangs(), hangs()), { code: 'LLM_TIMEOUT', status: 504 });
