@@ -179,7 +179,7 @@ for (const [index, q] of questions.entries()) {
 
   if (!retrievalOnly) {
     if (old && !old.error) {
-      Object.assign(run, { answer: old.answer, sources: old.sources, latencyMs: old.latencyMs, fallbackUsed: old.fallbackUsed, mainFailed: old.mainFailed });
+      Object.assign(run, { answer: old.answer, sources: old.sources, latencyMs: old.latencyMs, fallbackUsed: old.fallbackUsed, mainFailed: old.mainFailed, mainFailure: old.mainFailure });
     } else if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
       run.error = { code: 'SKIPPED', message: `stopped after ${MAX_CONSECUTIVE_ERRORS} errors in a row` };
     } else {
@@ -189,7 +189,9 @@ for (const [index, q] of questions.entries()) {
       const { value, error, logs } = await captureLogs(() => answerQuestion({ question: q.question, session }));
       run.latencyMs = Math.round(performance.now() - started);
       // The app logs "LLM fallback: <main> failed (...)" and "LLM answered with fallback model <name>".
-      run.mainFailed = logs.some((l) => l.startsWith('LLM fallback:'));
+      const failure = logs.find((l) => l.startsWith('LLM fallback:'));
+      run.mainFailed = Boolean(failure);
+      run.mainFailure = failure?.slice(0, 200) ?? null;
       run.fallbackUsed = logs.some((l) => l.startsWith('LLM answered with fallback model'));
       if (error) {
         run.error = { code: error.code ?? error.name ?? 'ERROR', status: error.status ?? null, message: String(error.message ?? error).slice(0, 200) };
@@ -225,7 +227,7 @@ if (!retrievalOnly) {
   console.log(`${'slice'.padEnd(14)}${'n'.padStart(3)}  ${'correct'.padEnd(18)}${'mean fact recall'.padEnd(18)}${'sources cited'.padEnd(18)}false refusals`);
   for (const [name, g] of Object.entries(summary)) {
     if (g.answeredCount === 0) continue;
-    console.log(`${name.padEnd(14)}${String(g.answeredCount).padStart(3)}  ${pct(g.correct, g.answeredCount).padEnd(18)}${pct(g.factRecall, 1).trim().padEnd(18)}${pct(g.citedAll, g.answeredCount).padEnd(18)}${g.falseRefusals}`);
+    console.log(`${name.padEnd(14)}${String(g.answeredCount).padStart(3)}  ${pct(g.correct, g.answeredCount).padEnd(18)}${`${Math.round(g.factRecall * 100)}%`.padEnd(18)}${pct(g.citedAll, g.answeredCount).padEnd(18)}${g.falseRefusals}`);
   }
   const none = summary.unanswerable;
   console.log(`\nREFUSALS (unanswerable questions): exact "not found" sentence and no sources ${pct(none.refused, none.unansweredCount)}; loosely refused (EN/AR phrases) ${pct(none.softRefused, none.unansweredCount)}`);
