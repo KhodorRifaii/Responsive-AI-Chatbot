@@ -86,6 +86,7 @@ The backend lives in `src/` and the static frontend in `public/`:
 │   └── utils/
 │       ├── httpError.js     # Errors with a status code and a user message
 │       └── ndjson.js        # Streamed (newline-delimited JSON) responses: upload progress, answers
+├── eval/                    # Quality eval: documents, questions, scorer and runner (see Evaluation)
 ├── test/                    # Automated tests (node:test) and small sample files
 ├── .env.example
 ├── package.json
@@ -165,7 +166,50 @@ Open [http://localhost:3000](http://localhost:3000). For development, `npm run d
 npm test
 ```
 
-The tests use Node's built-in test runner, so there is nothing extra to install. They cover the file loaders, private sessions, the memory limits, the rate limits, the model fallback, the security headers, the upload progress stream, answer streaming (including a dropped Gemini stream and a visitor who leaves), the SOURCES line (also hidden while streaming), the settings and the main API routes. They never call Gemini, but the first run needs the embedding model (downloaded once, like the first upload).
+The tests use Node's built-in test runner, so there is nothing extra to install. They cover the eval scorer and the file loaders, private sessions, the memory limits, the rate limits, the model fallback, the security headers, the upload progress stream, answer streaming (including a dropped Gemini stream and a visitor who leaves), the SOURCES line (also hidden while streaming), the settings and the main API routes. They never call Gemini, but the first run needs the embedding model (downloaded once, like the first upload).
+
+## Evaluation
+
+`npm run eval` measures answer quality with numbers. It loads 8 fixed documents through the app's real pipeline (loader, splitter, local embeddings, vector store), asks 28 questions with the real prompt and Gemini models, and checks retrieval, answers and refusals. It calls the services directly, so the HTTP rate limits are not involved.
+
+- **Documents** (`eval/docs/`): 5 documents that hold the facts (English HR policy, router manual, library branch table as CSV, Arabic clinic guide, Arabic solar FAQ) and 3 look-alike distractors (a second router with different numbers, a second Arabic clinic, a fleet safety handbook). The companies are invented, so the model cannot know the facts. Together they make 18 chunks.
+- **Questions** (`eval/questions.jsonl`): 28 lines, each with the expected source file(s) and the key facts (with accepted spellings). 17 English and 11 Arabic; 19 single-source, 2 cross-lingual (English question on an Arabic document and the reverse), 4 that need two documents, and 3 that the documents cannot answer.
+- **Scoring is deterministic, with no LLM judge.** A fact counts when its words appear as whole tokens in the answer (so `18` never matches `180`); digits, thousands separators and Arabic spellings are normalized first (`eval/score.js`, tested in `test/evalScore.test.js`). A refusal counts only when the answer is the app's exact "I couldn't find that..." sentence and no sources are shown.
+
+### Results
+
+Run on 2026-11-24 with `GEMINI_MODEL=gemini-3.6-flash`, `GEMINI_FALLBACK_MODEL=gemini-3.5-flash-lite`, `GEMINI_THINKING_BUDGET=default`, embeddings `Xenova/all-MiniLM-L6-v2`, top-4 chunks. The full run is in `eval/baseline.json`.
+
+| Measure | All | English | Arabic |
+| --- | --- | --- | --- |
+| Answerable questions | 25 | 15 | 10 |
+| Retrieval: every expected file in the top 4 chunks (random picking: 43%) | 23/25 (92%) | 13/15 (87%) | 10/10 (100%) |
+| Retrieval: first chunk is from an expected file (random picking: 16%) | 13/25 (52%) | 13/15 (87%) | 0/10 (0%) |
+| Answer correct (every key fact present) | 22/25 (88%) | 12/15 (80%) | 10/10 (100%) |
+| Expected sources shown with the answer | 22/25 (88%) | 12/15 (80%) | 10/10 (100%) |
+| Unanswerable questions refused correctly | 3/3 | 2/2 | 1/1 |
+
+By question type, answers were correct for 18/19 single-source, 1/2 cross-lingual and 3/4 two-document questions. Two answerable questions were wrongly refused. Answer time per question: median 2.0s, mean 5.4s, longest 34s.
+
+### What the numbers mean
+
+- **It is a small set.** With 28 questions, one question is about 4 points, and this is one run; Gemini answers can vary between runs. Treat the table as a baseline to compare against, not as a precise score.
+- **Which model answered.** The main model, `gemini-3.6-flash`, answered 2 of the 28 questions. For the other 26 it failed first and the fallback `gemini-3.5-flash-lite` answered. The runner recorded the reason only for two of them (a 429 rate-limit error); the first two questions each waited the full 30-second timeout. So these are mostly `gemini-3.5-flash-lite` numbers.
+- **These settings were passed on the command line.** With the values in `.env.example` the run could not finish: `gemini-3.5-flash` answered "high demand" (503) after about 35 seconds, and `gemini-3.5-flash-lite` rejected `GEMINI_THINKING_BUDGET=0` with a 400 error (the Gemini 3 models are documented with `thinking_level`, not a token budget). The shell override does not change `.env` or any code.
+- **Arabic retrieval does not work yet; the Arabic answers only look good.** The embedding model is trained on English. For 11 of 11 Arabic questions the same chunk (`shifa-center-guide-ar.txt`, part 2) came first, and the right chunk was never first. The answers were still correct because this set has only 6 Arabic chunks, so the top 4 almost always contains the right one. With more Arabic documents this will fail. An English question about an Arabic document was refused (retrieval found nothing from it).
+- **Small corpus.** 18 chunks is far less than real uploads, so retrieval is easier here than for a visitor with several long files. Compare retrieval with the random-picking figures above, not with 100%.
+- **Failures.** Three answerable questions failed: the Arabic-document question asked in English (retrieval miss, refused), the two-document question about LAN ports and study rooms (the library chunk was not retrieved), and the router light question (both routers' chunks were retrieved, and the model refused). I read all 28 answers: the 22 passes are correct and the failures are real, so the scorer made no mistakes in this run. It can still miss a correct answer that uses different words.
+- **Not measured:** token cost, and follow-up questions (the questions have no chat history).
+
+### Run it
+
+```bash
+npm run eval                      # real run: about one Gemini call per question, about 3 minutes
+npm run eval -- --retrieval-only  # free: retrieval scores only, no Gemini calls
+npm run eval -- --retry-errors    # ask again only the questions that errored last time
+```
+
+It uses the models in `.env`. Options: `--delay-ms N` (pause between Gemini calls, default 4000, to stay inside free-tier limits) and `--out FILE`. After 5 errors in a row it stops asking and marks the rest as skipped. Results go to `eval/results/latest.json` (not committed): the settings, the retrieved chunks with their scores, every answer and its checks. Questions that errored are reported separately and never counted as wrong.
 
 ## Deployment
 

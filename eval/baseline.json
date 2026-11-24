@@ -1,0 +1,1874 @@
+{
+  "meta": {
+    "date": "2026-11-24T06:58:33.262Z",
+    "gitCommit": "67cfe31",
+    "node": "v24.15.0",
+    "mode": "full",
+    "mainModel": "gemini-3.6-flash",
+    "fallbackModel": "gemini-3.5-flash-lite",
+    "thinkingBudget": null,
+    "embeddingModel": "Xenova/all-MiniLM-L6-v2",
+    "embeddingDtype": "q8",
+    "chunkSize": 1000,
+    "chunkOverlap": 150,
+    "topK": 4,
+    "chunksByFile": {
+      "clinic-guide-ar.txt": 2,
+      "lakeside-library-branches.csv": 2,
+      "northwind-fleet-safety.txt": 2,
+      "northwind-hr-policy.txt": 3,
+      "orbit-r5-quick-guide.txt": 2,
+      "orbit-router-manual.txt": 3,
+      "shifa-center-guide-ar.txt": 2,
+      "solar-faq-ar.txt": 2
+    },
+    "delayMs": 4000,
+    "judge": "none (deterministic checks only)",
+    "retriedFrom": "2026-11-24T06:53:49.723Z",
+    "summary": {
+      "all": {
+        "answerable": 25,
+        "unanswerable": 3,
+        "errored": 0,
+        "retrievalAll": 0.92,
+        "retrievalAny": 0.96,
+        "retrievalTop1": 0.52,
+        "chance": 0.42563398692810467,
+        "chanceTop1": 0.1577777777777778,
+        "citedAll": 0.88,
+        "correct": 0.88,
+        "factRecall": 0.9,
+        "falseRefusals": 2,
+        "answeredCount": 25,
+        "refused": 1,
+        "softRefused": 1,
+        "unansweredCount": 3,
+        "topScoreAnswerable": 0.533768,
+        "topScoreUnanswerable": 0.3779333333333333
+      },
+      "en": {
+        "answerable": 15,
+        "unanswerable": 2,
+        "errored": 0,
+        "retrievalAll": 0.8666666666666667,
+        "retrievalAny": 0.9333333333333333,
+        "retrievalTop1": 0.8666666666666667,
+        "chance": 0.4471677559912855,
+        "chanceTop1": 0.17777777777777776,
+        "citedAll": 0.8,
+        "correct": 0.8,
+        "factRecall": 0.8333333333333334,
+        "falseRefusals": 2,
+        "answeredCount": 15,
+        "refused": 1,
+        "softRefused": 1,
+        "unansweredCount": 2,
+        "topScoreAnswerable": 0.48841999999999997,
+        "topScoreUnanswerable": 0.25565
+      },
+      "ar": {
+        "answerable": 10,
+        "unanswerable": 1,
+        "errored": 0,
+        "retrievalAll": 1,
+        "retrievalAny": 1,
+        "retrievalTop1": 0,
+        "chance": 0.3933333333333333,
+        "chanceTop1": 0.12777777777777782,
+        "citedAll": 1,
+        "correct": 1,
+        "factRecall": 1,
+        "falseRefusals": 0,
+        "answeredCount": 10,
+        "refused": 1,
+        "softRefused": 1,
+        "unansweredCount": 1,
+        "topScoreAnswerable": 0.6017899999999999,
+        "topScoreUnanswerable": 0.6225
+      },
+      "single": {
+        "answerable": 19,
+        "unanswerable": 0,
+        "errored": 0,
+        "retrievalAll": 1,
+        "retrievalAny": 1,
+        "retrievalTop1": 0.5263157894736842,
+        "chance": 0.46783625730994166,
+        "chanceTop1": 0.1345029239766082,
+        "citedAll": 0.9473684210526315,
+        "correct": 0.9473684210526315,
+        "factRecall": 0.9473684210526315,
+        "falseRefusals": 1,
+        "answeredCount": 19,
+        "refused": null,
+        "softRefused": null,
+        "unansweredCount": 0,
+        "topScoreAnswerable": 0.5461578947368421,
+        "topScoreUnanswerable": null
+      },
+      "cross-lingual": {
+        "answerable": 2,
+        "unanswerable": 0,
+        "errored": 0,
+        "retrievalAll": 0.5,
+        "retrievalAny": 0.5,
+        "retrievalTop1": 0,
+        "chance": 0.4795751633986928,
+        "chanceTop1": 0.1388888888888889,
+        "citedAll": 0.5,
+        "correct": 0.5,
+        "factRecall": 0.5,
+        "falseRefusals": 1,
+        "answeredCount": 2,
+        "refused": null,
+        "softRefused": null,
+        "unansweredCount": 0,
+        "topScoreAnswerable": 0.4188,
+        "topScoreUnanswerable": null
+      },
+      "multi": {
+        "answerable": 4,
+        "unanswerable": 0,
+        "errored": 0,
+        "retrievalAll": 0.75,
+        "retrievalAny": 1,
+        "retrievalTop1": 0.75,
+        "chance": 0.19820261437908498,
+        "chanceTop1": 0.2777777777777778,
+        "citedAll": 0.75,
+        "correct": 0.75,
+        "factRecall": 0.875,
+        "falseRefusals": 0,
+        "answeredCount": 4,
+        "refused": null,
+        "softRefused": null,
+        "unansweredCount": 0,
+        "topScoreAnswerable": 0.5324,
+        "topScoreUnanswerable": null
+      },
+      "unanswerable": {
+        "answerable": 0,
+        "unanswerable": 3,
+        "errored": 0,
+        "retrievalAll": null,
+        "retrievalAny": null,
+        "retrievalTop1": null,
+        "chance": null,
+        "chanceTop1": null,
+        "citedAll": null,
+        "correct": null,
+        "factRecall": null,
+        "falseRefusals": 0,
+        "answeredCount": 0,
+        "refused": 1,
+        "softRefused": 1,
+        "unansweredCount": 3,
+        "topScoreAnswerable": null,
+        "topScoreUnanswerable": 0.3779333333333333
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "en-01",
+      "lang": "en",
+      "type": "single",
+      "question": "How many days of paid annual leave does a full-time Northwind employee get per year?",
+      "expectedSources": [
+        "northwind-hr-policy.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 1,
+          "score": 0.699
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 3,
+          "score": 0.4673
+        },
+        {
+          "source": "northwind-fleet-safety.txt",
+          "chunk": 1,
+          "score": 0.4346
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 2,
+          "score": 0.3894
+        }
+      ],
+      "chance": 0.553921568627451,
+      "chanceTop1": 0.16666666666666666,
+      "answer": "A full-time employee receives 24 working days of paid annual leave per calendar year.",
+      "sources": [
+        {
+          "source": "northwind-hr-policy.txt",
+          "page": null,
+          "chunk": 1
+        }
+      ],
+      "latencyMs": 31644,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "en-01",
+        "answerable": true,
+        "topScore": 0.699,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": true,
+        "chance": 0.553921568627451,
+        "chanceTop1": 0.16666666666666666,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "en-02",
+      "lang": "en",
+      "type": "single",
+      "question": "How long is the probation period at Northwind?",
+      "expectedSources": [
+        "northwind-hr-policy.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 2,
+          "score": 0.5247
+        },
+        {
+          "source": "northwind-fleet-safety.txt",
+          "chunk": 1,
+          "score": 0.4847
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 1,
+          "score": 0.4629
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 3,
+          "score": 0.4014
+        }
+      ],
+      "chance": 0.553921568627451,
+      "chanceTop1": 0.16666666666666666,
+      "answer": "The probation period for new employees at Northwind is 90 days.",
+      "sources": [
+        {
+          "source": "northwind-hr-policy.txt",
+          "page": null,
+          "chunk": 2
+        }
+      ],
+      "latencyMs": 34014,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "en-02",
+        "answerable": true,
+        "topScore": 0.5247,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": true,
+        "chance": 0.553921568627451,
+        "chanceTop1": 0.16666666666666666,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "en-03",
+      "lang": "en",
+      "type": "single",
+      "question": "How much will Northwind reimburse for meals per day when I travel?",
+      "expectedSources": [
+        "northwind-hr-policy.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 1,
+          "score": 0.452
+        },
+        {
+          "source": "northwind-fleet-safety.txt",
+          "chunk": 1,
+          "score": 0.3841
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 2,
+          "score": 0.3362
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 3,
+          "score": 0.3341
+        }
+      ],
+      "chance": 0.553921568627451,
+      "chanceTop1": 0.16666666666666666,
+      "answer": "When travelling, meals are reimbursed up to 40 US dollars per day.",
+      "sources": [
+        {
+          "source": "northwind-hr-policy.txt",
+          "page": null,
+          "chunk": 2
+        }
+      ],
+      "latencyMs": 2050,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "en-03",
+        "answerable": true,
+        "topScore": 0.452,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": true,
+        "chance": 0.553921568627451,
+        "chanceTop1": 0.16666666666666666,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "en-04",
+      "lang": "en",
+      "type": "single",
+      "question": "How much is the one-time home office stipend for new remote workers at Northwind?",
+      "expectedSources": [
+        "northwind-hr-policy.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 3,
+          "score": 0.5723
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 2,
+          "score": 0.4434
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 1,
+          "score": 0.4046
+        },
+        {
+          "source": "northwind-fleet-safety.txt",
+          "chunk": 1,
+          "score": 0.3219
+        }
+      ],
+      "chance": 0.553921568627451,
+      "chanceTop1": 0.16666666666666666,
+      "answer": "The one-time home office stipend for new remote workers is 300 US dollars.",
+      "sources": [
+        {
+          "source": "northwind-hr-policy.txt",
+          "page": null,
+          "chunk": 3
+        }
+      ],
+      "latencyMs": 1790,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "en-04",
+        "answerable": true,
+        "topScore": 0.5723,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": true,
+        "chance": 0.553921568627451,
+        "chanceTop1": 0.16666666666666666,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "en-05",
+      "lang": "en",
+      "type": "single",
+      "question": "What does it mean when the Orbit R7 light is blinking amber?",
+      "expectedSources": [
+        "orbit-router-manual.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 2,
+          "score": 0.3686
+        },
+        {
+          "source": "orbit-r5-quick-guide.txt",
+          "chunk": 1,
+          "score": 0.3633
+        },
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 1,
+          "score": 0.3536
+        },
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 3,
+          "score": 0.2943
+        }
+      ],
+      "chance": 0.553921568627451,
+      "chanceTop1": 0.16666666666666666,
+      "latencyMs": 3787,
+      "mainFailed": true,
+      "mainFailure": "LLM fallback: gemini-3.6-flash failed (429 [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash), trying gemini-3.5-flash-lite.",
+      "fallbackUsed": true,
+      "answer": "I couldn't find that in your uploaded documents.",
+      "sources": [],
+      "score": {
+        "id": "en-05",
+        "answerable": true,
+        "topScore": 0.3686,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": true,
+        "chance": 0.553921568627451,
+        "chanceTop1": 0.16666666666666666,
+        "refused": true,
+        "softRefused": true,
+        "citedAll": false,
+        "factsFound": [
+          false
+        ],
+        "factRecall": 0,
+        "correct": false
+      }
+    },
+    {
+      "id": "en-06",
+      "lang": "en",
+      "type": "single",
+      "question": "How many seconds do I have to hold the reset button on the Orbit R7 to restore the factory settings?",
+      "expectedSources": [
+        "orbit-router-manual.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "orbit-r5-quick-guide.txt",
+          "chunk": 2,
+          "score": 0.5034
+        },
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 3,
+          "score": 0.4305
+        },
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 1,
+          "score": 0.2971
+        },
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 2,
+          "score": 0.2575
+        }
+      ],
+      "chance": 0.553921568627451,
+      "chanceTop1": 0.16666666666666666,
+      "answer": "You have to hold the reset button for 12 seconds to restore the factory settings on the Orbit R7.",
+      "sources": [
+        {
+          "source": "orbit-router-manual.txt",
+          "page": null,
+          "chunk": 2
+        }
+      ],
+      "latencyMs": 1527,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "en-06",
+        "answerable": true,
+        "topScore": 0.5034,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": false,
+        "chance": 0.553921568627451,
+        "chanceTop1": 0.16666666666666666,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "en-07",
+      "lang": "en",
+      "type": "single",
+      "question": "What is the default IP address of the Orbit R7 router?",
+      "expectedSources": [
+        "orbit-router-manual.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 1,
+          "score": 0.6093
+        },
+        {
+          "source": "orbit-r5-quick-guide.txt",
+          "chunk": 1,
+          "score": 0.4967
+        },
+        {
+          "source": "orbit-r5-quick-guide.txt",
+          "chunk": 2,
+          "score": 0.4083
+        },
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 3,
+          "score": 0.3503
+        }
+      ],
+      "chance": 0.553921568627451,
+      "chanceTop1": 0.16666666666666666,
+      "answer": "The default address for the Orbit R7 router is 192.168.8.1.",
+      "sources": [
+        {
+          "source": "orbit-router-manual.txt",
+          "page": null,
+          "chunk": 1
+        }
+      ],
+      "latencyMs": 1893,
+      "fallbackUsed": false,
+      "mainFailed": false,
+      "score": {
+        "id": "en-07",
+        "answerable": true,
+        "topScore": 0.6093,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": true,
+        "chance": 0.553921568627451,
+        "chanceTop1": 0.16666666666666666,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "en-08",
+      "lang": "en",
+      "type": "single",
+      "question": "How long is the warranty on the Orbit R7?",
+      "expectedSources": [
+        "orbit-router-manual.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 3,
+          "score": 0.662
+        },
+        {
+          "source": "orbit-r5-quick-guide.txt",
+          "chunk": 2,
+          "score": 0.4878
+        },
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 1,
+          "score": 0.3324
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 3,
+          "score": 0.3196
+        }
+      ],
+      "chance": 0.553921568627451,
+      "chanceTop1": 0.16666666666666666,
+      "answer": "The warranty on the Orbit R7 is 18 months from the purchase date.",
+      "sources": [
+        {
+          "source": "orbit-router-manual.txt",
+          "page": null,
+          "chunk": 3
+        }
+      ],
+      "latencyMs": 1463,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "en-08",
+        "answerable": true,
+        "topScore": 0.662,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": true,
+        "chance": 0.553921568627451,
+        "chanceTop1": 0.16666666666666666,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "en-09",
+      "lang": "en",
+      "type": "single",
+      "question": "How many books does the Harbor branch of the Lakeside library hold?",
+      "expectedSources": [
+        "lakeside-library-branches.csv"
+      ],
+      "retrieved": [
+        {
+          "source": "lakeside-library-branches.csv",
+          "chunk": 2,
+          "score": 0.3467
+        },
+        {
+          "source": "lakeside-library-branches.csv",
+          "chunk": 1,
+          "score": 0.3269
+        },
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.1517
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 3,
+          "score": 0.1359
+        }
+      ],
+      "chance": 0.40522875816993464,
+      "chanceTop1": 0.1111111111111111,
+      "answer": "The Harbor branch holds 45,000 books.",
+      "sources": [
+        {
+          "source": "lakeside-library-branches.csv",
+          "page": null,
+          "chunk": 1
+        }
+      ],
+      "latencyMs": 1830,
+      "fallbackUsed": false,
+      "mainFailed": false,
+      "score": {
+        "id": "en-09",
+        "answerable": true,
+        "topScore": 0.3467,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": true,
+        "chance": 0.40522875816993464,
+        "chanceTop1": 0.1111111111111111,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "en-10",
+      "lang": "en",
+      "type": "single",
+      "question": "Which Lakeside library branch has the most study rooms?",
+      "expectedSources": [
+        "lakeside-library-branches.csv"
+      ],
+      "retrieved": [
+        {
+          "source": "lakeside-library-branches.csv",
+          "chunk": 2,
+          "score": 0.4285
+        },
+        {
+          "source": "lakeside-library-branches.csv",
+          "chunk": 1,
+          "score": 0.4031
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 3,
+          "score": 0.1381
+        },
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.0695
+        }
+      ],
+      "chance": 0.40522875816993464,
+      "chanceTop1": 0.1111111111111111,
+      "answer": "The Lakeside library branch with the most study rooms is Central, with 12 study rooms.",
+      "sources": [
+        {
+          "source": "lakeside-library-branches.csv",
+          "page": null,
+          "chunk": 2
+        },
+        {
+          "source": "lakeside-library-branches.csv",
+          "page": null,
+          "chunk": 1
+        }
+      ],
+      "latencyMs": 1709,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "en-10",
+        "answerable": true,
+        "topScore": 0.4285,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": true,
+        "chance": 0.40522875816993464,
+        "chanceTop1": 0.1111111111111111,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "en-11",
+      "lang": "en",
+      "type": "single",
+      "question": "When does the Lakeview library branch close?",
+      "expectedSources": [
+        "lakeside-library-branches.csv"
+      ],
+      "retrieved": [
+        {
+          "source": "lakeside-library-branches.csv",
+          "chunk": 2,
+          "score": 0.3198
+        },
+        {
+          "source": "lakeside-library-branches.csv",
+          "chunk": 1,
+          "score": 0.2784
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 1,
+          "score": 0.1431
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 3,
+          "score": 0.1395
+        }
+      ],
+      "chance": 0.40522875816993464,
+      "chanceTop1": 0.1111111111111111,
+      "answer": "The Lakeview library branch closes at 21:00.",
+      "sources": [
+        {
+          "source": "lakeside-library-branches.csv",
+          "page": null,
+          "chunk": 2
+        }
+      ],
+      "latencyMs": 3924,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "en-11",
+        "answerable": true,
+        "topScore": 0.3198,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": true,
+        "chance": 0.40522875816993464,
+        "chanceTop1": 0.1111111111111111,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "ar-01",
+      "lang": "ar",
+      "type": "single",
+      "question": "ما هي رسوم الكشف العام في عيادة النور؟",
+      "expectedSources": [
+        "clinic-guide-ar.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.5866
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 2,
+          "score": 0.3271
+        },
+        {
+          "source": "clinic-guide-ar.txt",
+          "chunk": 1,
+          "score": 0.2104
+        },
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 1,
+          "score": 0.205
+        }
+      ],
+      "chance": 0.40522875816993464,
+      "chanceTop1": 0.1111111111111111,
+      "answer": "رسوم الكشف العام في عيادة النور هي 150 ريالا.",
+      "sources": [
+        {
+          "source": "clinic-guide-ar.txt",
+          "page": null,
+          "chunk": 1
+        }
+      ],
+      "latencyMs": 1831,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "ar-01",
+        "answerable": true,
+        "topScore": 0.5866,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": false,
+        "chance": 0.40522875816993464,
+        "chanceTop1": 0.1111111111111111,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "ar-02",
+      "lang": "ar",
+      "type": "single",
+      "question": "قبل كم ساعة يجب إلغاء الموعد في عيادة النور حتى لا تُحتسب رسوم؟",
+      "expectedSources": [
+        "clinic-guide-ar.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.6857
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 2,
+          "score": 0.4589
+        },
+        {
+          "source": "clinic-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.341
+        },
+        {
+          "source": "clinic-guide-ar.txt",
+          "chunk": 1,
+          "score": 0.328
+        }
+      ],
+      "chance": 0.40522875816993464,
+      "chanceTop1": 0.1111111111111111,
+      "latencyMs": 3096,
+      "mainFailed": true,
+      "mainFailure": "LLM fallback: gemini-3.6-flash failed (429 [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash), trying gemini-3.5-flash-lite.",
+      "fallbackUsed": true,
+      "answer": "يجب إلغاء الموعد قبل 24 ساعة على الأقل حتى لا تُحتسب رسوم.",
+      "sources": [
+        {
+          "source": "clinic-guide-ar.txt",
+          "page": null,
+          "chunk": 1
+        }
+      ],
+      "score": {
+        "id": "ar-02",
+        "answerable": true,
+        "topScore": 0.6857,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": false,
+        "chance": 0.40522875816993464,
+        "chanceTop1": 0.1111111111111111,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "ar-03",
+      "lang": "ar",
+      "type": "single",
+      "question": "متى تظهر نتائج التحاليل العادية في عيادة النور؟",
+      "expectedSources": [
+        "clinic-guide-ar.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.5959
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 2,
+          "score": 0.3527
+        },
+        {
+          "source": "clinic-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.2678
+        },
+        {
+          "source": "clinic-guide-ar.txt",
+          "chunk": 1,
+          "score": 0.1916
+        }
+      ],
+      "chance": 0.40522875816993464,
+      "chanceTop1": 0.1111111111111111,
+      "answer": "تظهر نتائج التحاليل العادية خلال 48 ساعة في تطبيق العيادة.",
+      "sources": [
+        {
+          "source": "clinic-guide-ar.txt",
+          "page": null,
+          "chunk": 2
+        }
+      ],
+      "latencyMs": 7110,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "ar-03",
+        "answerable": true,
+        "topScore": 0.5959,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": false,
+        "chance": 0.40522875816993464,
+        "chanceTop1": 0.1111111111111111,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "ar-04",
+      "lang": "ar",
+      "type": "single",
+      "question": "ما رقم الطوارئ الذي توجه عيادة النور مرضاها للاتصال به؟",
+      "expectedSources": [
+        "clinic-guide-ar.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.595
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 2,
+          "score": 0.3746
+        },
+        {
+          "source": "clinic-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.2624
+        },
+        {
+          "source": "clinic-guide-ar.txt",
+          "chunk": 1,
+          "score": 0.1901
+        }
+      ],
+      "chance": 0.40522875816993464,
+      "chanceTop1": 0.1111111111111111,
+      "answer": "الرقم الذي توجه عيادة النور مرضاها للاتصال به في الحالات الطارئة هو 997.",
+      "sources": [
+        {
+          "source": "clinic-guide-ar.txt",
+          "page": null,
+          "chunk": 2
+        }
+      ],
+      "latencyMs": 1577,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "ar-04",
+        "answerable": true,
+        "topScore": 0.595,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": false,
+        "chance": 0.40522875816993464,
+        "chanceTop1": 0.1111111111111111,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "ar-05",
+      "lang": "ar",
+      "type": "single",
+      "question": "ما هي ساعات دوام عيادة النور يوم السبت؟",
+      "expectedSources": [
+        "clinic-guide-ar.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.6378
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 2,
+          "score": 0.3244
+        },
+        {
+          "source": "clinic-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.2131
+        },
+        {
+          "source": "clinic-guide-ar.txt",
+          "chunk": 1,
+          "score": 0.207
+        }
+      ],
+      "chance": 0.40522875816993464,
+      "chanceTop1": 0.1111111111111111,
+      "answer": "يوم السبت يكون الدوام في عيادة النور من الساعة 9 صباحا حتى الساعة 2 ظهرا.",
+      "sources": [
+        {
+          "source": "clinic-guide-ar.txt",
+          "page": null,
+          "chunk": 1
+        }
+      ],
+      "latencyMs": 1728,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "ar-05",
+        "answerable": true,
+        "topScore": 0.6378,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": false,
+        "chance": 0.40522875816993464,
+        "chanceTop1": 0.1111111111111111,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true,
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "ar-06",
+      "lang": "ar",
+      "type": "single",
+      "question": "كم سنة مدة ضمان الألواح الشمسية لدى شمس الخليج؟",
+      "expectedSources": [
+        "solar-faq-ar.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.5817
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 2,
+          "score": 0.2421
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 1,
+          "score": 0.1774
+        },
+        {
+          "source": "lakeside-library-branches.csv",
+          "chunk": 1,
+          "score": 0.1498
+        }
+      ],
+      "chance": 0.40522875816993464,
+      "chanceTop1": 0.1111111111111111,
+      "answer": "مدة ضمان الألواح الشمسية لدى شمس الخليج هي 25 سنة.",
+      "sources": [
+        {
+          "source": "solar-faq-ar.txt",
+          "page": null,
+          "chunk": 1
+        }
+      ],
+      "latencyMs": 4035,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "ar-06",
+        "answerable": true,
+        "topScore": 0.5817,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": false,
+        "chance": 0.40522875816993464,
+        "chanceTop1": 0.1111111111111111,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "ar-07",
+      "lang": "ar",
+      "type": "single",
+      "question": "كم يبلغ سعر نظام الطاقة الشمسية المنزلي بقدرة 5 كيلوواط؟",
+      "expectedSources": [
+        "solar-faq-ar.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.6062
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 2,
+          "score": 0.4346
+        },
+        {
+          "source": "clinic-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.3104
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 1,
+          "score": 0.3091
+        }
+      ],
+      "chance": 0.40522875816993464,
+      "chanceTop1": 0.1111111111111111,
+      "answer": "يبلغ سعر نظام الطاقة الشمسية المنزلي بقدرة 5 كيلوواط مبلغ 22,000 ريال شاملا التركيب.",
+      "sources": [
+        {
+          "source": "solar-faq-ar.txt",
+          "page": null,
+          "chunk": 1
+        }
+      ],
+      "latencyMs": 1869,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "ar-07",
+        "answerable": true,
+        "topScore": 0.6062,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": false,
+        "chance": 0.40522875816993464,
+        "chanceTop1": 0.1111111111111111,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "ar-08",
+      "lang": "ar",
+      "type": "single",
+      "question": "على كم شهرا يمكن تقسيط ثمن النظام الشمسي بدون فوائد؟",
+      "expectedSources": [
+        "solar-faq-ar.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.6018
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 2,
+          "score": 0.495
+        },
+        {
+          "source": "clinic-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.2924
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 1,
+          "score": 0.2844
+        }
+      ],
+      "chance": 0.40522875816993464,
+      "chanceTop1": 0.1111111111111111,
+      "answer": "يمكن تقسيط ثمن النظام الشمسي على 36 شهرا بدون فوائد.",
+      "sources": [
+        {
+          "source": "solar-faq-ar.txt",
+          "page": null,
+          "chunk": 2
+        }
+      ],
+      "latencyMs": 7300,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "ar-08",
+        "answerable": true,
+        "topScore": 0.6018,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": false,
+        "chance": 0.40522875816993464,
+        "chanceTop1": 0.1111111111111111,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "x-01",
+      "lang": "en",
+      "type": "cross-lingual",
+      "question": "How many working days does a home solar installation take?",
+      "expectedSources": [
+        "solar-faq-ar.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 2,
+          "score": 0.3215
+        },
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 3,
+          "score": 0.2762
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 3,
+          "score": 0.248
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 1,
+          "score": 0.2242
+        }
+      ],
+      "chance": 0.40522875816993464,
+      "chanceTop1": 0.1111111111111111,
+      "answer": "I couldn't find that in your uploaded documents.",
+      "sources": [],
+      "latencyMs": 1538,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "x-01",
+        "answerable": true,
+        "topScore": 0.3215,
+        "retrievalAll": false,
+        "retrievalAny": false,
+        "retrievalTop1": false,
+        "chance": 0.40522875816993464,
+        "chanceTop1": 0.1111111111111111,
+        "refused": true,
+        "softRefused": true,
+        "citedAll": false,
+        "factsFound": [
+          false
+        ],
+        "factRecall": 0,
+        "correct": false
+      }
+    },
+    {
+      "id": "x-02",
+      "lang": "ar",
+      "type": "cross-lingual",
+      "question": "كم يوما من الإجازة السنوية المدفوعة يحصل عليها موظف Northwind؟",
+      "expectedSources": [
+        "northwind-hr-policy.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.5161
+        },
+        {
+          "source": "northwind-fleet-safety.txt",
+          "chunk": 1,
+          "score": 0.3401
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 2,
+          "score": 0.3367
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 1,
+          "score": 0.2628
+        }
+      ],
+      "chance": 0.553921568627451,
+      "chanceTop1": 0.16666666666666666,
+      "answer": "يحصل كل موظف بدوام كامل في شركة Northwind على 24 يوم عمل من الإجازة السنوية المدفوعة لكل سنة ميلادية، بالإضافة إلى 9 أيام عطلات رسمية.",
+      "sources": [
+        {
+          "source": "northwind-hr-policy.txt",
+          "page": null,
+          "chunk": 1
+        }
+      ],
+      "latencyMs": 1535,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "x-02",
+        "answerable": true,
+        "topScore": 0.5161,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": false,
+        "chance": 0.553921568627451,
+        "chanceTop1": 0.16666666666666666,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "multi-01",
+      "lang": "en",
+      "type": "multi",
+      "question": "How many days of annual leave does Northwind give per year, and how long is the warranty on the Orbit R7?",
+      "expectedSources": [
+        "northwind-hr-policy.txt",
+        "orbit-router-manual.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 1,
+          "score": 0.5599
+        },
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 3,
+          "score": 0.4887
+        },
+        {
+          "source": "northwind-fleet-safety.txt",
+          "chunk": 1,
+          "score": 0.4416
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 3,
+          "score": 0.4135
+        }
+      ],
+      "chance": 0.26960784313725494,
+      "chanceTop1": 0.3333333333333333,
+      "answer": "Based on your documents:\n- Northwind gives full-time employees 24 working days of paid annual leave per calendar year.\n- The warranty on the Orbit R7 is 18 months from the purchase date.",
+      "sources": [
+        {
+          "source": "northwind-hr-policy.txt",
+          "page": null,
+          "chunk": 1
+        },
+        {
+          "source": "orbit-router-manual.txt",
+          "page": null,
+          "chunk": 3
+        }
+      ],
+      "latencyMs": 1642,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "multi-01",
+        "answerable": true,
+        "topScore": 0.5599,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": true,
+        "chance": 0.26960784313725494,
+        "chanceTop1": 0.3333333333333333,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true,
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "multi-02",
+      "lang": "en",
+      "type": "multi",
+      "question": "How many LAN ports does the Orbit R7 have, and how many study rooms does the Lakeview library branch have?",
+      "expectedSources": [
+        "orbit-router-manual.txt",
+        "lakeside-library-branches.csv"
+      ],
+      "retrieved": [
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 1,
+          "score": 0.4649
+        },
+        {
+          "source": "orbit-router-manual.txt",
+          "chunk": 3,
+          "score": 0.3517
+        },
+        {
+          "source": "orbit-r5-quick-guide.txt",
+          "chunk": 1,
+          "score": 0.3166
+        },
+        {
+          "source": "orbit-r5-quick-guide.txt",
+          "chunk": 2,
+          "score": 0.289
+        }
+      ],
+      "chance": 0.1928104575163399,
+      "chanceTop1": 0.2777777777777778,
+      "answer": "The Orbit R7 has 4 Gigabit LAN ports. I couldn't find information about the number of study rooms at the Lakeview library branch in your uploaded documents.",
+      "sources": [
+        {
+          "source": "orbit-router-manual.txt",
+          "page": null,
+          "chunk": 1
+        }
+      ],
+      "latencyMs": 7313,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "multi-02",
+        "answerable": true,
+        "topScore": 0.4649,
+        "retrievalAll": false,
+        "retrievalAny": true,
+        "retrievalTop1": true,
+        "chance": 0.1928104575163399,
+        "chanceTop1": 0.2777777777777778,
+        "refused": false,
+        "softRefused": true,
+        "citedAll": false,
+        "factsFound": [
+          true,
+          false
+        ],
+        "factRecall": 0.5,
+        "correct": false
+      }
+    },
+    {
+      "id": "multi-03",
+      "lang": "en",
+      "type": "multi",
+      "question": "What is the yearly training budget per Northwind employee, and how many books does the Oakwood library branch hold?",
+      "expectedSources": [
+        "northwind-hr-policy.txt",
+        "lakeside-library-branches.csv"
+      ],
+      "retrieved": [
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 3,
+          "score": 0.4937
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 1,
+          "score": 0.3788
+        },
+        {
+          "source": "lakeside-library-branches.csv",
+          "chunk": 2,
+          "score": 0.3311
+        },
+        {
+          "source": "northwind-fleet-safety.txt",
+          "chunk": 1,
+          "score": 0.3233
+        }
+      ],
+      "chance": 0.1928104575163399,
+      "chanceTop1": 0.2777777777777778,
+      "answer": "Based on your documents:\n- The yearly training budget per Northwind employee is 1,200 US dollars.\n- The Oakwood library branch holds 33,000 books.",
+      "sources": [
+        {
+          "source": "northwind-hr-policy.txt",
+          "page": null,
+          "chunk": 3
+        },
+        {
+          "source": "lakeside-library-branches.csv",
+          "page": null,
+          "chunk": 2
+        }
+      ],
+      "latencyMs": 7027,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "multi-03",
+        "answerable": true,
+        "topScore": 0.4937,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": true,
+        "chance": 0.1928104575163399,
+        "chanceTop1": 0.2777777777777778,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true,
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "multi-04",
+      "lang": "ar",
+      "type": "multi",
+      "question": "ما هي رسوم الكشف العام في عيادة النور، وكم سنة مدة ضمان العاكس لدى شمس الخليج؟",
+      "expectedSources": [
+        "clinic-guide-ar.txt",
+        "solar-faq-ar.txt"
+      ],
+      "retrieved": [
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.6111
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 2,
+          "score": 0.4528
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 1,
+          "score": 0.328
+        },
+        {
+          "source": "clinic-guide-ar.txt",
+          "chunk": 1,
+          "score": 0.3144
+        }
+      ],
+      "chance": 0.13758169934640524,
+      "chanceTop1": 0.2222222222222222,
+      "answer": "استناداً إلى المستندات المرفقة:\n\n- رسوم الكشف العام في عيادة النور هي 150 ريالاً.\n- مدة ضمان العاكس لدى شركة شمس الخليج هي 10 سنوات.",
+      "sources": [
+        {
+          "source": "solar-faq-ar.txt",
+          "page": null,
+          "chunk": 1
+        },
+        {
+          "source": "clinic-guide-ar.txt",
+          "page": null,
+          "chunk": 1
+        }
+      ],
+      "latencyMs": 4019,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "multi-04",
+        "answerable": true,
+        "topScore": 0.6111,
+        "retrievalAll": true,
+        "retrievalAny": true,
+        "retrievalTop1": false,
+        "chance": 0.13758169934640524,
+        "chanceTop1": 0.2222222222222222,
+        "refused": false,
+        "softRefused": false,
+        "citedAll": true,
+        "factsFound": [
+          true,
+          true
+        ],
+        "factRecall": 1,
+        "correct": true
+      }
+    },
+    {
+      "id": "none-01",
+      "lang": "en",
+      "type": "unanswerable",
+      "question": "Does Northwind offer dental insurance to its employees?",
+      "expectedSources": [],
+      "retrieved": [
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 1,
+          "score": 0.3886
+        },
+        {
+          "source": "northwind-fleet-safety.txt",
+          "chunk": 1,
+          "score": 0.3689
+        },
+        {
+          "source": "northwind-hr-policy.txt",
+          "chunk": 3,
+          "score": 0.3638
+        },
+        {
+          "source": "northwind-fleet-safety.txt",
+          "chunk": 2,
+          "score": 0.1905
+        }
+      ],
+      "chance": null,
+      "chanceTop1": null,
+      "answer": "I couldn't find that in your uploaded documents.",
+      "sources": [],
+      "latencyMs": 5580,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "none-01",
+        "answerable": false,
+        "topScore": 0.3886,
+        "refused": true,
+        "softRefused": true,
+        "refusedCorrectly": true
+      }
+    },
+    {
+      "id": "none-02",
+      "lang": "en",
+      "type": "unanswerable",
+      "question": "Who is the current president of France?",
+      "expectedSources": [],
+      "retrieved": [
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.1227
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 2,
+          "score": 0.0676
+        },
+        {
+          "source": "clinic-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.0449
+        },
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 1,
+          "score": 0.0405
+        }
+      ],
+      "chance": null,
+      "chanceTop1": null,
+      "answer": "I couldn't find that in your uploaded documents.",
+      "sources": [],
+      "latencyMs": 1532,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "none-02",
+        "answerable": false,
+        "topScore": 0.1227,
+        "refused": true,
+        "softRefused": true,
+        "refusedCorrectly": true
+      }
+    },
+    {
+      "id": "none-03",
+      "lang": "ar",
+      "type": "unanswerable",
+      "question": "هل تقبل عيادة النور الدفع بالتقسيط؟",
+      "expectedSources": [],
+      "retrieved": [
+        {
+          "source": "shifa-center-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.6225
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 2,
+          "score": 0.3453
+        },
+        {
+          "source": "clinic-guide-ar.txt",
+          "chunk": 2,
+          "score": 0.2619
+        },
+        {
+          "source": "solar-faq-ar.txt",
+          "chunk": 1,
+          "score": 0.1977
+        }
+      ],
+      "chance": null,
+      "chanceTop1": null,
+      "answer": "I couldn't find that in your uploaded documents.",
+      "sources": [],
+      "latencyMs": 6219,
+      "fallbackUsed": true,
+      "mainFailed": true,
+      "score": {
+        "id": "none-03",
+        "answerable": false,
+        "topScore": 0.6225,
+        "refused": true,
+        "softRefused": true,
+        "refusedCorrectly": true
+      }
+    }
+  ]
+}
