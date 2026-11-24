@@ -104,7 +104,7 @@ async function embeddingConfig(settings) {
 
 test('with no EMBEDDING_* settings the embedder is the unchanged default and nothing is printed', async () => {
   const { profile, stderr } = await embeddingConfig({});
-  assert.deepEqual(profile, { pooling: 'mean', normalize: true, queryPrefix: '', documentPrefix: '', dimensions: null, nativeDimensions: 384, sourceMinScore: 0.2, sourceRelativeScore: 0.7, known: true, warnings: [] });
+  assert.deepEqual(profile, { provider: 'local', taskTypes: null, pooling: 'mean', normalize: true, queryPrefix: '', documentPrefix: '', dimensions: null, nativeDimensions: 384, sourceMinScore: 0.2, sourceRelativeScore: 0.7, known: true, warnings: [] });
   assert.equal(stderr, '');
 });
 

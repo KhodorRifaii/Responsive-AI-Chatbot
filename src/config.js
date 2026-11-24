@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { resolveEmbeddingProfile } from './services/embeddingProfile.js';
+import { resolveEmbeddingProfile, readEmbeddingProvider } from './services/embeddingProfile.js';
 
 /**
  * Gemini 2.5 "thinking" token budget (Gemini 3 models use the level below instead). 0 (default)
@@ -61,10 +61,15 @@ function readLimit(value, fallback) {
   return value?.trim() && Number.isInteger(number) && number >= 0 ? number : fallback;
 }
 
-const embeddingModel = process.env.EMBEDDING_MODEL?.trim() || 'Xenova/all-MiniLM-L6-v2';
+// Where the vectors are computed: local (Transformers.js in this process, default) or google (the Gemini embeddings API).
+const embeddingProvider = readEmbeddingProvider(process.env.EMBEDDING_PROVIDER).provider;
+const embeddingModel = process.env.EMBEDDING_MODEL?.trim() || (embeddingProvider === 'google' ? 'gemini-embedding-2' : 'Xenova/all-MiniLM-L6-v2');
 // How the embedding model is called (pooling, prefixes, size); problems with the EMBEDDING_* settings are logged once, here.
 const embeddingProfile = resolveEmbeddingProfile(embeddingModel, process.env);
 for (const warning of embeddingProfile.warnings) console.warn(warning);
+if (embeddingProvider === 'google' && !process.env.GOOGLE_API_KEY?.trim()) {
+  console.warn('EMBEDDING_PROVIDER=google needs GOOGLE_API_KEY: uploads will fail until it is set.');
+}
 
 const geminiModel = process.env.GEMINI_MODEL?.trim() || 'gemini-3.5-flash-lite';
 
@@ -78,6 +83,7 @@ const config = {
   geminiTimeoutSeconds: readTimeoutSeconds(process.env.GEMINI_TIMEOUT_SECONDS, 30),
   geminiThinkingBudget: readThinkingBudget(process.env.GEMINI_THINKING_BUDGET),
   geminiThinkingLevel: readThinkingLevel(process.env.GEMINI_THINKING_LEVEL),
+  embeddingProvider,
   embeddingModel,
   embeddingProfile,
   // q8 (quantized) and 1 thread keep memory low enough for 512 MB hosts.

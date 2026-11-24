@@ -7,7 +7,7 @@ const DEFAULT = 'Xenova/all-MiniLM-L6-v2';
 
 test('the default model keeps today\'s behaviour: mean pooling, normalised, no prefixes, full size', () => {
   const profile = resolveEmbeddingProfile(DEFAULT, {});
-  assert.deepEqual({ ...profile }, { pooling: 'mean', normalize: true, queryPrefix: '', documentPrefix: '', dimensions: null, known: true, nativeDimensions: 384, sourceMinScore: 0.2, sourceRelativeScore: 0.7, warnings: [] });
+  assert.deepEqual({ ...profile }, { provider: 'local', taskTypes: null, pooling: 'mean', normalize: true, queryPrefix: '', documentPrefix: '', dimensions: null, known: true, nativeDimensions: 384, sourceMinScore: 0.2, sourceRelativeScore: 0.7, warnings: [] });
 });
 
 test('every verified model has the pooling and prefixes of its model card', () => {
@@ -115,4 +115,65 @@ test('EMBEDDING_SOURCE_MIN_SCORE and EMBEDDING_SOURCE_RELATIVE_SCORE override th
   }
   assert.equal(resolveEmbeddingProfile(DEFAULT, { EMBEDDING_SOURCE_RELATIVE_SCORE: '0' }).sourceRelativeScore, 0.7, 'a relative rule of 0 would show everything: ignored');
   assert.equal(resolveEmbeddingProfile(DEFAULT, { EMBEDDING_SOURCE_MIN_SCORE: '' }).warnings.length, 0, 'set-but-empty means unset');
+});
+
+// ---- the hosted provider ----
+const G = { EMBEDDING_PROVIDER: 'google' };
+
+test('EMBEDDING_PROVIDER: empty = local, local/google (any case), anything else falls back to local with a warning', () => {
+  assert.equal(resolveEmbeddingProfile(DEFAULT, {}).provider, 'local');
+  assert.equal(resolveEmbeddingProfile('gemini-embedding-2', { EMBEDDING_PROVIDER: ' Google ' }).provider, 'google');
+  const typo = resolveEmbeddingProfile(DEFAULT, { EMBEDDING_PROVIDER: 'gogle' });
+  assert.equal(typo.provider, 'local');
+  assert.match(typo.warnings[0], /EMBEDDING_PROVIDER=gogle ignored/);
+});
+
+test('gemini-embedding-2: prefixes instead of a task type, 768 values by default, 3072 native, nothing to pool', () => {
+  const profile = resolveEmbeddingProfile('gemini-embedding-2', G);
+  assert.equal(profile.known, true);
+  assert.deepEqual(profile.warnings, []);
+  assert.equal(profile.queryPrefix, 'task: search result | query: ');
+  assert.equal(profile.documentPrefix, 'title: none | text: ');
+  assert.equal(profile.taskTypes, null);
+  assert.equal(profile.dimensions, 768);
+  assert.equal(profile.nativeDimensions, 3072);
+  assert.equal(profile.pooling, 'api');
+});
+
+test('gemini-embedding-001: task types instead of prefixes', () => {
+  const profile = resolveEmbeddingProfile('gemini-embedding-001', G);
+  assert.deepEqual(profile.taskTypes, { query: 'RETRIEVAL_QUERY', document: 'RETRIEVAL_DOCUMENT' });
+  assert.equal(profile.queryPrefix, '');
+  assert.equal(profile.documentPrefix, '');
+  assert.equal(profile.dimensions, 768);
+});
+
+test('Google size: EMBEDDING_DIMENSIONS from 128 to 3072; outside that it is ignored (the default 768 stays); EMBEDDING_POOLING is ignored', () => {
+  assert.equal(resolveEmbeddingProfile('gemini-embedding-2', { ...G, EMBEDDING_DIMENSIONS: '1536' }).dimensions, 1536);
+  assert.equal(resolveEmbeddingProfile('gemini-embedding-2', { ...G, EMBEDDING_DIMENSIONS: '3072' }).dimensions, 3072);
+  for (const bad of ['64', '4000', '9999', 'abc']) {
+    const profile = resolveEmbeddingProfile('gemini-embedding-2', { ...G, EMBEDDING_DIMENSIONS: bad });
+    assert.equal(profile.dimensions, 768, bad);
+    assert.match(profile.warnings.join(), /EMBEDDING_DIMENSIONS=.* ignored \(use a whole number from 128 to 3072\): using 768/, bad);
+  }
+  const pooled = resolveEmbeddingProfile('gemini-embedding-2', { ...G, EMBEDDING_POOLING: 'cls' });
+  assert.equal(pooled.pooling, 'api');
+  assert.match(pooled.warnings.join(), /EMBEDDING_POOLING=cls ignored: Google's API pools/);
+});
+
+test('a model with the wrong provider is not a verified setup: warning, plain defaults', () => {
+  const google = resolveEmbeddingProfile('gemini-embedding-2', {});
+  assert.equal(google.known, false);
+  assert.match(google.warnings.join(), /is a google model but EMBEDDING_PROVIDER is local/);
+  const local = resolveEmbeddingProfile(DEFAULT, G);
+  assert.equal(local.known, false);
+  assert.match(local.warnings.join(), /is a local model but EMBEDDING_PROVIDER is google/);
+  assert.equal(local.dimensions, null);
+});
+
+test('an unlisted Google model sends no prefix and no task type, with a warning', () => {
+  const profile = resolveEmbeddingProfile('gemini-embedding-9', G);
+  assert.equal(profile.known, false);
+  assert.deepEqual([profile.queryPrefix, profile.documentPrefix, profile.taskTypes, profile.dimensions], ['', '', null, null]);
+  assert.match(profile.warnings[0], /sending no prefix and no task type/);
 });
