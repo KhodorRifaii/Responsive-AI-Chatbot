@@ -8,6 +8,7 @@ import documentsRouter from './routes/documents.js';
 import chatRouter from './routes/chat.js';
 import { sessionMiddleware } from './middleware/session.js';
 import { createRateLimiter } from './middleware/rateLimit.js';
+import { securityHeaders } from './middleware/securityHeaders.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -17,8 +18,11 @@ const app = express();
 // use the real visitor. Set TRUST_PROXY=false when nothing sits in front of the app.
 app.set('trust proxy', config.trustProxy);
 app.disable('x-powered-by');
+app.use(securityHeaders);
 
 app.use(express.json({ limit: '1mb' }));
+// Vendor files have the version in their path (vendor/bootstrap/5.3.3/…), so browsers may keep them a year.
+app.use('/vendor', express.static(path.join(__dirname, '..', 'public', 'vendor'), { maxAge: '1y', immutable: true }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/api/health', (req, res) => {
@@ -26,6 +30,7 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     llmConfigured: Boolean(config.googleApiKey),
     model: config.geminiModel,
+    fallbackModel: config.geminiFallbackModel,
   });
 });
 

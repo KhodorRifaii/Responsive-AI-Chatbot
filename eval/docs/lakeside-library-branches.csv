@@ -1,0 +1,15 @@
+Branch,Opening hours,Books,Study rooms,Children section,Parking
+Central,08:00-20:00,120000,12,Yes,Paid
+Harbor,09:00-18:00,45000,3,Yes,Free
+Eastgate,10:00-19:00,38000,2,No,Free
+Northfield,09:00-17:00,27000,1,Yes,Free
+Westbrook,08:30-18:30,61000,5,Yes,Paid
+Riverside,10:00-16:00,19000,0,No,None
+Hillcrest,09:00-20:00,52000,4,Yes,Free
+Oakwood,09:00-17:30,33000,2,Yes,Free
+Southpark,10:00-18:00,41000,3,No,Paid
+Millbrook,08:00-16:00,22000,1,Yes,Free
+Cedar Lane,09:30-19:00,29000,2,Yes,Free
+Lakeview,09:00-21:00,74000,8,Yes,Paid
+Stonebridge,10:00-17:00,15000,0,No,None
+Maple Court,09:00-18:00,36000,2,Yes,Free

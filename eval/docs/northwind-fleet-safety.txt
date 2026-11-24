@@ -1,0 +1,19 @@
+Northwind Logistics: Fleet and Driver Safety Rules (version 2.9)
+
+1. Driving hours
+A driver may drive at most 9 hours per day. After 4.5 hours of driving, the driver must take a break of at least 45 minutes. A driver must rest for 11 hours between two shifts. Weekly driving time is limited to 56 hours.
+
+2. Vehicle checks
+Every vehicle is inspected by its driver before the first trip of the day. The check covers tyres, lights, brakes and the cargo straps, and it is recorded in the Fleet app. A vehicle with a failed brake or light check does not leave the depot. A full technical inspection takes place every 10,000 kilometres.
+
+3. Speed
+The speed limit inside the depot is 15 km/h. On motorways, Northwind vehicles are limited to 90 km/h. Vehicles carry a tracker, and speeding alerts are reviewed every Monday by the fleet manager.
+
+4. Accidents and incidents
+Any accident must be reported to the dispatch desk within 1 hour, even if nobody is hurt. The driver must photograph the scene and the damage and must not admit fault to anyone at the scene. Near misses are reported in the Fleet app by the end of the shift.
+
+5. Safety training
+Every driver completes 8 hours of safety training once a year. New drivers complete 24 hours of training before their first solo trip. Drivers who receive 3 speeding alerts within 30 days must repeat the training.
+
+6. Protective equipment
+High-visibility vests and safety shoes are mandatory in the depot and while loading or unloading. Gloves are provided at the loading bay. The depot is a no-smoking area.

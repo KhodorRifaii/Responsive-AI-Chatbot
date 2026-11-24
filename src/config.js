@@ -1,8 +1,8 @@
 import 'dotenv/config';
 
 /**
- * Gemini "thinking" token budget. 0 (default) turns thinking off: answers use far fewer
- * tokens of the free quota. "default" leaves the model's own setting.
+ * Gemini 2.5 "thinking" token budget (Gemini 3 models use the level below instead). 0 (default)
+ * turns thinking off: answers use far fewer tokens of the free quota. "default" leaves the model's own setting.
  */
 function readThinkingBudget(value) {
   const text = value?.trim();
@@ -10,6 +10,16 @@ function readThinkingBudget(value) {
   if (text.toLowerCase() === 'default') return null;
   const budget = Number(text);
   return Number.isInteger(budget) ? budget : 0;
+}
+
+/**
+ * Gemini 3 "thinking" level: minimal (default, the lowest and cheapest), low, medium or high.
+ * "default" leaves the model's own setting (null). Anything else falls back to minimal.
+ */
+function readThinkingLevel(value) {
+  const text = value?.trim().toLowerCase();
+  if (text === 'default') return null;
+  return ['minimal', 'low', 'medium', 'high'].includes(text) ? text : 'minimal';
 }
 
 /**
@@ -24,18 +34,44 @@ function readTrustProxy(value) {
   return /^\d+$/.test(text) ? Number(text) : text;
 }
 
+/**
+ * Second Gemini model, used when the main one is out of quota, overloaded, too slow or retired.
+ * "none" (or the same name as the main model) turns the fallback off.
+ */
+function readFallbackModel(value, mainModel) {
+  const text = value?.trim();
+  if (text?.toLowerCase() === 'none') return null;
+  const model = text || 'gemini-3.1-flash-lite';
+  return model === mainModel ? null : model;
+}
+
+/**
+ * Seconds for GEMINI_TIMEOUT_SECONDS. setTimeout holds at most 2^31-1 ms (about 24.8 days);
+ * larger values (or Infinity) would fire at once, so they fall back to the default too.
+ */
+function readTimeoutSeconds(value, fallback) {
+  const seconds = Number(value?.trim());
+  return Number.isFinite(seconds) && seconds > 0 && seconds * 1000 <= 2_147_483_647 ? seconds : fallback;
+}
+
 /** A non-negative whole number from the environment (0 allowed), or the fallback. */
 function readLimit(value, fallback) {
   const number = Number(value?.trim());
   return value?.trim() && Number.isInteger(number) && number >= 0 ? number : fallback;
 }
 
+const geminiModel = process.env.GEMINI_MODEL?.trim() || 'gemini-3.5-flash-lite';
+
 const config = {
   port: Number(process.env.PORT) || 3000,
   trustProxy: readTrustProxy(process.env.TRUST_PROXY),
   googleApiKey: process.env.GOOGLE_API_KEY?.trim() || '',
-  geminiModel: process.env.GEMINI_MODEL?.trim() || 'gemini-3.5-flash',
+  geminiModel,
+  geminiFallbackModel: readFallbackModel(process.env.GEMINI_FALLBACK_MODEL, geminiModel),
+  // Seconds each model gets to answer (its own retries included) before the fallback is tried.
+  geminiTimeoutSeconds: readTimeoutSeconds(process.env.GEMINI_TIMEOUT_SECONDS, 30),
   geminiThinkingBudget: readThinkingBudget(process.env.GEMINI_THINKING_BUDGET),
+  geminiThinkingLevel: readThinkingLevel(process.env.GEMINI_THINKING_LEVEL),
   embeddingModel: process.env.EMBEDDING_MODEL?.trim() || 'Xenova/all-MiniLM-L6-v2',
   // q8 (quantized) and 1 thread keep memory low enough for 512 MB hosts.
   embeddingDtype: process.env.EMBEDDING_DTYPE?.trim() || 'q8',

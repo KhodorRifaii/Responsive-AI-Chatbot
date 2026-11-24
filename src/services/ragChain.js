@@ -5,8 +5,23 @@ import { StringOutputParser } from '@langchain/core/output_parsers';
 import config from '../config.js';
 import { search, hasDocuments } from './vectorStore.js';
 import { HttpError } from '../utils/httpError.js';
+import { thinkingConfigFor, thinkingWarning } from './thinking.js';
 
 const MAX_MESSAGE_LENGTH = 2000;
+
+// @google/generative-ai (inside @langchain/google-genai 2.3.7) returns a `response` promise next to
+// every stream, and LangChain never awaits it. When a stream is aborted (our timeout) or the
+// connection drops, that promise rejects with no handler and Node would exit, taking every
+// visitor's documents with it. The same error already reaches streamWithFallback through the
+// stream itself, so this copy is only logged. Any other unhandled rejection still stops the process.
+process.on('unhandledRejection', (reason) => {
+  if (/^GoogleGenerativeAI(Abort)?Error$/.test(reason?.constructor?.name ?? '') && /reading from the stream/.test(reason.message)) {
+    console.warn('Ignored a duplicate Gemini stream error:', reason.message);
+    return;
+  }
+  console.error('Unhandled promise rejection:', reason);
+  process.exit(1);
+});
 
 export const NOT_FOUND_ANSWER = "I couldn't find that in your uploaded documents.";
 
@@ -32,31 +47,54 @@ const prompt = ChatPromptTemplate.fromMessages([
   ['human', '{question}'],
 ]);
 
-export function createLlm() {
+const warnedModels = new Set();
+
+/**
+ * Say once per model (to the log) when it gets no thinking setting, for example an old .env that still names
+ * gemini-3.5-flash. The server calls it at startup for both models; createLlm calls it too (eval runs).
+ */
+export function warnAboutThinking(models = [config.geminiModel, config.geminiFallbackModel]) {
+  for (const model of models) {
+    if (!model || warnedModels.has(model)) continue;
+    warnedModels.add(model);
+    const message = thinkingWarning(model, { level: config.geminiThinkingLevel, budget: config.geminiThinkingBudget });
+    if (message) console.warn(message);
+  }
+}
+
+export function createLlm(model = config.geminiModel) {
   if (!config.googleApiKey) {
     throw new HttpError(503, 'MISSING_API_KEY', 'The AI is not set up yet: add GOOGLE_API_KEY to the .env file and restart the server. You can get a free key at aistudio.google.com.');
   }
+  // Thinking off or minimal by default: about 6x fewer tokens per answer, and simple maths still works.
+  // Each model family takes a different setting (see thinking.js), so it is built per model.
+  const thinkingConfig = thinkingConfigFor(model, { level: config.geminiThinkingLevel, budget: config.geminiThinkingBudget });
+  warnAboutThinking([model]);
   return new ChatGoogleGenerativeAI({
-    model: config.geminiModel,
+    model,
     apiKey: config.googleApiKey,
     temperature: 0.2,
     // Fail fast when Gemini is overloaded instead of retrying for a minute or more.
     maxRetries: 2,
-    // Thinking off by default: about 6x fewer tokens per answer, and simple maths still works.
-    ...(config.geminiThinkingBudget === null ? {} : { thinkingConfig: { thinkingBudget: config.geminiThinkingBudget } }),
+    ...(thinkingConfig ? { thinkingConfig } : {}),
   });
 }
 
 // Fallback when the model does not cite: show chunks clearly related to the question.
 const MIN_SOURCE_SCORE = 0.2;
 const RELATIVE_SOURCE_SCORE = 0.7;
-const SOURCES_LINE = /\n?[ \t]*\**SOURCES:?\**:?[ \t]*([^\n]*)\s*$/i;
+// The last line "SOURCES: 1, 3" / "SOURCES: none" (any case, optional ** and colon). It may also
+// end the last sentence ("… 18 months. SOURCES: 1"), but then it needs the colon. Only "none" or
+// numbers may follow, with commas, "and", ranges or brackets ("[1], [3]", "1 and 3", "1-3"), so a
+// last sentence like "The sources are in the appendix." stays.
+const CITED = '(none|(?:[\\d,;&()\\[\\]\\- \\t]|and\\b)*)\\.?[ \\t]*\\**';
+const SOURCES_LINE = new RegExp(`(?:(?:^|\\n)[ \\t]*\\**SOURCES\\**[ \\t]*:?\\**[ \\t]*${CITED}|[ \\t]+\\**SOURCES\\**[ \\t]*:\\**[ \\t]*${CITED})\\s*$`, 'i');
 
 /** Split the model output into the answer and the context numbers it cited (null = no SOURCES line). */
 export function splitCitations(output) {
   const match = output.match(SOURCES_LINE);
   if (!match) return { answer: output.trim(), cited: null };
-  const cited = [...match[1].matchAll(/\d+/g)].map((m) => Number(m[0]));
+  const cited = [...(match[1] ?? match[2]).matchAll(/\d+/g)].map((m) => Number(m[0]));
   return { answer: output.slice(0, match.index).trim(), cited };
 }
 
@@ -155,15 +193,235 @@ function buildSearchQuery(question, history) {
   return lastUserMessage ? `${lastUserMessage.content}\n${question}` : question;
 }
 
+/** A model took longer than GEMINI_TIMEOUT_SECONDS. */
+export class LlmTimeoutError extends Error {
+  constructor() {
+    super(`No answer within ${config.geminiTimeoutSeconds} seconds.`);
+    this.name = 'LlmTimeoutError';
+  }
+}
+
+const errorStatus = (error) => Number(error?.status ?? error?.response?.status) || 0;
+// Google answers a wrong API key with HTTP 400 (reason API_KEY_INVALID), not 401/403: an auth problem, not a bad setting.
+const isAuthError = (error) => [401, 403].includes(errorStatus(error)) || /api[_ ]?key|API_KEY_INVALID/i.test(String(error?.message ?? ''));
+// A 400 that is about a request setting (model name, thinking setting), as opposed to the key.
+const isConfigError = (error) => errorStatus(error) === 400 && !isAuthError(error);
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+const RETRYABLE_TEXT = /quota|rate.?limit|resource.?exhausted|overloaded|high demand|unavailable|timed? ?out|fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|model.*not found/i;
+
 /**
- * Retrieve relevant chunks and ask the LLM to answer from them only.
- * @param {{ question: string, history?: Array<{ role: string, content: string }>, llm?: import('@langchain/core/language_models/chat_models').BaseChatModel, session: object | null }} params
+ * Errors another model may not have: quota, overload, timeouts, network problems and a
+ * retired model (404). Bad requests and key problems would fail on every model.
  */
-/** Turn provider errors into short messages the user can act on. */
-function toLlmError(error) {
-  const status = error?.status ?? error?.response?.status;
+export function isRetryableLlmError(error) {
+  if (error instanceof LlmTimeoutError) return true;
+  const status = errorStatus(error);
+  if (RETRYABLE_STATUS.has(status)) return true;
+  // 404 only when the model itself is unknown or retired ("models/x is not found").
+  if (status === 404) return /model/i.test(String(error?.message ?? ''));
+  if (status === 400 || status === 401 || status === 403) return false;
+  const text = String(error?.message ?? '');
+  return !/api.?key|permission|thinking/i.test(text) && RETRYABLE_TEXT.test(text);
+}
+
+/** Short reason for logs: status and the start of the provider message (never the prompt). */
+function describeError(error) {
+  const status = errorStatus(error);
+  const text = String(error?.message ?? error).split('\n')[0].slice(0, 120);
+  // The provider's 400 text ("Request contains an invalid argument.") does not say what was wrong.
+  if (isConfigError(error)) return `${status} ${text} [config error: check the model name, GEMINI_THINKING_LEVEL and GEMINI_THINKING_BUDGET]`;
+  return status ? `${status} ${text}` : text;
+}
+
+/** A 400 is a request/setting error, not a passing problem; the error to report is kept (see invokeWithFallback). */
+const settingFor = (index) => (index === 0 ? 'GEMINI_MODEL' : 'GEMINI_FALLBACK_MODEL');
+
+/** The visitor closed the page or the connection: stop, and do not try the fallback. */
+export class ClientGoneError extends Error {
+  constructor() {
+    super('The visitor left before the answer was finished.');
+    this.name = 'ClientGoneError';
+  }
+}
+
+/**
+ * Run one model call with GEMINI_TIMEOUT_SECONDS; a timeout aborts the request. Streams call
+ * touch() for each piece of text, so the limit is the wait for the next piece, not the whole answer.
+ * clientSignal (optional) aborts the request too when the visitor leaves.
+ */
+async function withTimeout(call, clientSignal) {
+  const controller = new AbortController();
+  const signal = clientSignal ? AbortSignal.any([controller.signal, clientSignal]) : controller.signal;
+  const ms = config.geminiTimeoutSeconds * 1000;
+  let timer = setTimeout(() => controller.abort(), ms);
+  const touch = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => controller.abort(), ms);
+  };
+  try {
+    // @langchain/google-genai ends a stream quietly when aborted, hence the check after the call too.
+    const result = await call(signal, touch);
+    if (clientSignal?.aborted) throw new ClientGoneError();
+    if (controller.signal.aborted) throw new LlmTimeoutError();
+    return result;
+  } catch (error) {
+    if (clientSignal?.aborted) throw new ClientGoneError();
+    throw controller.signal.aborted ? new LlmTimeoutError() : error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** The models to try in order: the main model, then the fallback (if set). */
+function modelAttempts(llm, fallbackLlm) {
+  if (llm) {
+    return [{ name: llm.model ?? 'main model', llm }, ...(fallbackLlm ? [{ name: fallbackLlm.model ?? 'fallback model', llm: fallbackLlm }] : [])];
+  }
+  const attempts = [{ name: config.geminiModel, llm: createLlm() }];
+  if (config.geminiFallbackModel) attempts.push({ name: config.geminiFallbackModel, llm: createLlm(config.geminiFallbackModel) });
+  return attempts;
+}
+
+/**
+ * Ask each model in turn. Move to the next one only for errors another model may not have
+ * (quota, overload, timeout, retired model); otherwise, or when all fail, report the main
+ * model's error, because GEMINI_MODEL is the setting the user can fix. A 400 is never retried on
+ * the fallback and is reported (as LLM_CONFIG, naming that model) even when the other model failed
+ * first for a passing reason: a rejected setting is what the operator can fix, and a busy main
+ * model must not hide a fallback that cannot work.
+ */
+async function invokeWithFallback(attempts, input) {
+  let firstError;
+  let configFailure;
+  for (const [index, { name, llm }] of attempts.entries()) {
+    const chain = prompt.pipe(llm).pipe(new StringOutputParser());
+    try {
+      const answer = await withTimeout((signal) => chain.invoke(input, { signal }));
+      if (index > 0) console.warn(`LLM answered with fallback model ${name}.`);
+      return answer;
+    } catch (error) {
+      firstError ??= error;
+      if (isConfigError(error)) configFailure ??= { error, name, setting: settingFor(index) };
+      // The user sees the main model's error, so the fallback's own failure must reach the log.
+      if (index > 0) console.warn(`LLM fallback model ${name} failed too (${describeError(error)}).`);
+      const next = attempts[index + 1];
+      if (!next || !isRetryableLlmError(error)) break;
+      console.warn(`LLM fallback: ${name} failed (${describeError(error)}), trying ${next.name}.`);
+    }
+  }
+  throw configFailure ? toLlmError(configFailure.error, configFailure.name, configFailure.setting) : toLlmError(firstError, attempts[0].name);
+}
+
+// Text from a candidate position that could still become the final SOURCES line (see
+// SOURCES_LINE), also while it is incomplete: at a line start the colon is optional, after a
+// sentence it is required. Anything after a newline must be blank (the line must be the last).
+const MAYBE_CITED = '(?:n(?:o(?:n(?:e)?)?)?|(?:[\\d,;&()\\[\\]\\- \\t]|a(?:n(?:d)?)?)*)\\.?[ \\t]*\\**[ \\t]*';
+const MAYBE_SOURCES_AT_LINE_START = new RegExp(`^\\**sources\\**[ \\t]*:?\\**[ \\t]*${MAYBE_CITED}(?:\\n\\s*)?$`, 'i');
+const MAYBE_SOURCES_IN_LINE = new RegExp(`^\\**sources\\**[ \\t]*(?::\\**[ \\t]*${MAYBE_CITED})?(?:\\n\\s*)?$`, 'i');
+
+/**
+ * Hides the final "SOURCES: …" line while an answer streams. Text from a word that may be
+ * that line (or may still grow into it, like a trailing "So" or "**") is held back until the
+ * next pieces decide; ordinary text that only contains the word "sources" is shown.
+ * push(piece) returns the text that is safe to show now. The final answer is always
+ * recomputed from the full text with splitCitations().
+ */
+export function createSourcesFilter() {
+  let pending = '';
+  let lastShown = '\n'; // last character already shown ("\n" at the start of the answer)
+  let shownLineBlank = true; // the shown part of the current line is only spaces
+  const blank = (text) => /^[ \t]*$/.test(text);
+
+  const atLineStart = (p) => {
+    const newline = pending.lastIndexOf('\n', p - 1);
+    return newline >= 0 ? blank(pending.slice(newline + 1, p)) : shownLineBlank && blank(pending.slice(0, p));
+  };
+
+  const holdsFrom = (p) => {
+    if (!/\s/.test(p === 0 ? lastShown : pending[p - 1])) return false;
+    const rest = pending.slice(p);
+    const word = /^\**([a-z]*)$/i.exec(rest);
+    if (word && 'sources'.startsWith(word[1].toLowerCase())) return true;
+    return (atLineStart(p) ? MAYBE_SOURCES_AT_LINE_START : MAYBE_SOURCES_IN_LINE).test(rest);
+  };
+
+  return {
+    push(piece) {
+      pending += piece;
+      let p = 0;
+      while (p < pending.length && !(/[*s]/i.test(pending[p]) && pending[p - 1] !== '*' && holdsFrom(p))) p += 1;
+      const out = pending.slice(0, p);
+      pending = pending.slice(p);
+      if (out) {
+        const newline = out.lastIndexOf('\n');
+        shownLineBlank = newline >= 0 ? blank(out.slice(newline + 1)) : shownLineBlank && blank(out);
+        lastShown = out.at(-1);
+      }
+      return out;
+    },
+  };
+}
+
+/**
+ * Stream from each model in turn, calling onToken(text) as safe answer text arrives. Falls back
+ * like invokeWithFallback, but only while no text was sent: after the first token an error
+ * ends the answer (the visitor already saw part of it). Resolves to the full model output.
+ */
+async function streamWithFallback(attempts, input, onToken, clientSignal) {
+  let firstError;
+  let configFailure;
+  for (const [index, { name, llm }] of attempts.entries()) {
+    const chain = prompt.pipe(llm).pipe(new StringOutputParser());
+    const filter = createSourcesFilter();
+    let output = '';
+    let sent = false;
+    try {
+      await withTimeout(async (signal, touch) => {
+        const stream = await chain.stream(input, { signal });
+        for await (const piece of stream) {
+          touch();
+          output += piece;
+          const text = filter.push(piece);
+          if (text) {
+            sent = true;
+            onToken(text);
+          }
+        }
+      }, clientSignal);
+      if (index > 0) console.warn(`LLM answered with fallback model ${name}.`);
+      return output;
+    } catch (error) {
+      if (error instanceof ClientGoneError) throw error;
+      // Text was already shown: the answer ends here with the error of the model that was streaming, named by its own setting.
+      if (sent) throw toLlmError(error, name, settingFor(index));
+      firstError ??= error;
+      if (isConfigError(error)) configFailure ??= { error, name, setting: settingFor(index) };
+      // The user sees the main model's error, so the fallback's own failure must reach the log.
+      if (index > 0) console.warn(`LLM fallback model ${name} failed too (${describeError(error)}).`);
+      const next = attempts[index + 1];
+      if (!next || !isRetryableLlmError(error)) break;
+      console.warn(`LLM fallback: ${name} failed (${describeError(error)}), trying ${next.name}.`);
+    }
+  }
+  throw configFailure ? toLlmError(configFailure.error, configFailure.name, configFailure.setting) : toLlmError(firstError, attempts[0].name);
+}
+
+/**
+ * Turn provider errors into short messages the user can act on. `model` and `setting` name the
+ * model that failed and the .env setting that chooses it.
+ */
+function toLlmError(error, model = config.geminiModel, setting = 'GEMINI_MODEL') {
+  const status = errorStatus(error);
   const text = String(error?.message ?? '');
   console.error('LLM error:', text);
+  if (error instanceof LlmTimeoutError) {
+    return new HttpError(504, 'LLM_TIMEOUT', 'The AI took too long to answer. Please try again.');
+  }
+  // Gemini's 400 text ("Request contains an invalid argument.") never names the setting, so a 400 that is not about the key
+  // is reported as a settings problem. (Other 400s, such as FAILED_PRECONDITION for an unsupported location, also land here.)
+  if (status === 400 && !isAuthError(error)) {
+    return new HttpError(502, 'LLM_CONFIG', `Gemini rejected the request settings for the model "${model}" (400). Check ${setting}, GEMINI_THINKING_LEVEL and GEMINI_THINKING_BUDGET in .env.`);
+  }
   if (status === 429 || /quota|rate.?limit|resource.?exhausted/i.test(text)) {
     return new HttpError(429, 'LLM_RATE_LIMIT', 'The free Gemini limit was reached. Wait a minute and try again.');
   }
@@ -173,16 +431,17 @@ function toLlmError(error) {
   if (status === 401 || status === 403 || /api.?key/i.test(text)) {
     return new HttpError(502, 'LLM_AUTH', 'Gemini rejected the API key. Check GOOGLE_API_KEY in your .env file.');
   }
-  if (status === 400 && /thinking/i.test(text)) {
-    return new HttpError(502, 'LLM_THINKING', `The model "${config.geminiModel}" does not accept GEMINI_THINKING_BUDGET=${config.geminiThinkingBudget}. Set GEMINI_THINKING_BUDGET=default in .env.`);
-  }
   if (status === 404 || /not found/i.test(text)) {
-    return new HttpError(502, 'LLM_MODEL', `The model "${config.geminiModel}" is not available. Set GEMINI_MODEL in .env to a current model.`);
+    return new HttpError(502, 'LLM_MODEL', `The model "${model}" is not available. Set ${setting} in .env to a current model.`);
   }
   return new HttpError(502, 'LLM_ERROR', 'The AI service could not answer right now. Please try again.');
 }
 
-export async function answerQuestion({ question, history = [], llm, session }) {
+/**
+ * Checks, retrieval and prompt input shared by answerQuestion and streamAnswer.
+ * input is null when nothing was retrieved (the answer is then "not found").
+ */
+async function prepareAnswer({ question, history = [], llm, fallbackLlm, session }) {
   if (!question) {
     throw new HttpError(400, 'EMPTY_QUESTION', 'Type a question first.');
   }
@@ -192,29 +451,43 @@ export async function answerQuestion({ question, history = [], llm, session }) {
   if (!hasDocuments(session)) {
     throw new HttpError(400, 'NO_DOCUMENTS', `Upload a document first, then ask your question. Documents are removed after ${config.sessionTtlMinutes} minutes without activity.`);
   }
-  const model = llm ?? createLlm();
+  const attempts = modelAttempts(llm, fallbackLlm);
 
   const chatHistory = toChatHistory(history);
   const results = await search(session, buildSearchQuery(question, chatHistory), config.topK);
   const chunks = results.map(([chunk]) => chunk);
-  if (chunks.length === 0) {
-    return { answer: NOT_FOUND_ANSWER, sources: [] };
-  }
+  const input = chunks.length === 0 ? null : { context: formatContext(chunks), history: chatHistory, question };
+  return { attempts, results, input };
+}
 
-  const chain = prompt.pipe(model).pipe(new StringOutputParser());
-  let answer;
-  try {
-    answer = await chain.invoke({
-      context: formatContext(chunks),
-      history: chatHistory,
-      question,
-    });
-  } catch (error) {
-    throw toLlmError(error);
-  }
-  const { answer: text, cited } = splitCitations(answer);
+/** Final answer text and its sources from the full model output. */
+function finishAnswer(question, output, results) {
+  const { answer: text, cited } = splitCitations(output);
   const finalAnswer = text || NOT_FOUND_ANSWER;
   // When the answer is not in the documents, there is no source to show.
   const sources = finalAnswer.includes(NOT_FOUND_ANSWER) ? [] : toSources(pickSourceChunks(results, cited), `${question}\n${finalAnswer}`);
   return { answer: finalAnswer, sources };
+}
+
+/**
+ * Retrieve relevant chunks and ask the LLM to answer from them only. Tests can pass
+ * `llm` (and `fallbackLlm`) instead of the configured Gemini models.
+ * @param {{ question: string, history?: Array<{ role: string, content: string }>, llm?: import('@langchain/core/runnables').Runnable, fallbackLlm?: import('@langchain/core/runnables').Runnable, session: object | null }} params
+ */
+export async function answerQuestion(params) {
+  const { attempts, results, input } = await prepareAnswer(params);
+  if (!input) return { answer: NOT_FOUND_ANSWER, sources: [] };
+  return finishAnswer(params.question, await invokeWithFallback(attempts, input), results);
+}
+
+/**
+ * Like answerQuestion, but calls onToken(text) while the model writes the answer (the
+ * SOURCES line is never sent). Resolves to the same { answer, sources } as answerQuestion.
+ * Errors before the first token are the same as answerQuestion's. When `signal` aborts (the
+ * visitor left), the model request is aborted and it rejects with ClientGoneError.
+ */
+export async function streamAnswer({ onToken, signal, ...params }) {
+  const { attempts, results, input } = await prepareAnswer(params);
+  if (!input) return { answer: NOT_FOUND_ANSWER, sources: [] };
+  return finishAnswer(params.question, await streamWithFallback(attempts, input, onToken, signal), results);
 }
