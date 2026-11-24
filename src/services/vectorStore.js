@@ -125,7 +125,8 @@ export async function addDocument(session, file, { onProgress } = {}) {
     await session.store.addVectors(vectors, chunks);
   } catch (error) {
     session.chunks -= chunks.length;
-    totalChunks -= chunks.length;
+    // freeSession() already gave back this session's whole reservation if it expired meanwhile.
+    if (sessions.get(session.id) === session) totalChunks -= chunks.length;
     console.error('Embedding failed:', error);
     throw new HttpError(503, 'EMBEDDING_FAILED', 'The embedding model could not be loaded. Check your internet connection (needed once to download it) and try again.');
   }

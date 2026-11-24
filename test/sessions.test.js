@@ -80,3 +80,17 @@ test('a session that expired during an upload reserves no more space', async () 
   await rejectsWith(store.addDocument(session, file('late.txt', 'Late file.')), 'SESSION_EXPIRED');
   assert.equal(store.getStats().totalChunks, before);
 });
+
+test('a session that expires while embedding and then fails gives its space back only once', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  store.removeExpiredSessions(afterTtl());
+  const before = store.getStats().totalChunks;
+  const session = store.createSession();
+  // The slow step fails after the session was already freed by the expiry check.
+  session.store.addVectors = async () => {
+    store.removeExpiredSessions(afterTtl());
+    throw new Error('embedding failed');
+  };
+  await rejectsWith(store.addDocument(session, file('slow.txt', 'Slow file.')), 'EMBEDDING_FAILED');
+  assert.equal(store.getStats().totalChunks, before);
+});
