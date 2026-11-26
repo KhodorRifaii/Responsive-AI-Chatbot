@@ -4,6 +4,8 @@ A chatbot that answers questions about your own documents. Upload PDF, Word, tex
 
 Every tool and service it uses is free.
 
+**Live demo:** https://responsive-ai-chatbot.onrender.com (free hosting, so the first load can take about a minute)
+
 ## Features
 
 The chatbot covers the following:
